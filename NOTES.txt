@@ -1,0 +1,47 @@
+Notes for 2024 297101
+
+Workshops: 2 hours a week, single session. Can probably be a little shorter
+than the ones we had in 161.122 to stretch out...
+
+Workshop 1: Intro to R and ggplot. Scatter plot? Jitter? Smoother?
+
+Something other than the earthquake data I think?
+
+Or use the EQ data from lab 2+3 first for scatterplot, smoother, jitter, colours.
+
+Assessment: Some questions on ggplot (set vs map, ask what plot code is doing,
+jitter/alpha?)
+
+Workshop 2: Histogram, density, boxplot.
+
+Use EQ data from lab 3, with categorisation of depth perhaps?
+
+Assessment: Questions on density/histogram bins, interpret of boxplot?
+
+Workshop 3: Quarto, log transforms?
+
+Need some new data for log transforms. Maybe some covid data?
+
+Assessment: Hand in rendered quarto file containing analysis of new data set?
+
+Workshop 4: Dplyr (A5+A6)
+
+Assessment: Answer questions from school data? Cricket ODI questions?
+
+Workshop 5: Dplyr + ggplot extras (A7+A8)
+
+Assessment: Reproduce a graph? Make a graph bad?
+
+ASSIGNMENT 1
+
+Workshop 6: Visual inference in the context of regression, difference in means,
+(Donkey data?), Intro to the CLT and Normal distribution?
+
+
+
+
+QMD rather than RMD?
+
+Lectures: Video only, so can be shorter, e.g. two 30-40 minute a week?
+
+Tutorials: Could include maybe a "story" each week? Could also just do drop-in session?
