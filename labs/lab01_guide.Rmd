@@ -123,29 +123,6 @@ Another way to do this is with *jittering*, where we add a little bit of (random
 
 14. Try changing the amount of jitter (i.e. the amount of noise added to the points). You can google for "ggplot jitter amount" to figure this out!
 
-## Other geometries
-
-In step 13 and 14 you tried using a different geometry layer. Well, not really: the `geom_jitter` is just a short-hand convenience for `geom_point` paired with `position_jitter()`. Now we're going to try some *actual* alternate geometries. Let's try summarising the **trend** using `geom_smooth`:
-
-15. Try the following:
-
-    ```{r, eval=FALSE}
-    ggplot(data=quakes) +
-      geom_smooth(aes(x=mag, y=stations))
-    ```
-    
-    What do you think this is doing? What do you think the black bit and the transparent "band" represent? Did the trend come out as you expect? Write some notes in your R script about this.
-    
-16. Showing just the trend, without the data can be useful in some circumstances for focusing on the "important" bits (this idea is called statistical inference). But, we lose information when we do this, as we just see trend, and don't have a good feel for the scatter about the trend! We know that some magnitude 5 quakes are felt at more stations than others for example, while the smooth trend just tells us the "average" value. One way to solve this is to use both:
-
-    ```{r, eval=FALSE}
-    ggplot(data=quakes) +
-      geom_point(aes(x=mag, y=stations)) +
-      geom_smooth(aes(x=mag, y=stations))
-    ```
-    
-    You might want to explore adding some transparency to push the points into the background a little, and/or using some colour for the smoother or points to help balance the plot.
+15. You can always combine jitter with some transparency as well. Play around and see what you think is the best balance between changing the data a bit (jitter) and utilising transparency to show the point density.
 
 Finally, finish up by going through your R script and adding some comments to anything you don't find clear. Then save it in a safe place!
-
-
