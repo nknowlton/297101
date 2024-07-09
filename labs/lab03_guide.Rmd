@@ -1,0 +1,28 @@
+---
+title: "Workshop 3: Single and grouped numeric variables, RMarkdown"
+output: html_document
+---
+
+In this exercise we'll look at plots of a single or grouped numeric variables. In that case we're interested in the distribution of the variable, which can usually be described in terms of:
+
+- **Center** Where is the 'middle' or 'typical' value?
+- **Spread** What is the range, or the range that captures most of the data?
+- **Shape** Are the measures distributed the same way above and below the middle (symmetric), or are the data skew in one direction?
+
+In the case where we also have a grouping variable, we might be interested in how the above measures differ from group to group.
+
+We'll also look at R Markdown - a way to combine narrative writing with code and output from analyses to create reproducible reports.
+
+Start by downloading lab03.Rmd and load it into RStudio. The easiest way to do this is to right click on the URL below and "Save file as..."
+
+https://www.massey.ac.nz/~jcmarsha/297101/labs/lab03.Rmd
+
+1. Read through this markdown document. You'll notice that it combines plain text writing as well as various embellishments such as headings, italics, bold and the like.
+
+2. In addition there are R code blocks included, which will allow you to add some analysis alongside the markdown writing.
+
+3. When you "Knit" the markdown document (using the "Knit" button on the toolbar) you'll get all the analyses in R code blocks run and the code and output will be placed inline with the writing. This will produce an HTML "Notebook" that contains everything nicely formatted up.
+
+The instructions for this workshop are contained in lab03.Rmd, so read through and answer questions in that document.
+
+**Once you've completed the workshop you'll need to upload the resulting `lab03.Rmd` file for your weekly assessment. Make sure that you can knit it properly before you do!**
