@@ -24,7 +24,7 @@ https://r-resources.massey.ac.nz/help/usingrin161.122.html
 
 [01: Our first R script: Plotting with ggplot2](https://www.massey.ac.nz/~jcmarsha/297101/labs/lab01_guide.html)
 
-[02: ggplot2: Summaries for numeric variables](https://www.massey.ac.nz/~jcmarsha/297101/labs/lab02_guide.html)
+[02: Other geometries, and labelling our charts](https://www.massey.ac.nz/~jcmarsha/297101/labs/lab02_guide.html)
 
 [03: R Markdown and grouped numeric variables](https://www.massey.ac.nz/~jcmarsha/161122/labs/labA04_guide.html)
 

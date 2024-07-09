@@ -34,12 +34,12 @@ When done, you'll see that RStudio loads the script (a text file with a list of 
 2. The first command is `library(tidyverse)`. This tells RStudio to load in the libraries (also known as packages) called the `tidyverse`. Packages are a way to extend the base R/RStudio functionality. In this case, the tidyverse package is a set of packages for doing data analysis in a consistent way. See http://www.tidyverse.org for more information.
 
 3. Place your cursor on the line `library(tidyverse)` and then click on the `Run` button in the top right of the editor pane. Alternatively, `Ctrl`-`Enter` (`Command`-`Enter` on a Mac) will run the line. What should happen is the line will be copied down to the `Console` window, where it will be executed. In this case, the package will be loaded and you should get a message that looks something like this:
+    
+    ```{r, echo=FALSE}
+    library(tidyverse)
+    ```
 
-```{r, echo=FALSE}
-library(tidyverse)
-```
-
-If you get an error here, it's probably due to the `tidyverse` packages not being installed - check https://r-resources.massey.ac.nz/help/usingrin161.122.html or contact your lecturers to get things figured out.
+    If you get an error here, it's probably due to the `tidyverse` packages not being installed - check https://r-resources.massey.ac.nz/help/usingrin161.122.html or contact your lecturers to get things figured out.
 
 ## Now for something useful!
 
@@ -72,13 +72,13 @@ If you get an error here, it's probably due to the `tidyverse` packages not bein
 ## Describing our plot
 
 8. Think about how you would describe the relationship you see between the magnitude and the number of stations an earthquake is detected at. There is no "right" language for doing this! You can use whatever plain language as you feel describes the relationship best. Ofcourse, we will learn some "standard" terms, but the more important thing is communicating what you see. Some things to consider might be:
+  
+    - *Is there a trend?* i.e. does one variable change as the other one does?
+    - *How would you describe the shape of the trend?* Is it going up? Is it going down? Is it going up then down? Is it straight or curved?
+    - *What does the scatter of points around the trend look like?* Are the points tightly clustered on the trend, or are they spread out? Does the amount of spread change at all, or is it pretty consistent?
+    - *Are there any observations that are "odd" in some way?* (e.g. some distance from other observations?)
 
-  - *Is there a trend?* i.e. does one variable change as the other one does?
-  - *How would you describe the shape of the trend?* Is it going up? Is it going down? Is it going up then down? Is it straight or curved?
-  - *What does the scatter of points around the trend look like?* Are the points tightly clustered on the trend, or are they spread out? Does the amount of spread change at all, or is it pretty consistent?
-  - *Are there any observations that are "odd" in some way?* (e.g. some distance from other observations?)
-
-Write some comments (remember to use a # character before each line!) in your script about this.
+    Write some comments (remember to use a # character before each line!) in your script about this.
 
 9. Think about what the two variables you're looking at are. Does the relationship you see make sense? Write a comment about this in your R script. (The idea here is the *statistical* evidence is complementing the evidence we have from the domain of the data.)
 
