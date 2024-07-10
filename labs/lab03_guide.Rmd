@@ -23,6 +23,6 @@ https://www.massey.ac.nz/~jcmarsha/297101/labs/lab03.Rmd
 
 3. When you "Knit" the markdown document (using the "Knit" button on the toolbar) you'll get all the analyses in R code blocks run and the code and output will be placed inline with the writing. This will produce an HTML "Notebook" that contains everything nicely formatted up.
 
-The instructions for this workshop are contained in lab03.Rmd, so read through and answer questions in that document.
+The instructions for this workshop are contained in `lab03.Rmd`, so read through and answer questions in that document.
 
-**Once you've completed the workshop you'll need to upload the resulting `lab03.Rmd` file for your weekly assessment. Make sure that you can knit it properly before you do!**
+**Once you've completed the workshop, make sure you can knit it properly to ensure it is reproducible.**
