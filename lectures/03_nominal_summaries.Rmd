@@ -1,6 +1,6 @@
 ---
-title: 'Lecture 4'
-subtitle: 'Relationships between quantitative and qualitative data'
+title: 'Qualitative Data'
+subtitle: 'Summaries and relationships'
 output:
   xaringan::moon_reader:
     css: [default, default-fonts, "custom.css"]
@@ -11,8 +11,7 @@ output:
       ratio: "16:9"
       slideNumberFormat: |
         <div class="progress-bar-container">
-          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);">
-          </div>
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
         </div>
 editor_options:
   chunk_output_type: console
