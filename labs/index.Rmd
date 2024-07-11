@@ -18,7 +18,7 @@ Make sure you have both R and RStudio installed. In addition, make sure you have
 
 Both of these are detailed here:
 
-https://r-resources.massey.ac.nz/help/usingrin161.122.html
+https://r-resources.massey.ac.nz/help/usingrin297.101.html
 
 ## Workshops
 
@@ -26,18 +26,8 @@ https://r-resources.massey.ac.nz/help/usingrin161.122.html
 
 [02: Other geometries, and labelling our charts](https://www.massey.ac.nz/~jcmarsha/297101/labs/lab02_guide.html)
 
-[03: R Markdown and grouped numeric variables](https://www.massey.ac.nz/~jcmarsha/161122/labs/labA04_guide.html)
-
-[A05: Data wrangling with `dplyr`](https://www.massey.ac.nz/~jcmarsha/161122/labs/labA05_guide.html)
-
-[A06: Grouping data and small multiples](https://www.massey.ac.nz/~jcmarsha/161122/labs/labA06_guide.html)
-
-[A07: Making tidy data wide, joining datasets](https://www.massey.ac.nz/~jcmarsha/161122/labs/labA07_guide.html)
-
-[A08: Bringing things together](https://www.massey.ac.nz/~jcmarsha/161122/labs/labA08_guide.html)
+[03: R Markdown and grouped numeric variables](https://www.massey.ac.nz/~jcmarsha/297101/labs/lab03_guide.html)
 
 ## Screencasts
 
-Below is a set of youtube videos of Jonathan M working through each of the workshops.
-
-https://www.youtube.com/playlist?list=PLZ_OkMURFtaV26Zo_gywrlLmpXWT5qK6p
+A link will be placed below with a set of videos of Jonathan M working through each of the workshops.
