@@ -26,12 +26,6 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
 ```
 
-class: middle, inverse
-
-## Welcome to Statistical Data Science
-
----
-
 ## Teaching team
 
 In order of appearance:
@@ -40,26 +34,6 @@ Jonathan Marshall         |  Jonathan Godfrey          | Mat Pawley
 --------------------------|----------------------------|--------------------------
 j.c.marshall@massey.ac.nz |   a.j.godfrey@massey.ac.nz | m.pawley@massey.ac.nz
 Manawatu ScB3.17          |   Manawatu ScB3.15         | Albany MS3.08
-
----
-
-.left-code[
-## Who am I?
-
-- I studied maths at university (this one!) and am Academic lead in Statistics.
-
-- Interested in statistical modelling of disease.
-
-- Two main areas: [spatio-temporal modelling](https://jmarshallnz.github.io/talks/nzsa2016), and [source attribution](https://jmarshallnz.github.io/talks/OHA2019).
-]
-
-.right-code[
-<div align="center">
-<span class='inline'>
-  <img src="graphics/jm/headshot.jpg" style="width: 480px;" align="center"></a>
-</span>
-</div>
-]
 
 ---
 
@@ -132,8 +106,7 @@ https://r-resources.massey.ac.nz/help/usingrin297.122.html
 
 - General policy for lateness.
 
-    - Extensions for weekly homework only in exceptional circumstances.
-    - Extensions for assignments up to 7 days if requested well in advance.
+    - Extensions up to 7 days if requested well in advance.
     - Don't expect an extension if you haven't done anything yet!
 
 ---
