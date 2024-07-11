@@ -1,0 +1,314 @@
+---
+title: 'ggplot charts'
+subtitle: 'Scales and colours'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+penguins = na.omit(penguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+```
+
+## Data today
+
+We'll use the penguin data again, but also some from Horizons Regional council on river quality. In particular, counts of *E. coli* as an indicator of faecal contamination.
+
+```{r, message=FALSE}
+hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
+hrc
+```
+
+These data are available from Land, Air, Water Aotearoa, https://www.lawa.org.nz/download-data/
+
+---
+
+## Data today
+
+We have *E. coli* counts from `r hrc |> count(Site) |> nrow()` sites throughout the horizons regional council.
+
+```{r}
+count(hrc, Site)
+```
+
+---
+
+## Data today
+
+And the counts can be summarised as
+
+```{r}
+summarise(hrc, min(Value), max(Value), median(Value))
+```
+
+You can see that we have very low counts (1) and very high counts (over 200,000), with half the counts being less than 155.
+
+---
+
+class: middle, inverse
+
+# Scales and colours
+
+---
+
+## Scales
+
+Each aesthetic has an associated scale. `x` and `y` have axes, `colour` has a guide. These scales can involve a transformation (e.g. a log scale) or limits, or we can choose what colours to associate with each group.
+
+We do this through the `scale_` functions. e.g.
+  - `scale_x_log10()` to switch to a log scale,
+  - `scale_y_continuous` to define limits on a numeric y-axis, 
+  - `scale_colour_manual` for specifying colours manually.
+
+And lots more for specific circumstances.
+
+---
+
+.left-code[
+## Changing axis scales
+```{r peng21, eval=FALSE}
+ggplot(data = penguins) +
+  geom_point(
+    mapping = aes(
+      x = flipper_length_mm,
+      y = body_mass_g
+      )
+    ) +
+  scale_x_continuous( #<<
+    limits = c(100, 300) #<<
+    ) #<<
+```
+]
+
+.right-plot[
+```{r, ref.label="peng21", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Changing axis scales
+```{r hrc1, eval=FALSE}
+ggplot(data = hrc) +
+  geom_point(
+    mapping = aes(
+      x = Date,
+      y = Value
+      ),
+    alpha=0.5
+  )
+```
+]
+
+.right-plot[
+```{r, ref.label="hrc1", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Changing axis scales
+```{r hrc2, eval=FALSE}
+ggplot(data = hrc) +
+  geom_point(
+    mapping = aes(
+      x = Date,
+      y = Value
+      ),
+    alpha=0.5
+  ) +
+  scale_y_log10() #<<
+```
+]
+
+.right-plot[
+```{r, ref.label="hrc2", echo=FALSE, message=FALSE}
+```
+]
+
+
+---
+
+.left-code[
+## Changing axis scales
+```{r hrc3, eval=FALSE}
+ggplot(data = hrc,
+       mapping = aes(
+         x = Date,
+         y = Value
+       )
+     ) +
+  geom_point(alpha=0.1) +
+  geom_smooth() +
+  scale_y_log10()
+```
+]
+
+.right-plot[
+```{r, ref.label="hrc3", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Changing colours
+```{r peng_col1, eval=FALSE}
+ggplot(data = penguins) +
+  geom_point(
+    mapping = aes(
+      x = flipper_length_mm,
+      y = body_mass_g,
+      col = species
+      )
+    )
+```
+]
+
+.right-plot[
+```{r, ref.label="peng_col1", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Changing colours
+```{r peng_col2, eval=FALSE}
+ggplot(data = penguins) +
+  geom_point(
+    mapping = aes(
+      x = flipper_length_mm,
+      y = body_mass_g,
+      col = species
+      )
+    ) +
+  scale_colour_manual( #<<
+    values = c( #<<
+      Adelie = "darkgreen", #<<
+      Chinstrap = "maroon", #<<
+      Gentoo = "orange" #<<
+    ) #<<
+  ) #<<
+```
+]
+
+.right-plot[
+```{r, ref.label="peng_col2", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+## Changing colours
+
+The `c()` function is short for 'combine'. In this case we're combining 3 colours together, naming them after each species.
+
+```{r, eval=FALSE}
+c(Adelie = "darkgreen", Chinstrap = "maroon", Gentoo = "orange")
+```
+
+---
+
+.left-code[
+## Changing colours
+```{r peng_col2b, eval=FALSE}
+peng_colour = c( #<<
+      Adelie = "darkgreen", #<<
+      Chinstrap = "maroon", #<<
+      Gentoo = "orange" #<<
+    ) #<<
+ggplot(data = penguins) +
+  geom_point(
+    mapping = aes(
+      x = flipper_length_mm,
+      y = body_mass_g,
+      col = species
+      )
+    ) +
+  scale_colour_manual( #<<
+    values = peng_colour #<<
+  ) #<<
+```
+]
+
+.right-plot[
+```{r, ref.label="peng_col2b", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Changing colours: palettes
+```{r peng_col3, eval=FALSE}
+ggplot(data = penguins) +
+  geom_point(
+    mapping = aes(
+      x = flipper_length_mm,
+      y = body_mass_g,
+      col = species
+      )
+    ) +
+  scale_colour_viridis_d() #<<
+```
+]
+
+.right-plot[
+```{r, ref.label="peng_col3", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Changing colours: palettes
+```{r peng_col4, eval=FALSE}
+ggplot(data = penguins) +
+  geom_point(
+    mapping = aes(
+      x = flipper_length_mm,
+      y = body_mass_g,
+      col = species
+      )
+    ) +
+  scale_colour_brewer( #<<
+    palette = "Dark2" #<<
+    ) #<<
+```
+]
+
+.right-plot[
+```{r, ref.label="peng_col4", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+## Key ideas
+
+- Changing scales can help in some cases. Use a log scale if the data "live" on one!
+
+- Sometimes it makes sense to change the axis limits, but ggplot does a pretty good job by default.
+
+- The default colours used in ggplot are a bit rubbish.
+
+- Change them either using a colour palette (e.g. color brewer, viridis) or manually.

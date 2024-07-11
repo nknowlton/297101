@@ -1,0 +1,269 @@
+---
+title: 'ggplot charts'
+subtitle: 'Naming things: titles and labels'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+          </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+penguins = na.omit(penguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+```
+
+## Data today
+
+We'll use the penguin data again, but also some from Horizons Regional council on river quality. In particular, counts of *E. coli* as an indicator of faecal contamination.
+
+```{r, message=FALSE}
+hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
+hrc
+```
+
+These data are available from Land, Air, Water Aotearoa, https://www.lawa.org.nz/download-data/
+
+---
+
+## Data today
+
+We have *E. coli* counts from `r hrc |> count(Site) |> nrow()` sites throughout the horizons regional council.
+
+```{r}
+count(hrc, Site)
+```
+
+---
+
+## Data today
+
+And the counts can be summarised as
+
+```{r}
+summarise(hrc, min(Value), max(Value), median(Value))
+```
+
+You can see that we have very low counts (1) and very high counts (over 200,000), with half the counts being less than 155.
+
+---
+
+class: middle, inverse
+
+# Naming things
+
+---
+
+## Naming things: code style
+
+R code uses a lot of **functions**. The basic syntax for a function is:
+
+```{r, eval=FALSE}
+function_name(param1, param2, param3)
+```
+
+Functions can take a bunch of **parameters**. These are matched by name (if named), else by position.
+
+The code for our plot contains 3 functions:
+ - `ggplot(data = penguins)`
+ - `geom_point(mapping = aes(...))`
+ - `aes(x = flipper_length_mm, y = body_mass_g)`
+
+Note in each case we've named the parameters (i.e. `data = penguins`, `x = flipper_length_mm`). This is generally good practice. If unnamed you're relying on order, so this works too:
+
+```{r, eval=FALSE}
+ggplot(penguins) + geom_point(aes(flipper_length_mm, body_mass_g))
+```
+
+---
+
+## Naming things: titles and labels
+
+Charts should, as much as possible, be self-contained. They should tell the story without the viewer/reader having to figure out too much what each bit of the plot represents.
+
+- Concise, accurate axis labels, including units where relevant.
+
+- Concise, clear legend names and legend items.
+
+- A title (and possibly subtitle) that tells the story.
+
+- Possibly further captioning that helps (e.g. data sources, authorship).
+
+---
+
+## Axis labels
+
+Use `labs()` to change axis labels (or any labels associated with an aesthetic). 
+
+```{r, eval=FALSE}
+labs(x = "The x axis label I want to use",
+     y = "The y axis label",
+     colour = "The legend title for colour")
+```
+
+---
+
+.left-code[
+## Axis labels
+```{r peng17, eval=FALSE}
+ggplot(data = penguins,
+       mapping = aes(
+         x = flipper_length_mm,
+         y = body_mass_g
+         )
+       ) +
+  geom_point(
+    mapping = aes(
+      colour = species
+      )
+    ) +
+  geom_smooth() +
+  labs(x = "Flipper length (mm)", #<<
+       y = "Body mass (g)") #<<
+```
+]
+
+.right-plot[
+```{r, ref.label="peng17", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+## Titles and captions
+
+Titles should inform the reader what the chart is showing.
+
+**Ideally the title should help tell the story.**
+
+This is particularly important for charts shared with others (e.g. on social media).
+
+Anything you can add to the chart that helps tell the story means that those who see the chart immediately know what it is showing them.
+
+You can set a chart title (and subtitles or captions) using
+
+```{r, eval=FALSE}
+labs(title = "A useful title",
+     subtitle = "Shown smaller, under the title",
+     caption = "Shown in the bottom-right, useful for data source")
+```
+
+BUT! Be aware of editorialising too much. We've all read articles where the headlines mislead!
+
+---
+
+.left-code[
+## Titles tell the story
+```{r peng18, eval=FALSE}
+ggplot(data = penguins,
+       mapping = aes(
+         x = flipper_length_mm,
+         fill = species
+         )
+       ) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Flipper length (mm)",
+       title = "Distribution of penguin flipper lengths")
+```
+This is a bad title. We can tell it's a distribution already!
+
+"Penguin" is the only useful bit.
+]
+
+.right-plot[
+```{r, ref.label="peng18", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Titles tell the story
+```{r peng19, eval=FALSE}
+ggplot(data = penguins,
+       mapping = aes(
+         x = flipper_length_mm,
+         fill = species
+         )
+       ) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Flipper length (mm)",
+       title = "Penguin flipper length differs by species")
+```
+This is better.
+
+But surely it is obvious that flipper length would differ by species!
+]
+
+.right-plot[
+```{r, ref.label="peng19", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Titles tell the story
+```{r peng20, eval=FALSE}
+ggplot(data = penguins,
+       mapping = aes(
+         x = flipper_length_mm,
+         fill = species
+         )
+       ) +
+  geom_density(alpha = 0.5) +
+  labs(x = "Flipper length (mm)",
+       title = "Gentoo penguins have longer flippers")
+```
+This is even better.
+
+It's making the story clear.
+]
+
+.right-plot[
+```{r, ref.label="peng20", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+```{r, echo=FALSE, message=FALSE, fig.dim=c(6,3.5), fig.retina=3}
+border_plot <- read_csv(here::here("data/covid_arrivals/border_plot.csv"))
+ggplot(border_plot) +
+  aes(x=Date, y=fit) +
+  geom_col(aes(x=Date, y=cases_per_arrival), fill='red') +
+  geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=0.3) +
+  geom_line() +
+  ylab("Detected COVID-19 positives (%)") +
+  xlab("") +
+  theme_minimal(base_size=10) +
+  ggtitle("The Mystery of the missing May: COVID-19 cases at the border",
+          subtitle = "Bars are cases per person, line and band is smoothed trend with uncertainty (GAM)")
+```
+
+---
+
+## Key ideas
+
+- Write your code like you're going to be studying from it in another 10 weeks (name things!)
+
+- Always consider your axis labels to make sure they're clear.
+
+- Add units if they make sense.
+
+- Add a title, subtitle or caption.
+
+- Feel free to editorialise (to some extent!) to help tell the story.

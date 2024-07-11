@@ -1,0 +1,169 @@
+---
+title: '297.101'
+subtitle: 'Welcome to Statistical Data Science'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+penguins = na.omit(penguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+```
+
+class: middle, inverse
+
+## Welcome to Statistical Data Science
+
+---
+
+## Teaching team
+
+In order of appearance:
+
+Jonathan Marshall         |  Jonathan Godfrey          | Mat Pawley
+--------------------------|----------------------------|--------------------------
+j.c.marshall@massey.ac.nz |   a.j.godfrey@massey.ac.nz | m.pawley@massey.ac.nz
+Manawatu ScB3.17          |   Manawatu ScB3.15         | Albany MS3.08
+
+---
+
+.left-code[
+## Who am I?
+
+- I studied maths at university (this one!) and am Academic lead in Statistics.
+
+- Interested in statistical modelling of disease.
+
+- Two main areas: [spatio-temporal modelling](https://jmarshallnz.github.io/talks/nzsa2016), and [source attribution](https://jmarshallnz.github.io/talks/OHA2019).
+]
+
+.right-code[
+<div align="center">
+<span class='inline'>
+  <img src="graphics/jm/headshot.jpg" style="width: 480px;" align="center"></a>
+</span>
+</div>
+]
+
+---
+
+## Things we'll cover in the first 6 weeks
+
+- Learning R/RStudio.
+
+- Charting and visualisation with `ggplot2`.
+
+- Reproducible analysis with `rmarkdown`.
+
+- Data wrangling with `dplyr`.
+
+- The importance of tidy data.
+
+---
+
+## Software
+
+We use R via RStudio. https://www.r-project.org
+
+R was developed in Auckland, by [Ross Ihaka](https://en.wikipedia.org/wiki/Ross_Ihaka) and [Robert Gentleman](https://en.wikipedia.org/wiki/Robert_Gentleman_(statistician%29), but now there are a cast of thousands.
+
+It is programming language that is built with statistical analyses in mind.
+
+You will **learn to write code** to clean data, produce charts, and build models.
+
+We interact with R via the RStudio front-end: https://rstudio.com
+
+Both are free, and you should install them on your computer. Instructions are here:
+
+https://r-resources.massey.ac.nz/help/usingrin297.122.html
+
+---
+
+## Getting help
+
+- Use the stream forums to ask for help.
+
+- Use the [Discord channel](https://discord.gg/Mzk7fUk) to ask for help.
+
+- We encourage you to help your classmates on stream (or in workshops) as well.
+
+- Try and help us (and your classmates) help you: e.g. if you have an R issue, copy your code and the error so we can spot the problem.
+
+- Google is super useful! Include "R" or "RStudio" or maybe the name of the package "ggplot" or "dplyr" in your query.
+
+- Turning off the AI stuff in google gives better results. Change your browser search engine to use:
+
+    https://www.google.com/search?q=%s&udm=14
+
+- Check the date of the google responses: older results might well be out of date.
+
+---
+
+## Assessment
+
+- 40% of the assessment is **weekly homework**
+
+    - Low-stakes, around 4% per week. Adds up to a lot though!
+    - Easy marks if you've done the weekly workshop. Hard/impossible if you haven't!
+    - Keeps you on-track.
+    - Sometimes it'll be a (short!) quiz, sometimes you hand something in (from or related to the workshop)
+
+- Three assignments worth 20% each.
+
+    - Use what you've learnt in the workshops
+    - Has a component of "use something new we haven't specifically taught you"
+    - Expected to take at least 10 hours. Start EARLY!
+
+- General policy for lateness.
+
+    - Extensions for weekly homework only in exceptional circumstances.
+    - Extensions for assignments up to 7 days if requested well in advance.
+    - Don't expect an extension if you haven't done anything yet!
+
+---
+
+## Workshops
+
+- 2 hour workshop per week.
+
+- **Super important!** This is where the magic (learning!) happens.
+
+- You can work through them at your own pace.
+
+- The homework assessment can be done after each workshop.
+
+- In person sessions available at Manawatu or Albany.
+
+- Distance/online students can ask teaching staff for help anytime (discord is best!)
+
+---
+
+## Lectures
+
+- Pre-recorded videos (like this one!) each week.
+
+- Watch whenever you want.
+
+- Don't always have to watch the videos before doing the workshop, but you should watch and take notes from them all.
+
+---
+
+class: middle, inverse
+
+# Have fun!

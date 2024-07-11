@@ -1,0 +1,294 @@
+---
+title: 'Quantitative data'
+subtitle: 'Numeric summaries'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+
+set.seed(3) # reproducible
+xaringanExtra:::use_freezeframe()
+```
+
+## Data today
+
+We'll use the *E. coli* count data from rivers in the Horizons Region again today.
+
+```{r, message=FALSE}
+hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
+hrc
+```
+
+These data are available from Land, Air, Water Aoteoroa, https://www.lawa.org.nz/download-data/
+
+---
+
+## Data types
+
+There are two main types of data: quantitative and qualitative.
+
+- Quantitative: Numeric measures, counts. Often continuous.
+
+- Qualitative: Categories. Always discrete. Sometimes have an order.
+
+---
+
+class: middle,inverse
+
+# Quantitative data
+
+---
+
+## Quantitative data
+
+With quantitative data, or measure data, just about every value is potentially unique.
+
+So tabling the data up (i.e. counting how many of each number we have) doesn't really make sense.
+
+Instead, summarising the data needs to capture both where the data lies, the variation in the measure, and ideally how that variation occurs.
+
+The key summaries are: **center**, **spread** and **shape**.
+
+---
+
+## Measures of center
+
+The **center** of the data tells you about the scale that it is on, and where it's positioned on that scale.
+
+By reducing data to it's center, comparing measures across groups reduces to comparing numbers. But obviously that hides a bunch of detail!
+
+The most common measures of center are:
+
+ - The arithmetic **mean**: Sum of the values divided by the number of values: $\bar{x} = \frac{1}{n} \sum_{i=1}^n x_i$.
+ 
+ - The **median**: Order the values and take the middle one.
+ 
+ - The **mode**: The most popular value (this can be tricky to define!)
+
+---
+
+## Robustness
+
+Typically, the **median** is the most representative center.
+
+It doesn't depend as much on the shape of the data as the mean does, and is often close to the **mode**, the most popular value. The median is always in the middle, regardless of shape.
+
+The **mean** is far more convenient from a mathematical perspective but, as it depends on the values, it is strongly affected by shape or extreme values.
+
+Any measure that is strongly affected by extreme values in the data is not **robust**.
+
+The reason is that extreme values tend to be rare, and thus only pop up every now and then. Collecting another sample of data may result in the mean changing a bunch.
+
+Let's create some data with an extreme value:
+
+```{r}
+dat <- tibble(x = sample(20, 20, replace=TRUE),
+              y = c(100, x[-1]))
+```
+
+---
+
+```{r}
+dat
+```
+
+---
+
+## Robustness
+
+```{r}
+summarise(dat, mean_x = mean(x), mean_y = mean(y),
+          median_x = median(x), median_y = median(y))
+```
+
+The median of `x` and `y` are the same.
+
+The means are not.
+
+The mean of `y` is greatly affected by the extreme value.
+
+---
+
+## Robustness
+
+```{r}
+summarise(dat, mean_x = mean(x), mean_y = mean(y),
+          median_x = median(x), median_y = median(y),
+          trim_x = mean(x, trim=0.05), trim_y = mean(y, trim=0.05)) #<<
+```
+
+The median of `x` and `y` are the same.
+
+The means are not.
+
+The mean of `y` is greatly affected by the extreme value.
+
+The **trimmed** mean, where we first remove 5% of the extreme values at either end, is more robust.
+
+---
+
+.left-code[
+## Robustness
+```{r}
+summarise(hrc,
+          median(Value),
+          mean(Value))
+```
+
+```{r robust1, eval=FALSE}
+ggplot(data = hrc) +
+  geom_histogram(
+    mapping = aes(
+      x = Value
+      )
+    ) +
+  scale_x_log10(
+    labels = scales::label_comma()
+  )
+```
+]
+
+.right-plot[
+```{r ref.label="robust1", echo=FALSE, message=FALSE}
+```
+]
+
+
+---
+
+.left-code[
+## Robustness
+```{r}
+summarise(hrc,
+        median=median(Value),
+        mean=mean(Value, trim=0.05)) #<<
+```
+
+```{r robust2, eval=FALSE}
+ggplot(data = hrc) +
+  geom_histogram(
+    mapping = aes(
+      x = Value
+      )
+    ) +
+  scale_x_log10(
+    labels = scales::label_comma()
+  )
+```
+]
+
+.right-plot[
+```{r ref.label="robust2", echo=FALSE, message=FALSE}
+```
+]
+
+---
+
+
+## Quantiles and quartiles
+
+We can extend the concept of the median to be more general:
+
+- The **median** is the value that appears 50% of the way through the ordered data.
+
+- The **lower quartile** is the value that appears 25% of the way through the ordered data.
+
+- The **upper quartile** is the value that appears 75% of the way through the ordered data.
+
+- The **95th quantile** is the value that appears 95% of the way through the ordered data.
+
+```{r}
+summarise(hrc, lower = quantile(Value, 0.25),
+          median = quantile(Value, 0.5), upper = quantile(Value, 0.75),
+          `95th` = quantile(Value, 0.95))
+```
+
+---
+
+## Measures of spread
+
+- The **range** is the largest item minus the smallest item.
+
+- The **interquartile range** is the upper quartile minus the lower quartile. This is more robust than the range.
+
+- The **variance** is the averaged square distance of values to the mean.
+$$
+\sigma^2 = \frac{1}{n}\sum_{i=1}^n (x_i - \bar{x})^2
+$$
+- The **standard deviation** is the root mean square distance of values to the mean:
+$$
+\sigma = \sqrt{\frac{1}{n}\sum_{i=1}^n (x_i - \bar{x})^2}
+$$
+---
+
+## Measures of spread
+
+```{r}
+summarise(hrc,
+          range = max(Value) - min(Value),
+          iqr = quantile(Value, 0.75) - quantile(Value, 0.25),
+          sd = sd(Value),
+          var = var(Value),
+          mad = mad(Value))
+```
+
+The range, IQR and standard deviation and **median absolute deviation** are on the scale of the data.
+
+The variance is on the scale of the data squared.
+
+The IQR is more robust than the standard deviation.
+
+The **median absolute deviation** is more robust again:
+
+$$\textsf{median}(|x_i - \textsf{median}(x_i)|)$$
+
+---
+
+## Transformations
+
+The mean works well if the data are relatively symmetric in shape.
+
+If the data aren't relatively symmetric, then transforming the data to a different scale might make sense.
+
+On the different scale the data might be closer to being symmetric, so we can then use the mean. We can then transform back to summarise on the original scale.
+
+This allows us to use the more convenient mathematical properties of the mean while making sure we account for the lack of symmetry.
+
+It basically works in the same way that axis transformations work for charting: we plot the transformed variables, but back-transform the axis labels.
+
+```{r}
+summarise(hrc,
+          median = median(Value),
+          mean = mean(Value),
+          mean_from_log = exp(mean(log(Value))))
+```
+
+---
+
+## Key ideas
+
+- Summarise using a measure of center and a measure of spread
+
+- For symmetric data, means and standard deviations makes sense.
+
+- For skewed data, median and interquartile ranges make sense.
+
+- Sometimes a transformation can make skewed data symmetric so that means/sds can work again.
