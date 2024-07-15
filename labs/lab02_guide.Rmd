@@ -14,7 +14,7 @@ You should have worked through workshop 1 before trying this workshop. In there 
 
 Both of these are detailed here:
 
-https://r-resources.massey.ac.nz/help/usingrin161.122.html
+https://r-resources.massey.ac.nz/help/usingrin297.101.html
 
 ## Loading up the R script
 
@@ -78,7 +78,7 @@ In workshop 1 you tried using a different geometry layer. Well, not really: the 
 6. The 'smooth trend' that we've added via `geom_smooth()` is a *general additive model* which is basically fitting a series of curves that smoothly transition from one another (splines) to the data. An alternate method of smoothing is to use a LOESS (local linear smoother) which can be done via:
 
     ```{r, eval=FALSE}
-    geom_smooth(aes(x=mag, y=stations), method='loess', span=0.75)
+    geom_smooth(mapping=aes(x=mag, y=stations), method='loess', span=0.75)
     ```
     
     Try that instead - you might not notice a huge change as all we've done is change the method of smoothing, and we have a lot of points here.

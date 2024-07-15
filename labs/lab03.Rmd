@@ -48,7 +48,7 @@ Notice there's a small Play button in the top right of the code block above. Cli
 We can also do plotting, which again is shown inline. In the chunk below we look at how the magnitude variable is distributed with a histogram. Try running this code chunk.
 
 ```{r}
-ggplot(quakes) +
+ggplot(data=quakes) +
   geom_histogram(mapping=aes(x=mag))
 ```
 
@@ -76,7 +76,7 @@ Try this now!
 1. Above we did a histogram of earthquake magnitudes. By default the histogram divides the range of the numeric variable into 30 bins. But potentially a smaller (or larger) number of bins may suit. We can alter this with the `bins` argument:
 
 ```{r}
-ggplot(quakes) +
+ggplot(data=quakes) +
   geom_histogram(mapping=aes(x=mag), bins=20)
 ```
 
@@ -110,8 +110,8 @@ ggplot(data=quakes) +
 5. Another option is a boxplot:
 
 ```{r}
-ggplot(quakes) +
-  geom_boxplot(aes(x=mag))
+ggplot(data=quakes) +
+  geom_boxplot(mapping=aes(x=mag))
 ```
 
     In this representation, only the x-axis matters, the y-axis is completely arbitrary. The 'box' here represents the interquartile range - i.e. it goes from the lower quartile up to the upper quartile, capturing 50% of the data. The line inside the box is the median (i.e. the middle value). The "whiskers" on either side go from the quartiles to the minimum or maximum.
@@ -131,7 +131,7 @@ The code below creates a new version of the quakes data where we categorise the 
 ```{r}
 quakes_cat <- mutate(quakes, how_deep = if_else(depth < 300, "shallow", "deep"))
 
-ggplot(quakes_cat) +
+ggplot(data=quakes_cat) +
   geom_boxplot(mapping=aes(x=mag, y=how_deep))
 ```
 
