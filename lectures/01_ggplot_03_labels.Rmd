@@ -12,7 +12,7 @@ output:
       slideNumberFormat: |
         <div class="progress-bar-container">
           <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
-          </div>
+        </div>
 editor_options:
   chunk_output_type: console
 ---
@@ -25,47 +25,6 @@ penguins = na.omit(penguins)
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
 ```
-
-## Data today
-
-We'll use the penguin data again, but also some from Horizons Regional council on river quality. In particular, counts of *E. coli* as an indicator of faecal contamination.
-
-```{r, message=FALSE}
-hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
-hrc
-```
-
-These data are available from Land, Air, Water Aotearoa, https://www.lawa.org.nz/download-data/
-
----
-
-## Data today
-
-We have *E. coli* counts from `r hrc |> count(Site) |> nrow()` sites throughout the horizons regional council.
-
-```{r}
-count(hrc, Site)
-```
-
----
-
-## Data today
-
-And the counts can be summarised as
-
-```{r}
-summarise(hrc, min(Value), max(Value), median(Value))
-```
-
-You can see that we have very low counts (1) and very high counts (over 200,000), with half the counts being less than 155.
-
----
-
-class: middle, inverse
-
-# Naming things
-
----
 
 ## Naming things: code style
 
