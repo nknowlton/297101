@@ -13,7 +13,7 @@ Make sure you have both R and RStudio installed. In addition, make sure you have
 
 Both of these are detailed here:
 
-https://r-resources.massey.ac.nz/help/usingrin161.122.html
+https://r-resources.massey.ac.nz/help/usingrin297.101.html
 
 ## Loading up our first R script
 
@@ -39,7 +39,7 @@ When done, you'll see that RStudio loads the script (a text file with a list of 
     library(tidyverse)
     ```
 
-    If you get an error here, it's probably due to the `tidyverse` packages not being installed - check https://r-resources.massey.ac.nz/help/usingrin161.122.html or contact your lecturers to get things figured out.
+    If you get an error here, it's probably due to the `tidyverse` packages not being installed - check https://r-resources.massey.ac.nz/help/usingrin297.101.html or contact your lecturers to get things figured out.
 
 ## Now for something useful!
 
