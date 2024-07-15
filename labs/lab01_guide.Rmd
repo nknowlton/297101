@@ -25,7 +25,7 @@ Then load it into RStudio. The fail-safe way to do that is to first load RStudio
 
 Alternatively, you may be able to right-click on the file in explorer or Finder, then Open with... and choose RStudio.
 
-When done, you'll see that RStudio loads the script (a text file with a list of comments and commands) into the `Editor` pane in the top right. There's 3 other panes available: The `Console` pane in bottom left, which is where commands are run and (text) output given, The `Environment/History` pane in top right, and the `Files/Plots/Packages/Help` pane in bottom right. We'll use all of them today!
+When done, you'll see that RStudio loads the script (a text file with a list of comments and commands) into the `Editor` pane in the top left. There's 3 other panes available: The `Console` pane in bottom left, which is where commands are run and (text) output given, The `Environment/History` pane in top right, and the `Files/Plots/Packages/Help` pane in bottom right. We'll use all of them today!
 
 ## Making sure it all works
 
