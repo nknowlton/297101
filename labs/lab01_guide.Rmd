@@ -103,7 +103,7 @@ In addition to the `x` and `y` aesthetics we've used above, there's a bunch of o
 
     ```{r, eval=FALSE}
     ggplot(data=quakes) +
-      geom_point(aes(x=mag, y=stations, col=depth))
+      geom_point(mapping=aes(x=mag, y=stations, col=depth))
     ```
 
 ## Overplotting
@@ -118,7 +118,7 @@ Another way to do this is with *jittering*, where we add a little bit of (random
 
     ```{r, eval=FALSE}
     ggplot(data=quakes) +
-      geom_jitter(aes(x=mag, y=stations))
+      geom_jitter(mapping=aes(x=mag, y=stations))
     ```
 
 14. Try changing the amount of jitter (i.e. the amount of noise added to the points). You can google for "ggplot jitter amount" to figure this out!
