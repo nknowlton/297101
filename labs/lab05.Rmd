@@ -1,0 +1,73 @@
+---
+title: "Workshop 5: Joining datasets, small multiple plots and making tidy data wide"
+output: html_document
+---
+
+## Introduction
+
+Today we'll use a new dataset for schools alongside the school roll data. Both are from:
+
+https://www.educationcounts.govt.nz/statistics/school-rolls
+
+```{r setup, message=FALSE}
+library(tidyverse)
+
+roll <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/schools/roll.csv")
+schools <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/schools/schools.csv")
+#roll <- read_csv("roll.csv") # for loading from a local copy
+#schools <- read_csv("schools.csv") # for loading from a local copy
+
+clean <- roll |> mutate(Level = as.numeric(substring(Level, 6)))
+clean
+```
+
+## Grouping by more than one variable
+
+In the last workshop you produced a chart of the total number of students by year level that looks like this:
+
+```{r}
+clean |> group_by(Level) |>
+  summarise(Total = sum(Students)) |>
+  ggplot() +
+  geom_col(aes(x=Level, y=Total))
+```
+
+This is an interesting chart as there is an unexpected peak at Level 7 (caused by a reclassification of students at year 7/8) and also it is interesting to see the decrease as students leave school early.
+
+## Try yourself
+
+1. Alter the chart above so as to include ethnic group on the chart. Hint: You'll need to group by two variables for this, and utilise another aesthetic such as `fill`.
+
+## Small multiple plots
+
+In the last exercise you produced a graph of the total number of students by year level and EthnicGroup. The problem with this chart is that even if you play with the `position` argument of `geom_col()` it is hard to see if the patterns in total number of students by year level are similar or different across different ethnicities.
+
+An alternate is to produce a plot for each ethnicity. We could just go ahead and create separate plots by using `filter`
+
+```{r}
+eu_year_by_gender <- clean |> filter(EthnicGroup == "European") |> group_by(Level, Gender) |> summarise(Total = sum(Students))
+ggplot(eu_year_by_gender) +
+  geom_col(mapping=aes(x=Level, y=Total, fill=Gender), position='dodge')
+as_year_by_gender <- clean |> filter(EthnicGroup == "Asian") |> group_by(Level, Gender) |> summarise(Total = sum(Students))
+ggplot(as_year_by_gender) +
+  geom_col(mapping=aes(x=Level, y=Total, fill=Gender), position='dodge')
+```
+
+But that gets quite awkward! Fortunately, `ggplot` can do grouping for us via the `facet_wrap` or `facet_grid` commands. These produce what is known as 'small multiple' plots - basically divide the plot up into subplots, and in each subplot we show a different group with consistent style/axes etc. 
+
+To do this, we'll need to group by EthnicGroup as well as Level and Gender, and then use `facet_wrap`:
+
+```{r}
+ethnicity_by_year_by_gender <- clean |> group_by(EthnicGroup, Level, Gender) |> summarise(Total = sum(Students))
+ggplot(ethnicity_by_year_by_gender) +
+  geom_col(mapping=aes(x=Level, y=Total, fill=Gender), position='dodge') +
+  facet_wrap(vars(EthnicGroup))
+```
+
+The `vars` helper function here is there so that `facet_wrap` knows to look for the named column in the data frame.
+
+### Try yourself
+
+1. Try altering the above plot so that it uses a different y-axis for each plot. This can be useful when there's differing numbers of students in each group. Hint: see the help for `facet_wrap`.
+2. Instead of colouring by gender, produce separate plots by both `Gender` and `Ethnicity` by supplying both to `facet_wrap`.
+3. Try out `facet_grid` instead for the second one.

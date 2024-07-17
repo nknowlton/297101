@@ -1,0 +1,30 @@
+---
+title: "Workshop 5: Joining datasets, small multiple plots and making tidy data wide"
+output: html_document
+---
+
+We'll once again be using the student roll data from:
+
+https://www.educationcounts.govt.nz/statistics/school-rolls
+
+Start by downloading lab05.Rmd and load it into RStudio.
+
+https://www.massey.ac.nz/~jcmarsha/297101/labs/lab05.Rmd
+
+We'll be using the `dplyr` and `tidyr` packages in the `tidyverse` to manipulate the data.
+
+We'll be looking at how we can join datasets together to summarise student level information by school level information (e.g. by region). We'll also look at summarising by more than one group, "small multiple plots", and creating tables.
+
+### Joining datasets
+
+We can join datasets together using the `left_join` function. When we left join one dataset to another, we use the common columns to match rows up, and then transfer information from the second dataset into the first, lining it up by row.
+
+In todays example we'll add some information on each school to the `roll` dataset.
+
+### Small multiple plots
+
+We'll also look at how to produce 'small multiple' plots with `ggplot2`. These allow you to split a dataset into
+groups and plot a small chart for each group, sharing the same axes and setup so that you can compare how things
+change from group to group.
+
+**Read through the `lab05.Rmd` file and work on the exercises within.**
