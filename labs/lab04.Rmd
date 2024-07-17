@@ -5,7 +5,7 @@ output: html_document
 
 ## Introduction
 
-The data we'll be using is the count of students of each gender, ethnic group and year level among schools in New Zealand in 2021 from:
+The data we'll be using is the count of students of each ethnic group and year level among schools in New Zealand in 2023 from:
 
 https://www.educationcounts.govt.nz/statistics/school-rolls
 
@@ -14,13 +14,13 @@ We'll start by reading the data in. If you're on a slower internet connect, you 
 ```{r message=FALSE}
 library(tidyverse)
 
-roll <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/schools/roll_nomacrons.csv")
-#roll <- read_csv("roll_nomacrons.csv") # for loading from a local copy
+roll <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/schools/roll.csv")
+#roll <- read_csv("roll.csv") # for loading from a local copy
 
 roll
 ```
 
-You should see there are 103,666 rows for 5 different variables (`School`, `Gender`, `EthnicGroup`, `Level`, `Students`)
+You should see there are 66,261 rows for 4 different variables (`School`, `EthnicGroup`, `Level`, `Students`)
 
 *Notice how we've added `message=FALSE` to the R code chunk above - this will stop R from putting messages in the resulting document - messages are output given by R about what it's doing that isn't actually output, such as the messages about which tidyverse version is being loaded*
 
@@ -35,14 +35,24 @@ The `filter` command from `dplyr` allows you to select rows that satisfy one or 
 This next code block filters all rows where `EthnicGroup` is set to `Maori`. Notice the use of two equals for 'is equal to'
 
 ```{r}
-filter(roll, EthnicGroup == "Maori")
+filter(roll, EthnicGroup == "Māori")
 ```
+
+### A note about macrons
+
+The above line of code for filtering our `roll` data by `EthnicGroup` utilises a macron in the word "Māori". On many devices this can be a bit tricky to type in! In most systems (Mac, Windows, Linux) you can do this by installing the Māori keyboard setup. Another way is to use copy and paste. e.g. if we do something like:
+
+```{r}
+count(roll, EthnicGroup)
+```
+
+this shows us how many rows there are of each entry in `EthnicGroup`. We can then copy and paste "Māori" entry into our code. As macrons are super important in te reo and many other languages, we will try and use them wherever we can.
 
 More than one row may be selected by separating different conditions with commas (for AND) or the vertical pipe symbol (for OR). e.g. compare the following:
 
 ```{r}
-filter(roll, EthnicGroup == "Maori", Gender == "Female")
-filter(roll, EthnicGroup == "Maori" | Gender == "Female")
+filter(roll, EthnicGroup == "Māori", Level == "Year 1")
+filter(roll, EthnicGroup == "Māori" | Level == "Year 1")
 ```
 
 A helper function for 'one of these options' is `%in%`. e.g. these two are equivalent:
@@ -65,7 +75,7 @@ You can arrange (sort) row output based on the values in each column, and can ar
 You can use `desc()` to sort in descending order.
 
 ```{r}
-arrange(roll, Gender, EthnicGroup, Level)
+arrange(roll, EthnicGroup, Level)
 arrange(roll, desc(Students))
 ```
 
@@ -146,7 +156,7 @@ clean = roll |> mutate(Level = as.numeric(substring(Level, 6)))
 
 ### Try yourself
 
-1. Using the `clean` dataset, create a new column combining ethnicgroup and gender with `paste`.
+1. Using the `clean` dataset, create a new column combining ethnicgroup and level with `paste`.
 2. Redo part 1, so that the original two columns are removed.
 3. Create a new variable "Age" with the typical age of students in each year level (Year 1 students are typically 5 years old).
 4. Investigate using the `unite` function from `tidyr` to do what you did in part 1 and 2.
@@ -167,3 +177,19 @@ clean |> summarise(Total = sum(Students), Average = Total/n())
 3. What is the lowest and highest year levels in the data?
 4. Find the number of Maori students in year 9 (hint: `filter` then `summarise`)
 
+## Using `group_by` to do operations per group
+
+The true power of `dplyr` comes with the `group_by()` operation, which allows all of the rest of the operations we've learned about (plus more!) to be performed simultaneously on subgroups of the data.
+
+The idea with `group_by()` is to collect rows together to be treated as a unit using one or more variables. All the other commands then operate per-group. For example, we can easily find the number of students per school by grouping by school and then adding up the number of students with `summarise`:
+
+```{r grouping}
+clean |> group_by(School) |> summarise(Total = sum(Students))
+```
+
+### Try yourself
+
+1. How many students of each ethnicity are there?
+2. How many students are there of each gender?
+3. Which school has the most students in year 13?
+4. Produce a graph of the total number of students by year level. Hint: First get the data frame you want, and then use `ggplot` with `geom_col`.
