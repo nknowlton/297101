@@ -31,3 +31,6 @@ https://r-resources.massey.ac.nz/help/usingrin297.101.html
 ## Screencasts
 
 A link will be placed below with a set of videos of Jonathan M working through each of the workshops.
+
+[Youtube playlist of workshop screencasts](https://www.youtube.com/playlist?list=PLZ_OkMURFtaXORyq7x3c7aYepchGKg39G)
+

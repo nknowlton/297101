@@ -14,11 +14,13 @@ https://www.massey.ac.nz/~jcmarsha/297101/labs/lab04.Rmd
 We'll be using the `dplyr` package in the `tidyverse` to manipulate the data.
 
 In particular, we'll be using:
+
  - `filter` to select rows
  - `arrange` to change the order of rows
  - `select` to choose columns
  - `mutate` to create new columns
  - `summarise` to compute a summary row from all rows.
+ - `group_by` to do all the above on subgroups of the data at the same time.
  
 In addition, we'll learn about the pipe!
  
