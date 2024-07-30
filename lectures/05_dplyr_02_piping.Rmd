@@ -1,0 +1,195 @@
+---
+title: 'Data Manipulation with dplyr'
+subtitle: 'The pipe'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+```
+
+## Data today
+
+We'll use the data from Horizons Regional council on river quality again today.
+
+```{r, echo=FALSE, message=FALSE}
+hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
+hrc
+```
+
+These data are available from Land, Air, Water Aoteoroa, https://www.lawa.org.nz/download-data/
+
+---
+
+## A pipeline of verbs
+
+Each of the verbs in `dplyr` take a dataset in as the first parameter, and return a data frame out again.
+
+Often, an analyses will consist of a bunch of verbs called one after the other, with each one feeding into the next.
+
+```{r, eval=FALSE}
+large_values <- filter(hrc, Value > 50000)
+arrange(large_values, Site, Date)
+```
+
+The temporary dataset `large_values` is really only used here to feed to the `arrange()` verb. We don't really need it.
+
+We could do:
+
+```{r, eval=FALSE}
+arrange(filter(hrc, Value > 50000), Site, Date)
+```
+
+But you have to read that 'inside out'!
+
+---
+
+class: middle, inverse
+
+# The pipe `|>`
+
+---
+
+## The pipe `|>`
+
+The pipe operator, `|>` is specifically designed to improve this. It takes the item on the left of the pipe and places it
+as the first argument of the function on the right.
+
+```{r, eval=FALSE}
+hrc |> filter(Value > 5000)
+```
+
+Is equivalent to:
+
+```{r, eval=FALSE}
+filter(hrc, Value > 5000)
+```
+
+But, the pipe version is readable as "Take the dataset `hrc` and filter it so that rows with Value > 5000 remain"
+
+To enter a pipe in RStudio, you can use Ctrl-Shift-M (Command-Shift-M on a Mac).
+
+---
+
+## The pipe `|>`
+
+This extends naturally:
+
+```{r, eval=FALSE}
+hrc |>
+  filter(Value > 5000) |>
+  arrange(Site, Date)
+```
+
+reads "Take the dataset `hrc`, filter it so that rows with Value > 5000 remain, then arrange by Site and Date"
+
+When constructing pipelines like this, make sure the `|>` symbol is at the end of intermediate lines.
+
+.left-code[
+Use this:
+
+```{r, eval=FALSE}
+hrc |>
+  filter(Value > 5000) |>
+  arrange(Site, Date)
+```
+]
+
+.right-plot[
+Not this:
+
+```{r, eval=FALSE}
+hrc
+ |> filter(Value > 5000)
+ |> arrange(Site, Date)
+```
+]
+
+---
+
+## The pipe `|>`
+
+The pipe also gives us **code completion** by pressing the TAB key.
+
+e.g. type:
+
+```{r, eval=FALSE}
+hrc |> select(sit
+```
+
+and press the Tab key brings up a list of symbols starting with `sit`, which includes `Site` and `SiteID`.
+
+This allows you to make sure you get the spelling correct :)
+
+---
+
+## The magrittr pipe `%>%`
+
+Prior to R version 4.1, the `|>` (base) pipe didn't exist. Instead, people used a pipe from the `magrittr` package which uses `%>%`.
+
+Generally, these are basically the same. You will see `%>%` used 'in the wild' when googling - that's OK, it'll work just fine.
+
+In RStudio, by default the keyboard combination Ctrl-Shift-M (Cmd-Shift-M on Mac) inserts the magrittr pipe `%>%`.
+
+**We suggest you change this in RStudio**
+
+See Tools->Global Options->Code and select the 'use native pipe operator, |>' option.
+
+---
+
+## Using the pipe in other places
+
+We can use the pipe anytime to take something and insert it
+as the first argument of a function.
+
+e.g. `ggplot()` has `data` as it's first argument, so using
+the pipe to pass a dataset in is useful.
+
+```{r}
+hrc |>
+  filter(Value > 5000) |>
+  ggplot() +
+  geom_point(mapping=aes(x=Date, y=Value)) +
+  scale_y_log10()
+```
+
+```{r}
+hrc |> filter(str_detect(Site, "manawatu")) |>
+  ggplot() +
+  geom_boxplot(mapping=aes(y=Site, x=Value)) +
+  scale_x_log10()
+```
+
+Remember to switch from `|>` to `+` !!
+
+---
+
+## Key ideas
+
+- The pipe `|>` is useful for tidying up the order of our code.
+
+- It takes the thing on the left and puts it into the function
+on the right as the first argument.
+
+- It works best when you KNOW what the function is expecting as
+it's first argument.
+
+- All `dplyr` verbs take data as first argument and return a
+new version of the data so that piping works naturally.

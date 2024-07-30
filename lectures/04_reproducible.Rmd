@@ -1,0 +1,95 @@
+---
+title: 'Reproducible analyses'
+subtitle: 'R scripting and R markdown'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+```
+
+## Reproducibility
+
+A really important concept in science in general is of reproducibility.
+
+We want to make sure that our findings are able to be replicated by:
+ 1. Ourselves using our data
+ 2. Others using our data
+ 3. Others using new data
+
+In science, this is usually done by publishing our work with enough detail in the methods to allow replication by others.
+
+But, often this is just replication in theory: In practice others will need much more than what most science teams provide in their publication.
+
+---
+
+## Open data
+
+A big push in recent years by scientific bodies and publishers is to ensure that the data used in a piece of research is (as much as possible) published and freely available alongside the methods.
+
+This helps replication, in that it's now possible for others to replicate using our data.
+
+But, it's not everything! Often the methods used are not summarised in full detail, and typically there's a lot of reinventing the wheel that
+needs to be done. e.g.
+
+ - What data cleaning is required?
+ 
+ - Were there missing data? How was it handled?
+ 
+ - If some charts were produced, how were they generated? Was there manual manipulation (like adding labels/tidying plots by hand?)
+ 
+ - What about statistical modelling? What was the exact formulation of the model? Are enough details given to allow replication?
+ 
+---
+ 
+## Principles of reproducible analyses
+
+- Input data is documented and provided, and comes in whatever form it comes (i.e. we don't alter the data if it comes from another source).
+
+- All analyses are scripted. i.e. run script(s) to produce all necessary tables/charts.
+
+- No manual steps if at all possible.
+
+- Ensure any scripting is useful for new data as much as possible.
+
+https://github.com/jmarshallnz/dirichlet_island
+
+https://royalsocietypublishing.org/doi/full/10.1098/rsif.2018.0534
+
+---
+
+class: middle, inverse
+
+# Demo: NZ politics twitter sentiment by Kate Newton
+
+https://www.rnz.co.nz/news/national/421955/bad-vibes-rating-political-scandals-by-twitter-toxicity
+
+---
+
+## Key ideas
+
+- Data should ideally be open so that others can look at it as well.
+
+- Open data isn't enough - the processing and analysis is sometimes as important (or more important!)
+
+- Sharing R code scripts helps with this.
+
+- R Markdown takes things further and makes reports reproducible
+as well.
