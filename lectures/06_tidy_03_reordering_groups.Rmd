@@ -1,0 +1,258 @@
+---
+title: 'Tidying data'
+subtitle: 'Reordering groups'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(palmerpenguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
+
+covid1 <- read_csv("http://www.massey.ac.nz/~jcmarsha/data/covid_au_nz.csv")
+```
+
+## Reordering groups
+
+A common problem when presenting data in the form of tables or charts is ensuring that
+order is correct.
+
+By default, if an order isn't specified, `ggplot2` will present things alphabetically. This is almost certainly not what you want.
+
+You can reorder groups by specifying that they are a **factor** rather than a **character** type.
+
+The `forcats` library is useful. In particular the functions:
+
+- `as_factor()` uses the order in the data (i.e. first group to appear goes first).
+
+- `fct_relevel()` allows reordering in any way you like.
+
+---
+
+.left-code[
+
+## Reordering groups
+
+```{r reorder1, eval=FALSE}
+covid1 |>
+  mutate(rate = cases/tests) |>
+  ggplot() +
+  geom_col(aes(x=month,
+               y=rate,
+               fill=country),
+           position='dodge') +
+  scale_y_continuous(
+    labels = scales::label_percent()
+    ) +
+  labs(
+    x=NULL,
+    y="Cases per COVID-19 test",
+    fill=NULL
+    ) +
+  theme(legend.position = 'top')
+```
+]
+
+.right-plot[
+```{r, ref.label="reorder1", echo=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Reordering groups
+
+```{r reorder2, eval=FALSE}
+covid1 |>
+  mutate(rate = cases/tests) |>
+  ggplot() +
+  geom_col(aes(x=as_factor(month), #<<
+               y=rate,
+               fill=country),
+           position='dodge') +
+  scale_y_continuous(
+    labels = scales::label_percent()
+    ) +
+  labs(
+    x=NULL,
+    y="Cases per COVID-19 test",
+    fill=NULL
+    ) +
+  theme(legend.position = 'top')
+```
+
+The `as_factor()` command will use the order
+present in the data.
+]
+
+.right-plot[
+```{r, ref.label="reorder2", echo=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Reordering groups
+
+```{r reorder2b, eval=FALSE}
+covid1 |>
+  mutate(rate = cases/tests) |>
+  ggplot() +
+  geom_col(aes(x=as_factor(month),
+               y=rate,
+               fill=country),
+           position='dodge') +
+  scale_y_continuous(
+    labels = scales::label_percent()
+    ) +
+  labs(
+    x=NULL,
+    y="Cases per COVID-19 test",
+    fill=NULL
+    ) +
+  theme(legend.position = 'top')
+```
+
+The `as_factor()` command will use the order
+present in the data.
+]
+
+.right-plot[
+```{r, ref.label="reorder2b", echo=FALSE}
+```
+]
+
+---
+.left-code[
+## Reordering groups
+
+```{r reorder3, eval=FALSE}
+covid1 |>
+  mutate(rate = cases/tests) |>
+  mutate( #<<
+    country=fct_relevel(country, #<<
+                    "New Zealand", #<<
+                    "Australia") #<<
+  ) |> #<<
+  ggplot() +
+  geom_col(aes(x=as_factor(month),
+               y=rate,
+               fill=country),
+           position='dodge') +
+  scale_y_continuous(
+    labels = scales::label_percent()
+    ) + ...
+```
+
+The `fct_relevel()` command lets you specify an order.
+]
+
+.right-plot[
+```{r, echo=FALSE}
+covid1 |>
+  mutate(rate = cases/tests) |>
+  mutate(
+    country=fct_relevel(country,
+                    "New Zealand",
+                    "Australia")
+  ) |>
+  ggplot() +
+  geom_col(aes(x=as_factor(month),
+               y=rate,
+               fill=country),
+           position='dodge') +
+  scale_y_continuous(
+    labels = scales::label_percent()
+    ) +
+  labs(
+    x=NULL,
+    y="Cases per COVID-19 test",
+    fill=NULL
+    ) +
+  theme(legend.position = 'top')
+```
+]
+
+---
+.left-code[
+## Reordering groups
+
+```{r reorder4, eval=FALSE}
+covid1 |>
+  mutate(rate = cases/tests) |>
+  mutate( #<<
+    country=fct_reorder(country,#<<
+                        rate) #<<
+  ) |> #<<
+  ggplot() +
+  geom_col(aes(x=as_factor(month),
+               y=rate,
+               fill=country),
+           position='dodge') +
+  scale_y_continuous(
+    labels = scales::label_percent()
+    ) + ...
+```
+
+The `fct_reorder()` command reorders the groups
+based on the (median) values of another column.
+
+Reordering by `rate` puts New Zealand first.
+]
+
+.right-plot[
+```{r, echo=FALSE}
+covid1 |>
+  mutate(rate = cases/tests) |>
+  mutate(
+    country = fct_reorder(country, rate)
+  ) |>
+  ggplot() +
+  geom_col(aes(x=as_factor(month),
+               y=rate,
+               fill=country),
+           position='dodge') +
+  scale_y_continuous(
+    labels = scales::label_percent()
+    ) +
+  labs(
+    x=NULL,
+    y="Cases per COVID-19 test",
+    fill=NULL
+    ) +
+  theme(legend.position = 'top')
+```
+]
+
+---
+
+## Key points
+
+- Reorder grouping variables with `as.factor()`, `as_factor()`, `fct_relevel()` or `fct_reorder()`.
+
+- `as.factor` orders alphabetically.
+
+- `as_factor` orders based on the data order.
+
+- `fct_relevel` allows you to order things however you like.
+
+- `fct_reorder` orders according to another variable.
