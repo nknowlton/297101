@@ -1,0 +1,158 @@
+---
+title: 'ggplot charts'
+subtitle: 'Combining different charts with patchwork'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(palmerpenguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
+
+xaringanExtra:::use_freezeframe()
+```
+
+## Combining different kinds of plot
+
+Sometimes we want to combine different types of plot. e.g. perhaps we want
+to compare the body mass distribution of penguins as well as show the correlation between bill length and depth.
+
+We can do the separate plots and can combine them using the `patchwork` library
+
+---
+
+.pull-left[
+```{r, warning=FALSE}
+ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5)
+```
+]
+
+.pull-right[
+```{r, warning=FALSE}
+ggplot(penguins) +
+  geom_point(aes(x=bill_length_mm,
+                 y=bill_depth_mm,
+                 col=species),
+               alpha=0.5)
+```
+]
+
+---
+
+## Combining plots with `patchwork`
+
+With `patchwork` we first **save** the plots into separate variables, then use `+` or `/` to combine them together.
+
+When you save a `ggplot2` plot, you can 'print' it out by just typing the name. So your code will look like:
+
+```{r, eval=FALSE}
+g1 = ggplot(data1) + ...
+g2 = ggplot(data2) + ...
+
+g1 # To look at the first plot
+g2 # To look at the second plot
+
+library(patchwork)
+g1 + g2 # To put graphs side by side
+g1 / g2 # To put graphs top and bottom
+```
+
+---
+
+.left-code[
+## Combining plots with `patchwork`
+
+```{r patch1, eval=FALSE}
+library(patchwork)
+g1 = ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5)
+
+g2 = ggplot(penguins) +
+  geom_point(
+    aes(x=bill_length_mm,
+        y=bill_depth_mm,
+        col=species),
+    alpha=0.5)
+
+g1 / g2
+```
+]
+
+.right-plot[
+```{r, ref.label="patch1", echo=FALSE, warning=FALSE}
+```
+]
+
+---
+
+## Combining plots with `patchwork`
+
+Use `+` to put things side by side:
+
+```{r, warning=FALSE, fig.dim=c(8,3), fig.retina=3}
+g1 + g2
+```
+
+---
+
+## Combining plots with `patchwork`
+
+The `plot_layout()` function is useful to control things a little.
+
+```{r, warning=FALSE, fig.dim=c(8,3), fig.retina=3}
+g1 + g2 + plot_layout(guides = 'collect')
+```
+
+---
+
+The `plot_annotation()` function allows adding titles, subtitles to the total layout.
+
+```{r, warning=FALSE, fig.dim=c(8,3), fig.retina=3}
+g1 + g2 + plot_layout(guides = 'collect') +
+  plot_annotation(title = "Gentoo penguins are chonky and have long, narrow beaks")
+```
+
+---
+
+Lots more can be done. See https://patchwork.data-imaginist.com/index.html for more!
+
+```{r, echo=FALSE, warning=FALSE}
+g0 = ggplot(penguins) + geom_density(aes(x=flipper_length_mm, fill=species), alpha=0.5)
+```
+
+```{r, warning=FALSE, fig.dim=c(8,3.5), fig.retina=3}
+(g0 / g1 | g2) + plot_layout(guides = 'collect') +
+  plot_annotation(title = "Gentoo penguins are chonky and have long, narrow beaks")
+```
+
+---
+
+## Key points
+
+- Use `patchwork` to layout multiple different charts on the same page.
+
+- Think about which guides can be combined, and add overall titles with `plot_annotation`.
