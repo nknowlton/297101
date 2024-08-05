@@ -153,7 +153,7 @@ In RStudio, by default the keyboard combination Ctrl-Shift-M (Cmd-Shift-M on Mac
 See Tools->Global Options->Code and select the 'use native pipe operator, |>' option.
 
 ---
-
+.left-code[
 ## Using the pipe in other places
 
 We can use the pipe anytime to take something and insert it
@@ -162,23 +162,25 @@ as the first argument of a function.
 e.g. `ggplot()` has `data` as it's first argument, so using
 the pipe to pass a dataset in is useful.
 
-```{r}
+```{r piping, eval=FALSE}
 hrc |>
-  filter(Value > 5000) |>
+  filter(
+    str_detect(Site, "manawatu")
+  ) |>
   ggplot() +
-  geom_point(mapping=aes(x=Date, y=Value)) +
-  scale_y_log10()
-```
-
-```{r}
-hrc |> filter(str_detect(Site, "manawatu")) |>
-  ggplot() +
-  geom_boxplot(mapping=aes(y=Site, x=Value)) +
+  geom_boxplot(
+    mapping=aes(y=Site, x=Value)
+    ) +
   scale_x_log10()
 ```
 
 Remember to switch from `|>` to `+` !!
+]
 
+.right-plot[
+```{r, ref.label="piping", echo=FALSE, message=FALSE}
+```
+]
 ---
 
 ## Key ideas

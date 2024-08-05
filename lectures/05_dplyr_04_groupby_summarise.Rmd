@@ -5,7 +5,6 @@ output:
   xaringan::moon_reader:
     css: [default, default-fonts, "custom.css"]
     nature:
-        </div>
       highlightStyle: tomorrow
       highlightLines: true
       countIncrementalSlides: false
@@ -53,9 +52,7 @@ It consists of a set of verbs that help us solve the most common data manipulati
 - `select` to choose variables (columns) by name.
 - `mutate` to add new variables based of existing variables.
 
-Today we'll look at `summarise`.
-
-All of these combine with `group_by` to do all the above operation on subgroups of the data.
+Today we'll look at `summarise` and how all of these combine with `group_by` to do all the above operation on subgroups of the data.
 
 ---
 
@@ -447,21 +444,10 @@ hrc |> group_by(Site) |>
 
 ---
 
-class: middle, inverse
+## Key ideas
 
-# Demo: Bird of the year 2019
+- `summarise()` is used to produce single row summaries from multiple rows.
 
----
+- `group_by()` holds a lot of power. It gives the ability to do everything by subgroup all at once.
 
-## Bird of the Year 2019
-
-Forest and Bird, who run Bird of the Year every year published all the votes from the 2019 contest.
-
-```{r, message=FALSE}
-boty <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/boty/BOTY-votes-2019.csv",
-                 col_types = cols(country = "c"))
-boty
-```
-
-You can download the source data here: https://www.dragonfly.co.nz/news/2019-11-12-boty.html
-
+- Quite complex questions can be answered by stringing together 'pipelines' of the 5 `dplyr` verbs with `group_by()`.
