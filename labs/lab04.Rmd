@@ -190,6 +190,5 @@ clean |> group_by(School) |> summarise(Total = sum(Students))
 ### Try yourself
 
 1. How many students of each ethnicity are there?
-2. How many students are there of each gender?
-3. Which school has the most students in year 13?
-4. Produce a graph of the total number of students by year level. Hint: First get the data frame you want, and then use `ggplot` with `geom_col`.
+2. Which school has the most students in year 13?
+3. Produce a graph of the total number of students by year level. Hint: First get the data frame you want, and then use `ggplot` with `geom_col`.
