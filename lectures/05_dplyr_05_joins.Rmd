@@ -1,0 +1,287 @@
+---
+title: 'Data manipulation'
+subtitle: 'Joining data sets'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(palmerpenguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
+
+xaringanExtra:::use_freezeframe()
+```
+
+## Combining data through joins
+
+It is common to receive data in several different spreadsheets.
+
+e.g. if doing a study where samples are taken from animals across farms, you might have a samples spreadsheet, an animals spreadsheet, and a farms spreadsheet.
+
+For final analyses on samples, however, you might want to assess animal or farm-level effects on outcomes at the sample level.
+
+Thus, you'll need to combine the data from these spreadsheets together into a single `data.frame`.
+
+In RStudio, we do this using **joins** in `dplyr`.
+
+---
+
+## Data sets
+
+We'll use a couple of datasets from the Star Wars movies for this.
+
+```{r, message=FALSE}
+characters <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/starwars/sw_characters.csv")
+characters
+```
+
+---
+
+## Data sets
+
+We'll use a couple of datasets from the Star Wars movies for this.
+
+```{r, message=FALSE}
+films <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/starwars/sw_films.csv")
+films
+```
+
+---
+
+## Joining with `dplyr`
+
+There are two main types of join in dplyr: **mutating joins** and **filtering joins**.
+
+- Mutating joins add new columns from the additional dataset.
+
+- Filtering joins filter out existing columns based on information in the additional dataset.
+
+For both, we need a set of 'primary' or 'key' columns: these are columns that share the same
+information so we can merge the datasets together.
+
+e.g. The `films` and `characters` datasets share the `name` column, so that will be our key.
+
+---
+
+## Mutating joins
+
+There are four separate mutating joins:
+
+- `left_join(x,y)` returns all rows in x, and all rows that match these in y. If y doesn't have a match, `NA` will be used.
+
+- `right_join(x,y)` returns all rows in y and all rows that match these in x. If x doesn't have a match in y, `NA` will be used.
+
+- `inner_join(x,y)` returns only rows in x and y that have a match.
+
+- `full_join(x,y)` returns all rows in x and all rows in y. Anything in x or y that don't have a match will be filled with `NA`.
+
+---
+
+.left-code[
+## Left join
+
+`left_join(x, y)` returns:
+- all rows in x
+- all rows that match these in y.
+- If y doesn't have a match, `NA` is used.
+
+Rows in y that do not match rows in x are dropped.
+]
+
+.right-plot[
+![](graphics/dplyr_joins/left-join.gif)
+]
+
+---
+
+.left-code[
+## Left join
+
+`left_join(x, y)` returns:
+- all rows in x
+- all rows that match these in y.
+- If y doesn't have a match, `NA` is used.
+
+If more than one row in y matches a row in x then you duplicate the x information.
+]
+
+.right-plot[
+![](graphics/dplyr_joins/left-join-extra.gif)
+]
+
+---
+
+`left_join(x, y)` returns all rows in x, and all rows that match these in y. If y doesn't have a match, `NA` will be used.
+
+```{r}
+characters |> left_join(films)
+```
+
+---
+
+.left-code[
+## Right join
+
+`right_join(x, y)` returns:
+ - all rows in y
+ - all rows that match these in x.
+ - If x doesn't have a match, `NA` is used.
+
+Rows in x that don't have a match in y are dropped.
+]
+
+.right-plot[
+![](graphics/dplyr_joins/right-join.gif)
+]
+
+---
+
+`right_join()` returns all rows in the 'right' data set and anything that matches in the left.
+
+```{r}
+characters |> right_join(films)
+```
+
+---
+
+.left-code[
+## Inner join
+
+`inner_join(x, y)` returns:
+ - only rows that match in x and y.
+ - there is no `NA` from the join.
+
+Rows that don't have a match in either x or y are dropped.
+]
+
+.right-plot[
+![](graphics/dplyr_joins/inner-join.gif)
+]
+
+---
+
+`inner_join()` returns only rows in both data sets. No `NA` from the join.
+
+```{r}
+characters |> inner_join(films)
+```
+
+---
+
+.left-code[
+## Full join
+
+`full_join(x, y)` returns:
+ - all rows in both data sets.
+ - anything that doesn't match gets `NA`.
+
+No rows are dropped.
+]
+
+.right-plot[
+![](graphics/dplyr_joins/full-join.gif)
+]
+
+---
+
+`full_join()` returns all rows in both data sets. Anything that doesn't match gets `NA`.
+
+```{r}
+characters |> full_join(films)
+```
+
+---
+
+## Mutating joins
+
+The `left_join()` is the one I use the most.
+
+Reason is you almost always start with the dataset that has the outcomes you want
+in it, and are joining back to explanatory things.
+
+---
+
+## Filtering joins
+
+The two filtering joins only return columns in x. They are:
+
+- `semi_join(x,y)` returns rows in x with a match in y.
+
+- `anti_join(x,y)` returns rows in x that don't have a match in y.
+
+i.e. `semi_join` is for keeping things in, `anti_join` is to filter things out.
+
+---
+
+.left-code[
+## Filtering joins
+
+`semi_join(x, y)` returns:
+ - rows in x that have a match in y.
+ - only information from x.
+]
+
+.right-plot[
+![](graphics/dplyr_joins/semi-join.gif)
+]
+
+---
+
+## Filtering joins
+
+`semi_join` will return the characters which are in one or more of our films.
+
+```{r}
+characters |> semi_join(films)
+```
+
+---
+
+.left-code[
+## Filtering joins
+
+`anti_join(x, y)` returns:
+ - rows in x that don't match y.
+ - only information from x.
+]
+
+.right-plot[
+![](graphics/dplyr_joins/anti-join.gif)
+]
+
+---
+
+## Filtering joins
+
+`anti_join` will return the characters which aren't in any of our films.
+
+```{r}
+characters |> anti_join(films)
+```
+
+---
+
+## Key points
+
+- Think about which rows you want to keep in the final dataset when joining.
+
+- If you start with the dataset that has all the rows you want in it already, and just want to add some columns from another dataset, use `left_join()`.
+
+- The main case for `anti_join()` and `semi_join()` is a more efficient way to do filtering. It's likely you can do the same job with `filter()` anyway.
