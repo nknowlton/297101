@@ -1,0 +1,204 @@
+---
+title: 'ggplot charts'
+subtitle: 'Theming'
+output:
+  xaringan::moon_reader:
+    css: [default, default-fonts, "custom.css"]
+    nature:
+      highlightStyle: tomorrow
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);" />
+        </div>
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(palmerpenguins)
+#data(package = 'palmerpenguins')
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+knitr::opts_chunk$set(fig.dim=c(4.8, 4.5), fig.retina=2, out.width="100%")
+hrc <- read_csv("https://www.massey.ac.nz/~jcmarsha/data/hrc/horizons_river_ecoli.csv")
+
+xaringanExtra:::use_freezeframe()
+```
+
+## Theming
+
+The entire layout of a `ggplot2` chart can be customised by the `theme`:
+
+- Background colours
+- Size of panel
+- All text size, font, style, placement, justification, angle etc
+- Space between facets, facet header styles
+
+Basically everything you see on the plot can be customised.
+
+The **easiest** way to customise the plot is to choose a pre-made theme. (Let someone else do the work!)
+
+---
+
+.left-code[
+## Themes
+
+```{r theme1, warning=FALSE, eval=FALSE}
+ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5)
+```
+
+The standard theme is `theme_grey`.
+]
+
+.right-plot[
+```{r, ref.label="theme1", warning=FALSE, echo=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Themes
+
+```{r theme2, warning=FALSE, eval=FALSE}
+ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5) +
+  theme_bw()
+```
+
+]
+
+.right-plot[
+```{r, ref.label="theme2", warning=FALSE, echo=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Themes
+
+```{r theme3, warning=FALSE, eval=FALSE}
+ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5) +
+  theme_light()
+```
+]
+
+.right-plot[
+```{r, ref.label="theme3", warning=FALSE, echo=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Themes
+
+```{r theme4, warning=FALSE, eval=FALSE}
+ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5) +
+  theme_dark()
+```
+]
+
+.right-plot[
+```{r, ref.label="theme4", warning=FALSE, echo=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Themes
+
+```{r theme5, warning=FALSE, eval=FALSE}
+ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5) +
+  theme_minimal()
+```
+]
+
+.right-plot[
+```{r, ref.label="theme5", warning=FALSE, echo=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Themes
+
+```{r theme6, warning=FALSE, eval=FALSE}
+ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5) +
+  theme_minimal(base_size=16)
+```
+
+The `base_size` argument sets the default text size.
+]
+
+.right-plot[
+```{r, ref.label="theme6", warning=FALSE, echo=FALSE}
+```
+]
+
+---
+
+.left-code[
+## Themes
+
+```{r theme7, warning=FALSE, eval=FALSE}
+ggplot(penguins) +
+  geom_density(
+    aes(x=body_mass_g,
+        fill=species),
+    alpha=0.5) +
+  theme_minimal() +
+  theme(legend.position = 'bottom')
+```
+
+The `theme()` function is how you alter elements of an existing theme.
+]
+
+.right-plot[
+```{r, ref.label="theme7", warning=FALSE, echo=FALSE}
+```
+]
+
+---
+
+class: middle, inverse
+
+# Example of story telling with data
+
+https://www.massey.ac.nz/~jcmarsha/stories/story_of_a_chart.html
+
+---
+
+## Key points
+
+- Alter the look of plots with the various `theme_*()` functions, and use `theme()` to fine tune.
