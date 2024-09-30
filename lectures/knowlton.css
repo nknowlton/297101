@@ -1,0 +1,41 @@
+/* Adjust the default font size for smaller text across all slides */
+body {
+    font-size: 0.3em !important;  /* Adjust the value as needed */
+}
+
+/* Optionally, remove excessive bottom margins for all slides */
+.reveal .slides {
+    margin-bottom: 0 !important;
+}
+
+/* Adjust top-level slide title size (#) */
+h1 {
+    font-size: 1.5em !important;  /* Adjust as needed */
+}
+
+/* Adjust second-level slide title size (##) */
+h2 {
+    font-size: 1.2em !important;  /* Adjust as needed */
+}
+
+/* Adjust third-level headings if needed (###) */
+h3 {
+    font-size: .7em;  /* Adjust as needed */
+}
+/* Scale only the code output from executed chunks */
+
+.reveal code {
+    max-height: 100% !important;  /* Ensure code block uses all available space */
+    height: auto !important;      /* Adjust the height dynamically */
+    overflow: auto;               /* Allow scrolling if absolutely necessary */
+    font-size: 0.6em !important;   /* Adjust the scale of the code */
+}
+
+.remark-slide-content {
+    font-size: 14px;
+    line-height: 1.6;
+}
+.reveal .slide-logo {
+             max-height: unset !important;
+             height: 100px !important;
+}
