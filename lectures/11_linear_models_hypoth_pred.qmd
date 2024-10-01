@@ -91,7 +91,7 @@ s <- summary(mod)$coefficients
 
 The table of coefficients tells us about estimates $a$ and $b$ in the linear model $\mathsf{Mean}[y] = a + bx$.
 
-::: {.fragment}
+::: {.fragment .r-fit-text}
 The **`Estimate`** column gives us the point estimates of the parameters.
 
 * The '`(Intercept)`' row relates to the estimate of the intercept $a$ 
@@ -100,7 +100,7 @@ The **`Estimate`** column gives us the point estimates of the parameters.
 $\mathsf{Mean[body weight]} =`r round(s[1,1],1)` + `r round(s[2,1],2)` \times \mathsf{heart girth}$
 
 :::
-::: {.fragment}
+::: {.fragment .r-fit-text}
 The **`Std. Error`** column gives the standard errors of the parameter estimates.
 
 * Remember, $a$ and $b$ (or $\hat\alpha$ and $\hat\beta$) are *sample estimates* of the true intercept and slope parameters $\alpha$ and $\beta$. 
@@ -125,7 +125,7 @@ Recall the $2\sigma$ rule: if a random variable $x$ is normally distributed with
 ::: {.fragment}
 We can apply this rule to calculate 95% confidence intervals for parameters.
 
-* For estimate $b$ with standard error $\hat\sigma_b$, we construct a 95% confidence interval as $b \pm 2\hat\sigma_b$. Can we assume that $b$ is normally distributed? Usually we can. We'll discuss this next week in Lecture C3. 
+* For estimate $b$ with standard error $\hat\sigma_b$, we construct a 95% confidence interval as $b \pm 2\hat\sigma_b$. Can we assume that $b$ is normally distributed? Usually we can. We'll discuss this next week. 
 
 * For `Heartgirth`, the interval is $`r round(s[2,1],2)` \pm 2 \times `r round(s[2,2],2)`$.   
 Thus, we are 95% confident that the true slope is within the interval  (`r round(s[2,1]-2*s[2,2],2)`, `r round(s[2,1]+2*s[2,2],2)`).
@@ -276,16 +276,12 @@ The `383 degrees of freedom` is obtained by subtracting the number of estimated 
 
 The `Multiple R-squared` value is the proportion of variation in body weight explained by the model (i.e. explained by a linear relationship between body weight and heart girth). 
 
-$$
-\begin{aligned}
-R^2 &= \frac{\mathsf{Variance\ Explained}}{\mathsf{Total\ Variance}} = \frac{\mathsf{Total\ Variance} - \mathsf{Residual\ Variance}}{\mathsf{Total\ Variance}}
+
+$$ \begin{aligned}
+R^2 &= \frac{\mathsf{Variance\ Explained}}{\mathsf{Total\ Variance}} = \frac{\mathsf{Total\ Variance} - \mathsf{Residual\ Variance}}{\mathsf{Total\ Variance}}\\\\
+&= \frac{\sigma_\mathsf{Y}^2 - \sigma_\mathsf{res}^2}{\sigma_\mathsf{Y}^2}= 1-\frac{ \sigma_\mathsf{res}^2}{\sigma_\mathsf{Y}^2}
 \end{aligned}$$
 
-$$
-\begin{aligned}
-&= \frac{\sigma_\mathsf{Y}^2 - \sigma_\mathsf{res}^2}{\sigma_\mathsf{Y}^2}= 1-\frac{ \sigma_\mathsf{res}^2}{\sigma_\mathsf{Y}^2}
-\end{aligned}
-$$
 
 ::: {.fragment}
 A high $R^2$ value suggests that the model explains a lot of the variation of the outcome variable. Once you know the value of the heartgirth, you have a much better idea of what the body weight will be. Our linear model is useful!
