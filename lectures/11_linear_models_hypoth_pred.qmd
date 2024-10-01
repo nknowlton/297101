@@ -11,6 +11,10 @@ format:
     theme: sky
     slide-number: true
     incremental: true
+    smaller: true
+    html-math-method:
+      method: mathjax
+      url: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js
     highlight-style: breezedark
     highlight-lines: true
     progress: true
@@ -47,7 +51,7 @@ library(visreg)
 * Goodness of fit and $R^2$
 * Prediction and mean square error (MSE)
 
-# Interpreting R output and making inferences
+# Interpreting R output and making inferences {.center}
 ```{r load_data}
 donkey <- read.csv("https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv")
 
@@ -58,12 +62,10 @@ donkey <- read.csv("https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv")
 
 ```{r}
 #| echo: true
-#| code-line-numbers: "|1|2"
 #| eval: false
 mod <- lm(Bodywt ~ Heartgirth, data=donkey)
 summary(mod)
 ```
-
 
 ## Summary of a linear model in R
 
@@ -74,8 +76,7 @@ mod <- lm(Bodywt ~ Heartgirth, data=donkey)
 summary(mod)
 ```
 
-
-## Parameter estimates and inference{}
+## Parameter estimates and inference
 
 ```{r}
 #| echo: true
@@ -90,37 +91,51 @@ s <- summary(mod)$coefficients
 
 The table of coefficients tells us about estimates $a$ and $b$ in the linear model $\mathsf{Mean}[y] = a + bx$.
 
+::: {.fragment}
 The **`Estimate`** column gives us the point estimates of the parameters.
+
 * The '`(Intercept)`' row relates to the estimate of the intercept $a$ 
 * The '`Heartgirth`' row relates to the estimate of the slope $b$
 * Plug in the estimates, and our model is: 
 $\mathsf{Mean[body weight]} =`r round(s[1,1],1)` + `r round(s[2,1],2)` \times \mathsf{heart girth}$
 
+:::
+::: {.fragment}
 The **`Std. Error`** column gives the standard errors of the parameter estimates.
+
 * Remember, $a$ and $b$ (or $\hat\alpha$ and $\hat\beta$) are *sample estimates* of the true intercept and slope parameters $\alpha$ and $\beta$. 
 * If you repeated the study many times with different samples of donkeys, you'd get different parameter estimates every time. So how reliable are the estimates we've made?
 * The standard errors tell us how much the point estimates are expected to vary among different samples (as a standard deviation). 
 
-## Interpreting the 'Coefficients' table - parameter estimates and inference
+:::
+
+## Interpreting the Coefficients table
+
 
 
 ```{r echo=TRUE}
 summary(mod)$coefficients
 ```
-
+::: {fragment}
 We can use the point estimates ( $a$ and $b$ ) and standard errors ( $\hat\sigma_a$ and $\hat\sigma_b$ ) to build **confidence intervals** for the intercept and slope parameters. Confidence intervals are a common measure of uncertainty for quantities estimated from samples. 
-
-Recall the $2\sigma$ rule: if a random variable $x$ is normally distributed with standard deviation $\sigma$, 95% of values of $x$ will be within the interval $x\pm2\sigma$ = ( $x-2\sigma$ , $x+2\sigma$ ). 
-
+:::
+::: {.fragment}
+Recall the $2\sigma$ rule: if a random variable $x$ is normally distributed with standard deviation $\sigma$, 95% of values of $x$ will be within the interval $x\pm2\sigma = ( x-2\sigma , x+2\sigma )$. 
+:::
+::: {.fragment}
 We can apply this rule to calculate 95% confidence intervals for parameters.
 
-For estimate $b$ with standard error $\hat\sigma_b$, we construct a 95% confidence interval as $b \pm 2\hat\sigma_b$. Can we assume that $b$ is normally distributed? Usually we can. We'll discuss this in Lecture C3. 
+* For estimate $b$ with standard error $\hat\sigma_b$, we construct a 95% confidence interval as $b \pm 2\hat\sigma_b$. Can we assume that $b$ is normally distributed? Usually we can. We'll discuss this next week in Lecture C3. 
 
-For `Heartgirth`, the interval is $`r round(s[2,1],2)` \pm 2 \times `r round(s[2,2],2)`$. Thus, we are 95% confident that the true slope is within the interval  (`r round(s[2,1]-2*s[2,2],2)`, `r round(s[2,1]+2*s[2,2],2)`).
+* For `Heartgirth`, the interval is $`r round(s[2,1],2)` \pm 2 \times `r round(s[2,2],2)`$.   
+Thus, we are 95% confident that the true slope is within the interval  (`r round(s[2,1]-2*s[2,2],2)`, `r round(s[2,1]+2*s[2,2],2)`).
 
+:::
+::: {.fragment}
 Note, if a confidence interval includes zero, we are not convinced that $x$ and $y$ are linearly related at all!
+:::
 
-## Interpreting the 'Coefficients' table - parameter estimates and inference
+## Interpreting the Coefficients table
 
 
 ```{r echo=TRUE}
@@ -129,16 +144,19 @@ summary(mod)$coefficients
 
 We can use the point estimates ( $a$ and $b$ ) and standard errors ( $\hat\sigma_a$ and $\hat\sigma_b$ ) to build **confidence intervals** for the intercept and slope parameters. Confidence intervals are a common measure of uncertainty for quantities estimated from samples. 
 
+::: {.fragment}
 What if we want a 90% confidence interval? We don't have to use 95%. 
-
-The probability of a normal variable falling into the $2\sigma$ region is given by `r pnorm(2)-pnorm(-2)`. To obtain a confidence interval with confidence level $g$ ( $0<g<1$ ), one can find the corresponding multiplier as:
+:::
+::: {.fragment}
+The probability of a normal variable falling into the $2\sigma$ region is given by `r round(pnorm(2)-pnorm(-2),4)`. To obtain a confidence interval with confidence level $g$  ($0<g<1$ ), one can find the corresponding multiplier as:
     
 ```{r, echo=TRUE}
 g <- 0.90
 qnorm(1-(1-g)/2)
 ```
+:::
 
-## Interpreting the 'Coefficients' table - parameter estimates and inference
+## Interpreting the 'Coefficients' table
 
 ```{r echo=TRUE}
 summary(mod)$coefficients
@@ -146,13 +164,13 @@ summary(mod)$coefficients
 
 The `t value` and `Pr(>|t|)` values relate to testing the **null hypothesis that the true coefficient is 0**.
 
-* A good scientists is sceptical of any idea unless there is empirical evidence to support it.
+* A good scientists is skeptical of any idea unless there is empirical evidence to support it.
 
 * In this study, we are looking for evidence of a linear relationship between the body weight and heart girth of donkeys. 
 
-* Does our analysis of this dataset convince you that such a relationship does indeed exist?
+* Does our analysis of this data set convince you that such a relationship does indeed exist?
 
-## Interpreting the 'Coefficients' table - parameter estimates and inference
+## Interpreting the 'Coefficients' table
 
 ```{r echo=TRUE}
 summary(mod)$coefficients
@@ -168,7 +186,7 @@ The `t value` and `Pr(>|t|)` values relate to testing the **null hypothesis that
 * If we do not have evidence against the null, we fail to reject the null and conclude that we have no evidence that body weight is related to heart girth in donkeys.
 * Importantly, **we never "accept the null hypothesis"**. Absence of evidence is not evidence of absence.
 
-## Interpreting the 'Coefficients' table - parameter estimates and inference
+## Interpreting the 'Coefficients' table
 
 ```{r echo=TRUE}
 summary(mod)$coefficients
@@ -194,7 +212,7 @@ summary(mod)
 `r fa("atom") ` **Next, we'll look at the bottom part of the summary output. First, what are '`Signif. codes`'?**
 
 
-## Interpreting the 'Coefficients' table - parameter estimates and inference
+## Reading the stars- significance codes
 
 The linear model summary presents a coded system for p-values:
 
@@ -203,14 +221,23 @@ The linear model summary presents a coded system for p-values:
 This represents a scale of statistical significance, as follows:
 
 * If P > 0.1, you get no asterisks and the result is "not significant".
-* If 0.05 < P < 0.1, you get no asterisks but a consolation '`.`'. The result is "not significant", but it's marginal. 
+* If 0.05 < P < 0.1, you get no asterisks but a consolation '`.`'. 
+The result is "not significant", but it's marginal. 
 * If 0.01 < P < 0.05, you get one asterisk and the result is "significant". 
 * If 0.001 < P < 0.01, you get two asterisks and the result is "very significant".
-* If P < 0.001, you get three asterisks and the result is "very very significant", I guess.
+* If P < 0.001, you get three asterisks and the result is "very very significant".
 
+. . .
+
+::: {.fragment}
 P-values are always between 0 and 1. 
+:::
+::: {.fragment}
 A small P-value means evidence against the null hypothesis. 
+:::
+::: {.fragment}
 A large P-value means no evidence against the null hypothesis (**not** evidence **for** the null hypothesis). 
+:::
 
 ## Summary of a linear model in R
 
@@ -223,7 +250,7 @@ summary(mod)
 
 `r fa("atom") ` **Now, we'll look at the bottom three lines of the summary output.**
 
-## Interpreting model summary - residuals
+## Interpreting Residuals and Goodness of Fit
 
 `Residual standard error: 10.83 on 383 degrees of freedom`  
 `Multiple R-squared:  0.8048,    Adjusted R-squared:  0.8043`  
@@ -231,14 +258,17 @@ summary(mod)
 
 The `Residual standard error: 10.83` is simply the standard deviation of residuals, which is the square root of the residual variance. It measures the inaccuracy of our predictions; on average, the points are `10.83` units away from the predicted mean.
 
+::: {.fragment}
 The residual variance (i.e., the square of the residual standard error) is estimated by
 
 $$\mathsf{Var}_\mathsf{res} = \frac{1}{n-2}\sum_{i=1}^n [y_i - (\hat\alpha + \hat\beta x_i)]^2$$
 
+:::
+::: {.fragment}
 The `383 degrees of freedom` is obtained by subtracting the number of estimated coefficients ( $p=2$ ) from the sample size ( $n=385$ ).
+:::
 
-
-## Interpreting model summary - $R^2$
+## Interpreting model summary - R<sup>2</sup>
 
 `Residual standard error: 10.83 on 383 degrees of freedom`  
 `Multiple R-squared:  0.8048,    Adjusted R-squared:  0.8043`  
@@ -248,16 +278,22 @@ The `Multiple R-squared` value is the proportion of variation in body weight exp
 
 $$
 \begin{aligned}
-R^2 &= \frac{\mathsf{Variance\ Explained}}{\mathsf{Total\ Variance}} = \frac{\mathsf{Total\ Variance} - \mathsf{Residual\ Variance}}{\mathsf{Total\ Variance}}\\
+R^2 &= \frac{\mathsf{Variance\ Explained}}{\mathsf{Total\ Variance}} = \frac{\mathsf{Total\ Variance} - \mathsf{Residual\ Variance}}{\mathsf{Total\ Variance}}
+\end{aligned}$$
+
+$$
+\begin{aligned}
 &= \frac{\sigma_\mathsf{Y}^2 - \sigma_\mathsf{res}^2}{\sigma_\mathsf{Y}^2}= 1-\frac{ \sigma_\mathsf{res}^2}{\sigma_\mathsf{Y}^2}
 \end{aligned}
 $$
 
+::: {.fragment}
 A high $R^2$ value suggests that the model explains a lot of the variation of the outcome variable. Once you know the value of the heartgirth, you have a much better idea of what the body weight will be. Our linear model is useful!
 
-We will discuss `Adjusted R-squared` in Lecture C6 - multiple linear regression, where we'll fit linear models with more than one predictor.
+We won't discuss `Adjusted R-squared` but it is used in multiple linear regression, when we fit linear models with more than one predictor.
+:::
 
-## For our model of donkey body weights, the $R^2$ is 0.80
+## For our model of donkey body weights, the R<sup>2</sup> is 0.80
 
 ```{r echo=FALSE, fig.align="center", fig.height=5, fig.width=8, message=FALSE}
 model_wt_hg <- lm(Bodywt ~ Heartgirth, data=donkey)
@@ -288,7 +324,7 @@ ggplot(p, aes(x=Heartgirth, y=Bodywt)) +
                        length=unit(0.15, 'inches')))
 ```
 
-## Interpreting model summary - $F$-test
+## Interpreting model summary - _F-test_
 
 
 `Residual standard error: 10.83 on 383 degrees of freedom`  
@@ -301,7 +337,7 @@ The `p-value` for this test (last line) is same as the P-value for heart girth (
 
 In models with more than one covariate, i.e. multiple linear regression model, it will be assessing whether any of them help explain the outcome variable.
 
-# Making predictions with a simple linear regression model
+# Making predictions with a simple linear regression model {.center}
 
 
 ## Making predictions
@@ -315,9 +351,10 @@ $$
 & = `r round(s[1,1] + s[2,1] * 120,1)`
 \end{aligned}
 $$
+
 Therefore, we estimate that donkeys with a heart girth of 120 will have, on average, a body weight of `r round(s[1,1] + s[2,1] * 120,1)`. 
 
-
+::: {.fragment}
 In R, we can use the `predict` function for this:
 
 ```{r, echo=TRUE, comment=""}
@@ -325,6 +362,7 @@ predict(mod, newdata = data.frame(Heartgirth=120))
 ```
 
 It is necessary to create a `data.frame` with a column named by `Heartgirth` for the `newdata` argument when we run the `predict` function.
+:::
 
 ## Prediction in R - confidence and prediction intervals
 
@@ -335,7 +373,7 @@ new.data <- data.frame(Heartgirth=120)
 predict(mod, new.data, interval="confidence")
 ```
 
-We are 95% confident that the true **average** body weight of donkeys with a heart girth of 120 is between  `r round(predict(mod, new.data, interval="confidence")[1,2],1)` and `r round(predict(mod, new.data, interval="confidence")[1,3],1)`. 
+We estimate that the true **average** body weight of donkeys with a heart girth of 120 lies between `r round(predict(mod, new.data, interval="confidence")[1,2],1)` and `r round(predict(mod, new.data, interval="confidence")[1,3],1)`. If we were to repeat this process many times, approximately 95% of the confidence intervals calculated from those repeated samples would contain the true average body weight."
 
 
 ## Prediction in R - confidence and prediction intervals
@@ -348,7 +386,9 @@ predict(mod, new.data, interval="prediction")
 
 We estimate that 95% of donkeys with a heart girth of 120 will have a body weight between  `r round(predict(mod, new.data, interval="prediction")[1,2],1)` and `r round(predict(mod, new.data, interval="prediction")[1,3],1)`. Note we have not used the word 'mean' or 'average' here, because this is about the spread of values around the mean.
 
+::: {.fragment .highlight-blue}
 It is important that you understand the difference between a confidence interval and a prediction interval.
+:::
 
 ## Prediction in R: two levels of uncertainty
 
@@ -401,24 +441,27 @@ This leads to a pointwise confidence/prediction band for our linear model.
 
 As we can see from the previous plot, among 100 pairs of observations, there are a few points falling outside the 95% prediction band. 
 
-## Comparing Two Models with $R^2$ and **MSE** 
+# Comparing Two Models with **R<sup>2</sup>** and **MSE** {.center}
 
 ## Another possible model?
 
-A scientist dismissed the linear model studied by us and then conjectured that the relationship between the body weight and the heart girth is best modelled by a power-law relationship as
+One scientist took a look at our linear model and said, 'Not so fast!' Instead, they proposed that body weight and heart girth follow a power-law relationship—so, forget the straight line, we’re talking curves now, baby!
 
 $$\mathsf{Body weight} = c\times [\mathsf{Heart girth}]^k$$
 
 with $c$ and $k$ being some unknown parameters.
 
-How can we handle this non-linear model?
-
+::: {.fragment}
+How can we handle this non-linear relationship?
+:::
+::: {.fragment}
 We can still fit this model under the framework of simple linear regression!
-
+:::
+::: {.fragment}
 We just apply a log transformation to both sides of the above power-law relationship as
 
 $$\log(\mathsf{Body weight}) = \log(c) + k\times \log(\mathsf{Heart girth})$$
-
+:::
 
 ## Fit the transformed model
 
@@ -427,7 +470,7 @@ Set the response $y=\log(\mathsf{Body weight})$ and the predictor $x=\log(\maths
 
 The parameters can be further transformed as $\alpha=\log(c)$ and $\beta=k$.
 
-We can now fit a linear model to the transformed data 
+Then, we can fit a linear model to the transformed data:
 
 
 ```{r, echo=TRUE, eval=FALSE}
@@ -435,50 +478,37 @@ mod2 <- lm(log(Bodywt) ~ log(Heartgirth), data=donkey)
 summary(mod2)
 ```
 
-.pull-left[
+::: {.columns}
 
-## Model without log transformation 
-
-.smaller[
+::: {.column width=50% .fragment}
+#### Model without log transformation 
 
 ```{r, echo=FALSE}
 summary(mod)
 ```
 
-]]
+:::
 
+::: {.column width=50% .fragment}
  
-
-.pull-right[
-
-## Model with log transformation 
-
-.smaller[
+#### Model with log transformation 
 
 ```{r, echo=FALSE}
 mod2 <- lm(log(Bodywt) ~ log(Heartgirth), data=donkey)
 summary(mod2)
 ```
-]]
+:::
+:::
 
- 
-
-.center[
+::: {.fragment .center-h}
 Which model is better?
-]
-
- 
-
-.center[
 Why are the coefficients so different?
-]
+:::
 
- 
-
-.center[
+## Comparing two models via the goodness of fit
 Let's plot the models...
-]
 
+::: {.columns}
 
 
 ```{r, echo=FALSE, fig.align="center", fig.dim=c(10,4), out.width="100%"}
@@ -487,37 +517,34 @@ g1 <- visreg(mod,partial=TRUE,gg=TRUE) + ggtitle('lm(Bodywt ~ Heartgirth)') + th
 g2 <- visreg(mod2,trans=exp,partial=TRUE,gg=TRUE) + ggtitle('lm(log(Bodywt) ~ log(Heartgirth))') + theme(plot.title = element_text(family = "mono", size = 14)) + ylab("Bodywt")
 
 ```
+::: {.fragment}
+::: {.column width=50%}
 
-
-.pull-left[
-
-## Model without log transformation 
+#### Model without log transformation 
 
 ```{r, echo=FALSE, fig.align="center", fig.dim=c(6,5), out.width="100%"}
 g1
 ```
-]
+:::
 
-.pull-right[
+::: {.column width=50%}
 
-## Model with log transformation 
+#### Model with log transformation 
 
 ```{r, echo=FALSE, fig.align="center", fig.dim=c(6,5), out.width="100%"}
 g2
 ```
-]
+:::
+:::
+:::
+::: {.fragment .center-h}
 
-
- 
-
-.center[
 Which do you prefer?
-]
-
+:::
 
 ## Comparing two models via the goodness of fit
 
-The '`Multiple R-squared`' or ' $R^2$ ' is called '**the coefficient of determination**'. It measures the proportion of variation in $y$ that is  explained by a model.
+The `Multiple R-squared` or ' $R^2$ ' is called '**the coefficient of determination**'. It measures the proportion of variation in $y$ that is  explained by a model.
 
 For the linear model in the raw scale, $R^2=0.80$.
 
@@ -531,53 +558,65 @@ $R^2$ is a convenient index for comparing two models.
 
 A high $R^2$ suggests a good fit to the observed data.
 
+::: {.fragment}
 In other words, a model with a high $R^2$ explains more variation in the response variable $y$, and leaves less of the variation in $y$ as unexplained random 'noise'.
+
+:::
+
+::: {.fragment}
 
 In statistics, when we are building a linear model, our focus may be on the things we have not observed, i.e. **prediction** or **forecasting**.
 
-A high $R^2$ does not necessarily yield a good prediction model.
+* A high $R^2$ does not necessarily yield a good prediction model.
 
-Correspondingly, a low $R^2$ does not necessarily lead to a bad prediction model! It is better to have a more realistic model with more noise than an unrealistic model that makes overconfident predictions.
+* Correspondingly, a low $R^2$ does not necessarily lead to a bad prediction model! 
 
-## *All models are wrong, but some are useful*
-### — George E.P. Box
+:::
+
+::: {.fragment}
+It is better to have a more realistic model with more noise than an unrealistic model that makes overconfident predictions.
+:::
+
+::: {.fragment}
+#### *All models are wrong, but some are useful*
+##### — George Box
+:::
+
+## Useful Models
 
 
-## *All models are wrong, but some are useful* — George E.P. Box
-
-
-While the linear model on untransformed data isn't as good, it might still be OK for your purposes. 
+While the linear model on untransformed data isn't as good, it might still be good enough for your purposes. 
 
 For example, if you were only using the model for 'typical' donkeys in the middle of the range of $x$ and $y$. Maybe, on your own farm, most of your donkeys are pretty fit.
 
-The key idea is that the model we come up with is always going to be 'wrong' in some way, but it might still be good enough.
+The key idea is that the model we come up with is always going to be 'wrong' in some way, but it might still work in your use case.
 
 Even the linear model on log-transformed data, i.e. the power law model, can't explain all the variability in the donkey's body weight!
    
  
 
-We will see better models in the next few weeks.
-
-
 ## Comparing two models via prediction (MSE)
 
-In the scientific research, after building some candidate models, the researchers have to conduct experiments to collect new data to validate those models. 
+In the scientific research, after building some candidate models, the researchers want to validate their models on [new, unseen data]{.fragment .highlight-blue}. 
 
 Given an observed sample of data $(x_{1},y_{1}),\ldots,(x_{n},y_{n})$, let the fitted linear model be $y=\hat\alpha+\hat\beta x$. 
 
+::: {.fragment}
 A researcher now collect a new sample of data as $(x_{n+1},y_{n+1}),\ldots,(x_{n+m},y_{n+m})$. 
-
-She or he can compute the predictions of the fitted model at the values $x_{n+1},\ldots,x_{n+m}$ as $\hat{y}_{n+1}=\hat\alpha+\hat\beta x_{n+1},\ldots,\hat{y}_{n+m}=\hat\alpha+\hat\beta x_{n+m}$.
+:::
+::: {.fragment}
+They can compute the predictions of the fitted model at the values $x_{n+1},\ldots,x_{n+m}$ as $\hat{y}_{n+1}=\hat\alpha+\hat\beta x_{n+1},\ldots,\hat{y}_{n+m}=\hat\alpha+\hat\beta x_{n+m}$.
 
 The prediction performance can be evaluated by comparing the true observed responses $y_{n+1},\ldots,y_{n+m}$ against the predicted responses $\hat{y}_{n+1},\ldots,\hat{y}_{n+m}$.
-
-## Comparing two models via prediction (MSE)
-
-
+:::
+::: {.fragment}
 Similar to the residual variance, we can define the **mean square error** (**MSE**) as
 
 $$\mathsf{MSE}=\frac{1}{m}\sum_{i=1}^{m}(y_{n+i}-\hat{y}_{n+i})^2$$
 
+:::
+
+## Comparing two models via prediction (**MSE**)
 
 MSE serves a critical index to measure the prediction performance of candidate models.
 
@@ -621,9 +660,7 @@ MSE.powerlaw
  * `sum()` returns the summation of a vector
  * The basic arithmetic and function operations, like `exp()`, `-`, `^2` and `/n`, is applied to sequences of predictions `pred.linear`, `pred.powerlaw` and observations `donkey$Bodywt` term by term.  
  * We can see that the power law model outperforms the linear model in terms of MSE. 
- * We will confirm this result again in Lecture C4  * Residual Diagnostics!
  * However, MSE here still serves as an index on the goodness of fit, not really an indicator on the prediction performance.  
- * We will see a few more examples on prediction in the coming weeks. 
 
 ## A tidy way to compute the MSE
 
