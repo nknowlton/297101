@@ -1,21 +1,16 @@
-/* Adjust the default font size for smaller text across all slides */
-body {
-    font-size: 0.3em !important;  /* Adjust the value as needed */
-}
-
-/* Optionally, remove excessive bottom margins for all slides */
+/* Remove excessive bottom margins for all slides */
 .reveal .slides {
     margin-bottom: 0 !important;
 }
 
 /* Adjust top-level slide title size (#) */
-h1 {
-    font-size: 1.5em !important;  /* Adjust as needed */
+.reveal h1 {
+    font-size: 1.5em !important;  
 }
 
 /* Adjust second-level slide title size (##) */
-h2 {
-    font-size: 1.2em !important;  /* Adjust as needed */
+.reveal h2 {
+    font-size: 1.2em !important;  
 }
 
 /* Adjust third-level headings if needed (###) */
@@ -26,9 +21,15 @@ h3 {
 
 .reveal code {
     max-height: 100% !important;  /* Ensure code block uses all available space */
-    height: auto !important;      /* Adjust the height dynamically */
     overflow: auto;               /* Allow scrolling if absolutely necessary */
-    font-size: 0.6em !important;   /* Adjust the scale of the code */
+    font-size: 0.8em !important;   /* Adjust the scale of the code */
+}
+
+.math {
+  font-size: 0.8em !important; /* Adjust the font size */
+  line-height: 1.5 !important; /* Increase vertical spacing */
+  margin-right: 0.5em;         /* Space to the right of the math element */
+  margin-left: 0.5em;          /* Space to the left of the math element */
 }
 
 .remark-slide-content {
@@ -38,4 +39,20 @@ h3 {
 .reveal .slide-logo {
              max-height: unset !important;
              height: 100px !important;
+}
+
+.reveal p {
+  font-size: .85em; /* Adjust paragraph size */
+}
+
+.reveal li {
+  font-size: 0.9em;
+}
+
+.reveal h2 .larger-code code{
+  font-size: 10em; /* Adjust the size as needed */
+}
+
+.reveal section div.center-h {
+	text-align: center;
 }
