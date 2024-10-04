@@ -1,0 +1,200 @@
+---
+title: "Workshop Week 11, Lecture C02: Inference and Prediction"
+author: "Johnathan Marshall, Nick Knowlton"
+date: "2024-10-03"
+format: 
+  html:
+    toc: true
+    code-fold: true
+    code-download: true
+    embed_resources: true
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(broom)
+```
+
+## Instructions
+
+-   This is a hands-on workshop where you will work on exercises to understand inference and prediction in linear regression models.
+-   Follow the instructions and complete the tasks in the provided code cells.
+-   Note that this file is a Quarto document. It's like a Rmd document but it uses the Quarto language. You shouldn't see any difference in the code or text sections, so input your code chunks as usual and hit "render" not "knit" to create the output `html`.
+
+## Learning Objectives
+
+-   Perform inference on linear regression models.
+-   Understand key summary statistics (e.g., coefficients, confidence intervals).
+-   Make predictions based on linear models and interpret the results.
+
+> **Note**: Complete the exercises using the `datarium` package, as it provides an accessible dataset for this purpose.
+
+## Exercise 1: Inference Based on a Linear Model
+
+### Step 1: Fit a Linear Model
+
+1.  Load the `datarium` package and the `marketing` dataset. Fit a linear model of `sales` based on `youtube` and save the result in `lm.youtube`. Then, view the summary of the model:
+
+```{r}
+library(datarium)
+data("marketing")
+lm.youtube <- lm(sales ~ youtube, data = marketing)
+summary(lm.youtube)
+```
+
+> **Reflection**: Make sure to explore the different parts of the output in your notebook. Write down observations, focusing on what each part of the output represents. We will dive deeper into the most important sections next.
+
+### Step 2: Understanding Coefficients
+
+2.  In the model summary, focus on the `Coefficients:` section. Here are key points to note:
+    -   **Intercept and Slope**: These are our estimated coefficients. The `Estimate` column shows their values.
+    -   **Point Estimate**: These are only estimates from our sample. Ask yourself, could these values differ if we had more data?
+    -   **Standard Error**: This indicates the variability of these estimates. We only have a sample, so our estimate may not perfectly match the true population value.
+
+> **Task**: Construct a 95% confidence interval for the slope (`youtube`) and the intercept. Use the summary output to calculate the interval manually.
+
+#### Hint:
+
+For the slope: $$
+0.0475 \pm 2 \times 0.0027
+$$ The 2 comes from a normal approximation (use the `qnorm()` function if needed). Calculate the confidence interval and interpret it.
+
+```{r}
+conf.level <- 0.95
+qnorm(1 - (1 - conf.level) / 2)
+```
+
+
+```{r ConfidenceIntervalSlopeandIntercept}
+
+#### Your code here
+
+```
+
+> **Question**: Based on your confidence interval, is 0.05 a plausible value for the true coefficient of `youtube`?
+
+### Step 3: P-Values and Hypothesis Testing
+
+3.  The next key column in the summary is `Pr(>|t|)`, which gives the p-values. This is used to test whether the coefficients are significantly different from zero:
+    -   **t-value**: This represents how many standard deviations the estimate is from zero.
+    -   **p-value**: A low p-value (e.g., \<0.05) suggests that the coefficient is significantly different from zero, implying a real relationship between `sales` and `youtube`.
+
+> **Task**: Use the `t value` to calculate the p-value manually using this code:
+
+```{r}
+t.value <- 2
+2 * (1 - pnorm(t.value))
+```
+
+```{r TvaluetoPvalue}
+
+#### Your code here
+
+
+```
+
+
+> **Reflection**: Think about the significance codes (`'***'`, `'*'`, etc.) in the summary. What do these codes tell you about the strength of evidence against the null hypothesis?
+
+### Step 4: Residual Variance and R-squared
+
+4.  Finally, we calculate the ratio of the variance of residuals to the variance of `sales`. This ratio helps us understand how much of the variability in `sales` is explained by `youtube`.
+
+**Hint**: Use the `augment()` function from the `broom` package to calculate the residuals.
+
+```{r}
+
+#### Your code here
+
+```
+
+> **Question**: Compare this ratio with the `Multiple R-squared:` value in the summary. What does `R-squared` tell us about the relationship between `sales` and `youtube`?
+
+### Step 5: Expanding the Analysis
+
+5.  Now, repeat the analysis for two additional models: `lm.facebook` and `lm.newspaper`. Fit these models and compare their summaries as you did for `lm.youtube`.
+
+```{r}
+
+#### Your code here
+
+```
+
+------------------------------------------------------------------------
+
+## Exercise 2: Prediction Based on a Linear Model
+
+**Objective**: Predict sales based on new advertising budgets and understand the role of confidence and prediction intervals.
+
+### Step 1: Predict Sales
+
+1.  Suppose you have an advertising budget of 400 thousand dollars on YouTube. Use the model equation to predict sales.
+
+> **Task**: Calculate the predicted sales manually using the coefficients from the model summary.
+
+```{r ManualCalcs}
+
+#### Your code here
+
+```
+
+
+### Step 2: Using `predict()`
+
+2.  Use R to automate the prediction process. Create a new dataset and predict the sales:
+
+```{r}
+
+#### Your code here
+
+
+```
+
+### Step 3: Confidence vs. Prediction Intervals
+
+3.  Understand the difference between confidence intervals (for the mean prediction) and prediction intervals (for an individual prediction). Use R to compute both:
+
+```{r}
+
+#### Your code here
+
+
+```
+
+> **Question**: How do the confidence and prediction intervals differ? Which one is wider, and why?
+
+### Step 4: Varying Confidence Levels
+
+4.  Calculate predictions for different confidence levels (90%, 95%, and 99%):
+
+```{r}
+
+#### Your code here
+
+
+```
+
+> **Task**: Compare the intervals at different confidence levels. What happens as the confidence level increases?
+
+### Step 5: Predicting with Zero Budget
+
+5.  Your company decides to cut the YouTube budget to zero dollars due to budget constraints. Predict the sales under this scenario:
+
+```{r}
+
+#### Your code here
+
+```
+
+> **Reflection**: Does this prediction seem realistic? Why or why not?
+
+------------------------------------------------------------------------
+
+## Summary
+
+By completing these exercises, you should be familiar with: 
+
+  * Point estimation, confidence intervals, and hypothesis testing in linear models. 
+  * How to make predictions using linear models, including understanding the uncertainty around these predictions.
+
+Feel free to ask for help during the workshop if you have any questions about the exercises!
