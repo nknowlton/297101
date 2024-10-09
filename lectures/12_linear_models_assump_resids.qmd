@@ -1,12 +1,12 @@
 ---
-title: "297.101 Lecture C03"
+title: "297.101 Week 12 Lecture"
 subtitle: "Model Assumptions and Residuals"
 author: Dr. Nick Knowlton
 date: last-modified	
 format: 
   revealjs:
     code-copy: hover
-    embed-resources: true
+    embed-resources: false
     css: "knowlton.css"
     theme: sky
     slide-number: true
@@ -42,29 +42,25 @@ knitr::opts_chunk$set(fig.dim=c(8,5), out.width="70%", fig.retina=2)
 
 ## Learning Outcomes
 
-- Assumptions of the linear model.
-
 - Least square estimation.
+- Assumptions of the linear model.
+- Diagnose departure from assumptions of the linear model with plots of residuals
 
-- Sampling distribution of least square estimator.
-
----
 
 ## Recap
 
-- The general idea: find a (best possible) line to summarise the relationship between two variables, by finding values of the intercept and slope parameters.
+- The general idea: find a (best possible) line to summarize the relationship between two variables, by finding values of the intercept and slope parameters.
 
 - This is the job of the `lm()` function in R.
 
 - We can summarise the results of a `lm()` object with `summary()`.
 
-- We can plot the fitted line onto a the scatter plot of $x$ vs $y$ with `geom_abline()`.FIXME
+- We can plot the fitted line onto a the scatter plot of $x$ vs $y$ with `geom_smooth()`.
 
----
 
 ## Focus
 
-- When is a linear regression model appropriate? Sometimes, it is not clever to use a linear model, say predicting the numbers of confirmed cases of Covid-19 in NZ over time.
+- When is a linear regression model appropriate? 
 
 - How can we find the best intercept and the slope? What criterion does `lm()` use to choose them?
 
@@ -72,13 +68,11 @@ knitr::opts_chunk$set(fig.dim=c(8,5), out.width="70%", fig.retina=2)
 
 - What assumptions lead to the criterion that `lm()` uses?
 
----
 
-class: middle, inverse
 
-## The Gauss-Markov Assumptions
+# The Gauss-Markov Assumptions {.center}
+![](graphics/lineAssumpWC.webp){.center}
 
----
 
 ## Assumptions of the linear model: L-I-N-E
 
@@ -98,7 +92,6 @@ class: middle, inverse
 
  - Residuals have constant variance. The variation doesn't change as we move along the trend.
 
----
 
 ## A mathematical formualtion of the linear model
 $$
@@ -112,8 +105,6 @@ $$
 - Regression coefficients (parameters): $\alpha$ and $\beta$
 
 - Random error (residual): $\varepsilon$
-
----
 
 ## A mathematical formualtion of the linear model
 
@@ -132,11 +123,9 @@ $$
 y_n=\alpha+\beta x_n +\varepsilon_n
 $$
 
----
-
 ## Gauss-Markov Assumptions 
 
-Given a linear model $y_i=\alpha+\beta x_i +\varepsilon_i,i=1,\ldots,n$, all four assumptions can be summarised in the following expression:
+Given a linear model $y_i=\alpha+\beta x_i +\varepsilon_i,i=1,\ldots,n$, all four assumptions can be summarized in the following expression:
 
 $$\varepsilon_i \mathop{\sim}\limits_\mathsf{iid} \mathsf{Normal}(0, \sigma^2)$$
 
@@ -150,83 +139,63 @@ $$\varepsilon_i \mathop{\sim}\limits_\mathsf{iid} \mathsf{Normal}(0, \sigma^2)$$
 
 These four assumptions are called the "**the Guass-Markov assumptions**".
 
----
 
 ## Wny do we need assumptions? 
 
---
 
 - Without assumptions, there can be no conclusions.
 
---
 
 - These four assumptions are critical for deriving the theory of linear model.
 
---
 
 - They are even more critical in practice. If the assumptions are not true and we go ahead and assume them anyway, **our statistical inferences can be wrong**.
 
---
 
 - Some assumptions are more important than others - the seriousness of violating them varies.
 
---
 
-- Lecture C4 - Residual Diagnostics will investigate this topic in more detail.
+# Least Sqaures Estimation
 
----
 
-class: middle, inverse
-
-## Least Sqaures Estimation
-
----
 
 ## Minimising the (squared) residuals
 
-Supposing that the Gauss-Markov assumptions are all satisfied, we can now estimate the regression coefficients $\alpha$ and $\beta$. 
+- Supposing that the Gauss-Markov assumptions are all satisfied, we can now estimate the regression coefficients $\alpha$ and $\beta$. 
 
---
+- Denote a pair of arbitrary guesses by $\tilde{\alpha}$ and $\tilde{\beta}$. Without divine intervention, these won't exactly equal the true values $\alpha$ and $\beta$. **Why not?**
 
-Denote a pair of arbitrary guesses by $\tilde{\alpha}$ and $\tilde{\beta}$. Without divine intervention, these won't exactly equal the true values $\alpha$ and $\beta$. **Why not?**
+- For each point $x_i$, guesses $\tilde{\alpha}$ and $\tilde{\beta}$, we have the corresponding estimated value $\hat{y}_i = \tilde\alpha + \tilde\beta x_i$.
 
---
+- The difference between the real $y_i$ and fitted $\hat{y}_i$ is the **residual** $\hat\varepsilon_i = y_i - \hat{y}_i$.
 
-For each point $x_i$, guesses $\tilde{\alpha}$ and $\tilde{\beta}$, we have the corresponding estimated value $\hat{y}_i = \tilde\alpha + \tilde\beta x_i$.
+- A good combination of $\tilde{\alpha}$ and $\tilde{\beta}$ minimises the residuals -- gets them close to zero. 
 
---
-
-The difference between the real $y_i$ and fitted $\hat{y}_i$ is the **residual** $\hat\varepsilon_i = y_i - \hat{y}_i$.
-
---
-
-A good combination of $\tilde{\alpha}$ and $\tilde{\beta}$ minimises the residuals -- gets them close to zero. 
-
----
 
 ## Minimising the variance of residuals
 
---
 
 If we have only two pairs of observations, we can easily draw a line between them with residuals zero. 
 
---
-
+:::{.fragment}
 Given more then two points, what can we do ?
+:::
 
---
+- We need some tools to measure the overall performance of a fitted line in terms of residuals. 
 
-We need some tools to measure the overall performance of a fitted line in terms of residuals. 
 
---
+- One way is to *minimise the variance of the residuals*, subject to their mean being 0. 
 
-One way is to *minimise the variance of the residuals*, subject to their mean being 0. (Why mean 0?)
+:::{.fragment .fade-up} 
+Why mean 0?
+:::
 
----
+:::{.fragment .fade-up}
+With mean 0, the minimization of variance is equivalent to minimization of the sum of squares.
+:::
 
 ## Least-squares estimation
 
---
 
 This is called **least-squares estimation**, as the formula for variance contains a sum of squares
 $$
@@ -234,152 +203,71 @@ $$
 \mathsf{var}(\tilde\varepsilon_i) &= \frac{1}{n}\sum_{i=1}^n (\tilde\varepsilon_i - 0)^2= \frac{1}{n}\sum_{i=1}^n [y_i - (\tilde\alpha + \tilde\beta x_i)]^2
 \end{aligned}
 $$
---
+
+. . .
 
 By minimising the **residual variance** $\mathsf{Var}_\mathsf{res} = \frac{1}{n}\sum_{i=1}^n [y_i - (\hat\alpha + \hat\beta x_i)]^2$, we obtain the corresponding values of $\tilde\alpha$ and $\tilde\beta$ which are called **least squares estimates**.
 
---
+. . .
 
 We often put hats on parameters ( $\hat{\alpha}$, $\hat{\beta}$ ) to denote the least-squares estimates. This helps us to remember that they're sample statistics, differentiating them from the true values $\alpha$ and $\beta$ from the population and the arbitrary guesses $\tilde\alpha$ and $\tilde\beta$. 
 
---
+. . .
 
 In previous lectures we sometimes used $a$ and $b$ to talk about $\hat{\alpha}$ and $\hat{\beta}$.
 
----
-
-## A toy example
-
---
-
-Let's consider a even simpler model: $\mathsf{mean}[y]=\beta x$. The intercept $\alpha$ is set as zero. We only need to estimate $\beta.$
-
---
-
-We observed two pairs of observations $(x_1,y_1)=(4,5)$ and $(x_2,y_2)=(6,3)$.
-
---
-
-Then,
-
-$$\mathsf{Var}_\mathsf{res}(\tilde\beta)=[(y_1-\tilde\beta x_1)^2+(y_2-\tilde\beta x_2)^2]/2$$
-
---
-
-After some simplifications, we have 
- 
-$$\mathsf{Var}_\mathsf{res}(\tilde\beta)=a\tilde\beta^2+b\tilde\beta+c$$
-
-where $a=(x_1^2+x_2^2)/2=26,b=-(x_1y_1+x_2y_2)=-38,c=(y_1^2+y_2^2)/2=17$.
-
---
-
-This leads to $\mathsf{Var}_\mathsf{res}(\tilde\beta)=26\tilde\beta^2-38\tilde\beta+17$, a quadratic function of $\tilde\beta$. Let's plot the residual variance against possible values of $\tilde\beta$...
-
----
-
-```{r, fig.align="center", fig.width=8, fig.height=3}
-Var_res <- function(beta_tilde) 26*beta_tilde^2-38*beta_tilde+17 
-ggplot() + xlim(0, 1.5) + ylim(0,20) +  geom_function(fun = Var_res, col='red') +
-  geom_vline(xintercept = 19/26, col='blue', alpha=0.5) +
-  geom_hline(yintercept = Var_res(19/26), col='black', alpha=0.4) +
-  xlab(latex2exp::TeX("$\\tilde{\\beta}$")) + ylab("Variance of Residuals")
-```
-
----
-
-## A toy example
-
---
-
-Some simple calculus reveals that $\mathsf{Var}_\mathsf{res}$ attains its minimum at $\tilde\beta=19/26\approx0.7308$.
-
---
-
-This is an 'analytical solution'.
-
---
-
-We can of course leave all the calculations to R. To fit a linear model without an intercept, we add `- 1` to the right hand side of the formula `y ~ x`.
-
-```{r, echo=TRUE, eval=TRUE}
-x <- c(4,6)
-y <- c(5,3)
-lm_no_intercept  <- lm( y ~ x - 1 )
-coef(lm_no_intercept)
-```
-
----
-
-## Try some harder examples
-
---
-
-Given three or more pairs of observations, we can still estimate $\beta$ manually or with R.
-
---
-
-**Task**: Add a new observation $(x_3,y_3)=(9,12)$ to the two observations in our toy example. Re-estimate $\beta$ with all three observations with R.   
-
---
-
-One can further estimate both the slope and the intercept in a linear model provided that the intercept is non-zero. To estimate two parameters simultaneously, i.e. $\alpha$ and $\beta$, we will need some **multivariate calculus**. 
-
---
-
-More generally, the procedure of finding parameter values that minimise some loss function (e.g., variance of the residuals) is called **optimisation**. **Optimisation** plays a very important role in modern statistics!
-
---
+. . .
 
 Let's not dwell on the mathematical details. Conveniently, R does all the work for us!
 
----
 
-## Estimators vs estimates
+## Estimators vs Estimates
 
---
 
-Returning to the toy example, this time using the abstract symbols $(x_1,y_1)$ and $(x_2,y_2)$. 
+Using a toy example of two points on the x-y plane $(x_1,y_1)$ and $(x_2,y_2)$. 
 
---
+. . .
 
 We can calculate the residual variance as
 
 $$\mathsf{Var}_\mathsf{res}(\tilde\beta)=[(x_1^2+x_2^2)\tilde\beta^2-2(x_1y_1+x_2y_2)\tilde\beta+(y_1^2+y_2^2)]/2$$
 
---
+. . .
 
 The minimum of residual variance is attained at the least-squares estimate 
 $$\hat\beta=\frac{x_1y_1+x_2y_2}{x_1^2+x_2^2}$$
---
+
+. . .
 
 This generic form of $\hat\beta$ is called '**the least-squares estimator**'. It is generic, because you can apply it to any set of paired values of $x$ and $y$. How easy is that?!
 
---
+## Estimators vs estimates
 
-For example, if we substitute the numerical values of observed data into the estimator, we obtain $\hat\beta=19/26\approx0.7308$. $\hat\beta$ is a '**least-squares estimate**'. 
+Let's try it out...
 
----
+- Suppose we have two points $(x_1,y_1)=(1,2)$ and $(x_2,y_2)=(2,3)$.
+- The least-squares estimator for $\beta$ is $\hat\beta=\frac{x_1y_1+x_2y_2}{x_1^2+x_2^2}$.
+- Substituting the values of $x_1,y_1,x_2,y_2$ into the formula, we get $\hat\beta=\frac{1\cdot2+2\cdot3}{1^2+2^2}=\frac{8}{5}=1.6$.
+
+
 
 ## Estimators vs estimates
 
---
 
 An **estimate** is calculated from the real data but an **estimator** is calculated (derived) from the abstract data. An 'estimator' is a method. An 'estimate' is a result obtained from applying the method.
 
---
+. . .
 
 If you know the mathematical form of the least-squares estimator, you can easily obtain the least-squares estimates for a particular sample. 
 
---
+. . .
 
 The summary of `lm()` provides us the least-squares estimates, rather than the estimators. Actually, the least-squares estimators are packaged up in the `lm()` function so we can run it with any data set.
 
---
+. . .
 
 Statisticians spend a lot of effort to find good estimators and programming them into R packages!
 
----
 
 ## Estimator as a random variable
 
@@ -387,129 +275,104 @@ Recall that $y_1=\beta x_1+\varepsilon_1$ and $y_2=\beta x_2+\varepsilon_2$. Sub
 
 $$\hat\beta=\frac{x_1(\beta x_1+\varepsilon_1)+x_2(\beta x_2+\varepsilon_2)}{x_1^2+x_2^2}=\beta+\frac{x_1\varepsilon_1+x_2\varepsilon_2}{x_1^2+x_2^2}$$
 
---
-
 $\hat\beta$ can be regarded as the sum of the ground truth $\beta$ and the random disturbance $\frac{x_1\varepsilon_1+x_2\varepsilon_2}{x_1^2+x_2^2}$.
 
---
+. . .
 
-Therefore, $\hat\beta$ is also a random variable! But what does this mean? Why does it vary, and over what?
+Therefore, $\hat\beta$ is also a random variable! [But what does this mean?]{.fragment} [Why does it vary, and over what?]{.fragment}
 
---
-
+:::{.fragment}
 The source of the randomness is called '*sampling variation*'. 
+:::
 
---
-
-- If you were to take a different sample from the population, the observed $y$ values would be different. 
-
---
+:::{.fragment}
+If you were to take a different sample from the population, the observed $y$ values would be different. 
 
 - With different $y$ values, you get different residuals $\varepsilon$ (deviations of individual $y$ values from their fitted values $\hat{y}$).
 
---
-
 - Thus, the estimates of $\hat\beta$ vary across different sample datasets.
-
+:::
 
 
 
 ## Sampling distribution of our estimators
 
---
 
-Under the Guass-Markov assumptions, we know the distribution of $\hat\alpha$ and $\hat\beta$ across different samples.
+Under the Guass-Markov assumptions (LINE), we know the distribution of $\hat\alpha$ and $\hat\beta$ across different samples.
 
---
+. . .
 
 It can be shown that $\mathsf{mean}[\hat\alpha]= \alpha$ and $\mathsf{mean}[\hat\beta]=\beta$. What does this mean?   
 
---
+. . .
 
-On average, across samples, the least-squares estimators get it right. The distribution of $\hat\alpha$ and $\hat\beta$ are centred on the true parameters $\alpha$ and $\beta$. In other words, they're unbiassed estimators!
+On average, across samples, the least-squares estimators get it right. The distribution of $\hat\alpha$ and $\hat\beta$ are centered on the true parameters $\alpha$ and $\beta$. In other words, they're unbiassed estimators!
 
---
+. . .
 
 We also know that the standard errors of $\hat\alpha$ and $\hat\beta$ decrease as the sample size $n$ gets larger. The bigger the sample, the closer the estimates get to their true values.
 
---
+. . .
 
 Knowledge of the distribution of estimates $\hat\alpha$ and $\hat\beta$ can be used to test hypotheses about the true values $\alpha$ and $\beta$.
 
 
-## Summary
-
-- Assumptions for linear model
-
-- Least squares estimation
-
-- Estimator, estimate, and sampling distribution
-
-- Create your own functions and make its plot
+# Residual Diagnostics 
 
 
-## Learning Outcomes
 
-- Diagnose departure from assumptions of the linear model with plots of residials
-
-- Apply transformations to data prior to modelling
-
-## Residual Diagnostics 
-
----
-
-## Focus
-
-- Analysing residuals of a linear model to check the Guass-Markov assumptions. 
-
-- Use transformations to remedy the problematic issues arising from violating the assumptions.
 
 ## Checking the assumptions
 
---
 
 How do we know if the assumptions are met?
 
---
-
+:::{.fragment .fade-up}
 We can examine the data and output from the linear model to help us assess whether the assumptions are appropriate for any given case. 
+:::
 
---
+. . .
 
-However, for any real dataset and model, you may never know for sure. 
+However, for any real data set and model, you may never know for sure. 
 
---
+. . .
 
-To check the linear model assumptions, we'll use the standard **diagnostic plots**.
+To check the linear model assumptions, we'll use the standard [diagnostic plots]{.fragment .highlight-red}.
 
----
+
 
 ## Checking the assumptions
 
---
 
 The **diagnostic plots** can help us assess linearity, normality, and equal variance. 
 
---
+. . .
 
 We usually can't assess the assumption of independence just by examining the diagnostic plots. We need to consider other information, such as how the data were collected.
 
---
+. . .
 
 We can also use the diagnostic plots to look for  **outliers** - data points that have unusually large influence on the fit of the model.
 
---
+. . .
 
 In R, we can use `plot(model)` to get four standard diagnostic plots:
-1. Residuals (versus fitted values) plot
-2. Normal Q-Q plot
-3. Scale-location plot
-4. Leverage plot 
 
----
+:::{.fragment}
 
-## Example: donkey data
+[1. Residuals (versus fitted values) plot]{.fragment .fade-in}
 
+[2. Normal Q-Q plot]{.fragment .fade-in}
+
+[3. Scale-location plot]{.fragment .fade-in}
+
+[4. Residuals versus leverage plot]{.fragment .fade-in}
+
+:::
+
+
+
+## Example: Moroccan Donkey data
 
 ```{r echo=TRUE, eval=FALSE}
 read.csv("https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv") %>% 
@@ -527,10 +390,7 @@ plot(mod, pch=19, col="#00000040")
 ```
 
 
----
-
-
-## Example: Morocon Donkey Data
+## Example: Moroccan Donkey data
 
 
 ```{r echo=TRUE, eval=FALSE}
@@ -542,34 +402,39 @@ read.csv("https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv") %>%
 
 
 ```{r, fig.align='left', fig.width=5, fig.height=4, out.width="65%", echo=FALSE}
-mod <- lm(Bodywt ~ Heartgirth, data=donkey)
 par(mfrow=c(2,2), mar=c(4,2,2,2)) # this splits the plot window into four panels
 plot(mod, pch=19, which=1, col="#00000040")
 ```
 
 
----
-
 ## Diagnostic plot 1: residuals versus fitted values
 
-.left-plot[
+:::{.columns}
+
+:::{.column width="60%"}
+
 ```{r, echo=FALSE, out.width="100%"}
 plot(mod, which=1, pch=19, col="#00000040")
 ```
-]
 
-.right-code[ 
+:::
 
+:::{.column width="40%"}
+
+:::{.fragment}
 We can use this plot to assess:
 
-1. **linearity** - there should be no curvature, and 
+[1. **linearity** - there should be no curvature, and]{.fragment .fade-up}
 
-2. **equal variance** - the spread should be constant, with not increase from left to right. 
-
-When either of these fail, a log transformation of $y$ and/or $x$ often helps!
-]
+[2. **equal variance** - the spread should be constant, with not increase from left to right.]{.fragment .fade-up}
 
 
+
+:::
+
+:::
+[When either of these fail, a log transformation of $y$ and/or $x$ often helps!]{.fragment .fade-up}
+::: 
 ---
 
 <iframe src="https://shiny.massey.ac.nz/jcmarsha/linearity/" style="border: none" width="100%" height="600px"></iframe>
@@ -664,158 +529,55 @@ We have seen the outliers in a boxplot and having them often has a significant e
 
 You may choose to remove outliers, but it must be reported and justified in your write up. 
 
----
+Remember that ouliers and data errors are different. If I switched the weight of a donkey with a horse, that would be an error, not an outlier. 
+
+. . .
+
+Always check your data!
+
 
 ## Implication of outliers
 
 Be careful though! The outliers may be very informative, perhaps even lead us to new scientific discoveries!
 
-> '*Scientific measurements are never perfect, but different teams studying the same phenomena can often produce widely different results. These “outlier” values are the cause of much consternation – but they may also be a sign of healthy scientific progress*'
+> "Outliers, the data that fall outside the groups, are part of every, or almost, every experiment. An outlier is a data point that is different from the pattern of data. Outliers often contribute to negative results. Scatterplots and boxplots can help detect stray data points. Technical errors can be recognized by going over the experimental records, data collection and analysis. Outliers can be removed from analyses due to human mistake, unbiased application of a priori defined inclusion and exclusion criteria, or statistical tests."
 
-Bailey, David (2018) “Why OUTLIERS are good for science”, *Significance*, 15(1): 14-19. https://rss.onlinelibrary.wiley.com/doi/full/10.1111/j.1740-9713.2018.01105.x
-
----
+::: aside
+Marina E. Emborg, “Reframing the perception of outliers and negative data in translational research”, *Brain Res Bull* https://doi.org/10.1016%2Fj.brainresbull.2022.11.020
+:::
 
 ## Donkeys: Residuals *vs* fitted values
 
-.left-plot[
+:::{.columns}
+
+:::{.column width 50%}
 
 ```{r, echo=FALSE, out.width="100%"}
 plot(mod, which=1, pch=19, col="#00000040")
 ```
-]
 
---
+:::
 
-.right-code[ 
+:::{.column width 50%} 
 
 Linearity doesn't hold. There is a curve.
 
 Equal variance doesn't hold. The residuals are increasingly spread out to the right of the plot.
+:::
 
-]
-
----
-
-class: middle, inverse 
-
-## Transformations
-
----
-
-## Donkeys: Original scale
-
-```{r,fig.align='center', fig.width=8, fig.height=5}
-ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) + geom_point()
-```
-
----
-
-## Donkeys: Log scale
-
-```{r,fig.align='center', fig.width=8, fig.height=5}
-ggplot(donkey, aes(x=log(Heartgirth), y=log(Bodywt))) + geom_point()
-```
-
----
-
-## Fit log scale model and plot
-
-```{r, fig.align='center', fig.width=6, fig.height=4}
-mod2 <- lm(log(Bodywt) ~ log(Heartgirth), data=donkey)
-plot(mod2, which=1, pch=19, col="#00000040")
-```
-
-Linearity and equal variance now hold.
-
----
-
-## What have we done?
-
-- We transformed both $x$ and $y$ and then fit a straight line.
-
-- This is the same as fitting a curve to the original data (a power curve).
-
-- We can visualise the model using the `visreg` package. 
-
----
-
-## Visualising the model -- linear on the log scale
-
-```{r, fig.align='center', fig.width=8, fig.height=5}
-library(visreg)
-visreg(mod2, xtrans=log, partial=TRUE, gg=TRUE) + ylab("log(Bodywt)") + xlab("log(Bodywt)")
-```
-
----
-
-## Visualising the model -- curved on the original scale
-
-```{r, fig.align='center', fig.width=8, fig.height=5}
-library(visreg)
-visreg(mod2, trans=exp, partial=TRUE, gg=TRUE) + ylab("Bodywt")
-```
-
----
-
-## Inverse transformation
-
-We have seen the power of log transformation which provides us an efficient remediation to **non-linearity** and **heteroskedasticity** (i.e. such a wordy statistical terminology which means **unequal variances**.)
-
-Notice that we take the log transformation for both `Bodywt` ( $y$ ) and `Heartgirth` ( $x$ ). After a log transformation, the linear model becomes
-$$
-\log(y) = \alpha + \beta \log(x) +\varepsilon
-$$
-
-Exponentiating both sides leads to 
-$$
-y=e^\alpha\cdot x^\beta \cdot e^\varepsilon
-$$
-
-which implies a power law between `Bodywt` and `Heartgirth` with a multiplicative error term $e^\varepsilon$.      
-$e^\varepsilon$ follows a log-normal distribution. 
-
----
-
-## More non-linear transformations
-
---
-
-The exponential function is the inverse of the log function. $e^{log(x)} = x$
-
---
-
-Sometimes, we take the log of only $x$ 
-
-$$y = \alpha + \beta \log(x) +\varepsilon$$
-or only $y$
-$$\log(y) = \alpha + \beta x + \varepsilon$$
-
---
-
-They both imply a log or exponential law between $y$ and $x$. 
-
---
-
-The log transformation allows various non-linear functions for the relationship between $x$ and $y$ in bivariate data.
-
---
-
-The key is to transform the original data in such a way that the relationship between $y'$ and $x'$ becomes linear.
-
+:::
 
 
 ## Summary
 
+- Assumptions for linear model
+
+- Least squares estimation
+
+- Estimator, estimate, and sampling distribution
+
 - Residual diagnostics 
 
-  - The residuals vs fitted plot should be looked at first. If you see curvature or increasing scatter from left to right, try a log transform and re-fit the model.
 
-  - Next look at residuals vs leverage. If you have influential outliers then look at the effect of removing those observations.
 
-- Transformations
-    
-  - log
-    
-  - Box-Cox
   
