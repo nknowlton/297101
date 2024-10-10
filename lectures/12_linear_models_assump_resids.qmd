@@ -6,7 +6,7 @@ date: last-modified
 format: 
   revealjs:
     code-copy: hover
-    embed-resources: false
+    embed-resources: true
     css: "knowlton.css"
     theme: sky
     slide-number: true
@@ -37,7 +37,8 @@ library(patchwork)
 library(fontawesome)
 opts_chunk$set(dev.args=list(bg='transparent'), comment="", warning=FALSE, echo=FALSE)
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(fig.dim=c(8,5), out.width="70%", fig.retina=2)
+knitr::opts_chunk$set(fig.dim=c(8,5), out.width="100%", fig.retina=2)
+knitr::opts_chunk$set(dev = "svglite")
 ```
 
 ## Learning Outcomes
@@ -68,30 +69,7 @@ knitr::opts_chunk$set(fig.dim=c(8,5), out.width="70%", fig.retina=2)
 
 - What assumptions lead to the criterion that `lm()` uses?
 
-
-
-# The Gauss-Markov Assumptions {.center}
-![](graphics/lineAssumpWC.webp){.center}
-
-
-## Assumptions of the linear model: L-I-N-E
-
-**L**inearity
-
- - $x$ and $y$ are linearly related. Residuals don't depend on $x$. 
-
-**I**ndependence
-
- - Residuals don't influence each other.
-
-**N**ormality
-
- - Residuals are distributed normally.
-
-**E**qual variance
-
- - Residuals have constant variance. The variation doesn't change as we move along the trend.
-
+# Least Sqaures Estimation
 
 ## A mathematical formualtion of the linear model
 $$
@@ -106,62 +84,7 @@ $$
 
 - Random error (residual): $\varepsilon$
 
-## A mathematical formualtion of the linear model
-
-Say, we have observed multiple pairs of $y$ and $x$ as $(x_1,y_1),(x_2,y_2),\ldots,(x_n,y_n)$.
-
-$$
-y_1=\alpha+\beta x_1 +\varepsilon_1,
-$$
-$$
-y_2=\alpha+\beta x_2 +\varepsilon_2,
-$$
-$$
-\vdots
-$$
-$$
-y_n=\alpha+\beta x_n +\varepsilon_n
-$$
-
-## Gauss-Markov Assumptions 
-
-Given a linear model $y_i=\alpha+\beta x_i +\varepsilon_i,i=1,\ldots,n$, all four assumptions can be summarized in the following expression:
-
-$$\varepsilon_i \mathop{\sim}\limits_\mathsf{iid} \mathsf{Normal}(0, \sigma^2)$$
-
-- $\mathsf{mean}[\varepsilon_i]=0$ ensures the **L**inearity.
-
-- $\mathsf{iid}$(*identically and independently distributed*) ensures the **I**ndependence.
-
-- $\mathop{\sim}\mathsf{Normal}$ ensures the **N**ormality. 
-
-- $Var(\varepsilon_i)=\sigma^2$ ensures the **E**qual variance
-
-These four assumptions are called the "**the Guass-Markov assumptions**".
-
-
-## Wny do we need assumptions? 
-
-
-- Without assumptions, there can be no conclusions.
-
-
-- These four assumptions are critical for deriving the theory of linear model.
-
-
-- They are even more critical in practice. If the assumptions are not true and we go ahead and assume them anyway, **our statistical inferences can be wrong**.
-
-
-- Some assumptions are more important than others - the seriousness of violating them varies.
-
-
-# Least Sqaures Estimation
-
-
-
 ## Minimising the (squared) residuals
-
-- Supposing that the Gauss-Markov assumptions are all satisfied, we can now estimate the regression coefficients $\alpha$ and $\beta$. 
 
 - Denote a pair of arbitrary guesses by $\tilde{\alpha}$ and $\tilde{\beta}$. Without divine intervention, these won't exactly equal the true values $\alpha$ and $\beta$. **Why not?**
 
@@ -169,7 +92,7 @@ These four assumptions are called the "**the Guass-Markov assumptions**".
 
 - The difference between the real $y_i$ and fitted $\hat{y}_i$ is the **residual** $\hat\varepsilon_i = y_i - \hat{y}_i$.
 
-- A good combination of $\tilde{\alpha}$ and $\tilde{\beta}$ minimises the residuals -- gets them close to zero. 
+- A good combination of $\tilde{\alpha}$ and $\tilde{\beta}$ minimizes the residuals -- gets them close to zero. 
 
 
 ## Minimising the variance of residuals
@@ -295,6 +218,64 @@ If you were to take a different sample from the population, the observed $y$ val
 
 
 
+# The Gauss-Markov Assumptions {.center}
+![](graphics/lineAssumpWC.webp){.center}
+
+
+## Assumptions of the linear model: L-I-N-E
+
+**L**inearity
+
+ - $x$ and $y$ are linearly related. Residuals don't depend on $x$. 
+
+**I**ndependence
+
+ - Residuals don't influence each other.
+
+**N**ormality
+
+ - Residuals are distributed normally.
+
+**E**qual variance
+
+ - Residuals have constant variance. The variation doesn't change as we move along the trend.
+
+
+## A mathematical formualtion of the linear model
+
+Say, we have observed multiple pairs of $y$ and $x$ as $(x_1,y_1),(x_2,y_2),\ldots,(x_n,y_n)$.
+
+$$
+y_1=\alpha+\beta x_1 +\varepsilon_1,
+$$
+$$
+y_2=\alpha+\beta x_2 +\varepsilon_2,
+$$
+$$
+\vdots
+$$
+$$
+y_n=\alpha+\beta x_n +\varepsilon_n
+$$
+
+## Gauss-Markov Assumptions 
+
+Given a linear model $y_i=\alpha+\beta x_i +\varepsilon_i,i=1,\ldots,n$, all four assumptions can be summarized in the following expression:
+
+$$\varepsilon_i \mathop{\sim}\limits_\mathsf{iid} \mathsf{Normal}(0, \sigma^2)$$
+
+- $\mathsf{mean}[\varepsilon_i]=0$ ensures the **L**inearity.
+
+- $\mathsf{iid}$(*identically and independently distributed*) ensures the **I**ndependence.
+
+- $\mathop{\sim}\mathsf{Normal}$ ensures the **N**ormality. 
+
+- $Var(\varepsilon_i)=\sigma^2$ ensures the **E**qual variance
+
+:::{.fragment}
+These four assumptions are called the **the Guass-Markov assumptions**.
+:::
+
 ## Sampling distribution of our estimators
 
 
@@ -315,6 +296,21 @@ We also know that the standard errors of $\hat\alpha$ and $\hat\beta$ decrease a
 . . .
 
 Knowledge of the distribution of estimates $\hat\alpha$ and $\hat\beta$ can be used to test hypotheses about the true values $\alpha$ and $\beta$.
+
+## Wny do we need assumptions? 
+
+
+- Without assumptions, there can be no conclusions.
+
+
+- These four assumptions are critical for deriving the theory of linear model.
+
+
+- They are even more critical in practice. If the assumptions are not true and we go ahead and assume them anyway, **our statistical inferences can be wrong**.
+
+
+- Some assumptions are more important than others - the seriousness of violating them varies.
+
 
 
 # Residual Diagnostics 
@@ -428,60 +424,90 @@ We can use this plot to assess:
 
 [2. **equal variance** - the spread should be constant, with not increase from left to right.]{.fragment .fade-up}
 
-
-
 :::
 
 :::
+
 [When either of these fail, a log transformation of $y$ and/or $x$ often helps!]{.fragment .fade-up}
+
 ::: 
----
+
+## Linearity Shiny App
 
 <iframe src="https://shiny.massey.ac.nz/jcmarsha/linearity/" style="border: none" width="100%" height="600px"></iframe>
 
 [Linearity Shiny App](https://shiny.massey.ac.nz/jcmarsha/linearity/)
 
----
 
 ## Diagnostic plot 2: Normal Q-Q plot
 
-.left-plot[
+:::{.columns}
+
+:::{.column width="60%"}
 
 ```{r, echo=FALSE, out.width="100%"}
 plot(mod, which=2, pch=19, col="#00000040")# , xaxt="n")
 ```
-]
 
-.right-code[ 
+:::
+
+:::{.column width="40%"}
+
+:::{.fragment}
+
 We use this plot to assess **normality** of residuals.
+
+:::
+:::{.fragment}
 
 Ideally the points will lie on the straight line.
 
+:::
+:::{.fragment}
+
 Some departure from the line, particularly at the ends, is no big deal.
 
-The Central Limit Theorem means this can generally be ignored.
-]
+:::
+:::{.fragment}
 
----
+The Central Limit Theorem means this can generally be ignored.
+:::
+
+:::
+:::
+
 
 ## Diagnostic plot 3: Scale-location plot
 
-.left-plot[
+:::{.columns}
+
+:::{.column width="60%"}
 
 ```{r, echo=FALSE, out.width="100%"}
 plot(mod, which=3, pch=19, col="#00000040")
 
 ```
-]
 
-.right-code[ 
+:::
+
+:::{.column width="40%"}
+
+:::{.fragment}
 We use this plot to assess **equal** or **homogeneity of variance**.
+
+:::
+:::{.fragment}
 
 Ideally, points should be flat - not increasing or decreasing.
 
+:::
+:::{.fragment}
+
 Residuals versus fit often tells you this just as well, but all residuals are made positive here.
-]
----
+
+:::
+:::
+:::
 
 ## Diagnostic plot 4: Residuals versus leverage
 
@@ -499,7 +525,7 @@ Points should ideally be inside red bands (Cook's distance) at 0.5.
 Points outside Cook's distance of 1 have excessive influence.
 
 
----
+
 
 ## Influential outliers
 
@@ -509,11 +535,15 @@ Points can be outliers in two ways:
     
 2. They can have extreme $y$ values, given their $x$ value (i.e. a large residual.)
 
+:::{.fragment}
+
 Points have large **influence** if they exhibit both these properties.
-
+:::
+:::{.fragment}
 **Cook's distance** is a measure of the influence of a data point on the parameter estimates. Cook's distance larger than 1 means the points have large influence on the model fit. Removing these points would change the model.
+:::
 
----
+## Leverage Shiny App
 
 <iframe src="https://shiny.massey.ac.nz/jcmarsha/influence/" style="border: none" width="100%" height="500px"></iframe>
 
@@ -525,16 +555,21 @@ Points have large **influence** if they exhibit both these properties.
 
 The challenge of outliers is that they can significantly distort the results, and 'swamp' the contribution of the majority of the data.
 
+. . .
+
 We have seen the outliers in a boxplot and having them often has a significant effect on our mean and standard deviation. Similarly, outliers in our linear model will generally distort the regression coefficient estimates and prediction results. 
-
-You may choose to remove outliers, but it must be reported and justified in your write up. 
-
-Remember that ouliers and data errors are different. If I switched the weight of a donkey with a horse, that would be an error, not an outlier. 
 
 . . .
 
-Always check your data!
+You may choose to remove outliers, but it must be reported and justified in your write up. 
 
+. . .
+
+Remember that ouliers and data errors are different. If I switched the weight of a donkey with a horse, that would be an error, not an outlier. 
+
+:::{.fragment .highlight-blue}
+Always check your data!
+:::
 
 ## Implication of outliers
 
@@ -543,14 +578,14 @@ Be careful though! The outliers may be very informative, perhaps even lead us to
 > "Outliers, the data that fall outside the groups, are part of every, or almost, every experiment. An outlier is a data point that is different from the pattern of data. Outliers often contribute to negative results. Scatterplots and boxplots can help detect stray data points. Technical errors can be recognized by going over the experimental records, data collection and analysis. Outliers can be removed from analyses due to human mistake, unbiased application of a priori defined inclusion and exclusion criteria, or statistical tests."
 
 ::: aside
-Marina E. Emborg, “Reframing the perception of outliers and negative data in translational research”, *Brain Res Bull* https://doi.org/10.1016%2Fj.brainresbull.2022.11.020
+Marina E. Emborg, “Reframing the perception of outliers and negative data in translational research”,*Brain Res Bull*\ https://doi.org/10.1016%2Fj.brainresbull.2022.11.020
 :::
 
 ## Donkeys: Residuals *vs* fitted values
 
 :::{.columns}
 
-:::{.column width 50%}
+:::{.column width="50%"}
 
 ```{r, echo=FALSE, out.width="100%"}
 plot(mod, which=1, pch=19, col="#00000040")
@@ -558,14 +593,71 @@ plot(mod, which=1, pch=19, col="#00000040")
 
 :::
 
-:::{.column width 50%} 
+:::{.column width="50%"} 
 
-Linearity doesn't hold. There is a curve.
+:::{.fragment}
 
-Equal variance doesn't hold. The residuals are increasingly spread out to the right of the plot.
+* Linearity doesn't hold. There is a curve.
+
+* Equal variance doesn't hold. The residuals are increasingly spread out to the right of the plot.
+
 :::
 
 :::
+
+:::
+
+
+## Tweaking data to meet assumptions
+
+
+:::{.columns}
+
+:::{.column width="50%"}
+#### Original scale
+
+```{r,fig.align='center', fig.width=8, fig.height=5}
+ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) + geom_point()
+```
+:::
+
+:::{.column width="50%"}
+#### Log scale
+
+```{r,fig.align='center', fig.width=8, fig.height=5}
+ggplot(donkey, aes(x=log(Heartgirth), y=log(Bodywt))) + geom_point()
+```
+:::
+
+:::
+
+## Tweaking data to meet assumptions
+
+:::{.columns}
+
+:::{.column width="50%"}
+#### Original scale
+
+```{r}
+mod1 <- lm(Bodywt ~ Heartgirth, data=donkey)
+plot(mod1, which=1, pch=19, col="#00000040")
+```
+:::
+
+:::{.column width="50%"}
+#### Log scale
+
+```{r}
+mod2 <- lm(log(Bodywt) ~ log(Heartgirth), data=donkey)
+plot(mod2, which=1, pch=19, col="#00000040")
+```
+:::
+
+:::
+
+. . .
+
+Linearity and equal variance now hold.
 
 
 ## Summary
