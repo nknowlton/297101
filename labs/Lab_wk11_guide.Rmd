@@ -1,0 +1,157 @@
+---
+title: "Workshop Week 11: Lecture C02: Inference and Prediction"
+output:
+  html_document: 
+    toc: yes
+    code_download: true
+---
+
+```{r include=FALSE}
+library(tidyverse)
+```
+
+
+## Exercise 1: Inference based on linear model
+
+In this exercise we'll look at again modelling `sales` using `youtube`, like we saw in the first lab. We will have a closer look at the model summary.
+
+1. Load the package `datarium` and the data `marketing`. Fit the linear model, and saves the result in the object `lm.youtube` again. Then, request a summary:
+    ```{r}
+    library(datarium)
+    data(`marketing`)
+    lm.youtube <- lm(sales ~ youtube, data=marketing)
+    summary(lm.youtube)
+    ```
+    
+    Notice the summary command gives quite a lot of information. We'll go through some of it here. **You might want to add some notes to your notebook about what the various bits are telling you**. 
+
+2. We will skip `Call:` and `Residuals:` as their meanings are very clear. Our major focus is on `Coefficients:`. 
+
+    * We have two rows, one for the `Intercept`, and one labelled `youtube` - this is the slope.
+    * The `Estimate` column gives us the values of each of these parameters, i.e. **point estimates**, same as `coef()`. *Are these point estimates the true values in the population?*  
+    * The `Std. Error` column is a measure of how much out we might be in the estimation. In the simulation study of Exercise 1, we should have identified that the differences between the point estimates and true values seem to agree with `Std. Error` in some level. 
+    
+    The reason we have this error in estimation is we have just a sample of data - we haven't tried all possible Youtube promotion budget and observed the corrsponding sales! So, just like a sample mean might be a bit out, the estimates of the intercept and slope might also be a bit out. `Std. Error` is the standard deviation of those estimates. 
+      
+    Ok, there will always be some errors in our point estimates if we can't observe all the possible data. We have to accept this fact that we can't know the true value of the regression coefficients in the real world (An exception is the simulation study in Exercise 1!) 
+      
+    Statistician who can't forgive the eternal error proposes an alternative way to consolate themselves, i.e. the **interval estimation** or **confidence interval**. Rather than guessing a point for the unknown coefficient, they propose that constructing an interval based on the data to contain the true coefficient with a high probability, say 95%. This probability is called **confidence level** in statistics. 
+      
+    A 95% confidence interval for the slope would be:
+$$
+0.0475 \pm 2 \times 0.0027,
+$$
+where 0.0475 is from `Estimate` and 0.0027 is from `Std. Error`. The multiple 2 comes from the fact that the point estimate follows a normal distribution. It can trace back to **$3\sigma$ rule** of normal distribution you've learnt from part B. *Recall the probability of a normal random variable falling into $2\sigma$ region.* The following R chunk helps you find the right multiple factor given arbitrary confidence level between 0 and 1.
+
+    ```{r}
+    conf.level <- 0.95
+    qnorm(1-(1-conf.level)/2)
+    ```
+
+    We can easily see that zero is not falling into this interval. So it is very unlikely that the coefficient of `youtube` is zero as this confidence interval shall contain the true value with a high probability 95%. 
+      
+    *Could 0.05 be a candidate for the true value of the coefficient of `youtube`? *
+    
+    **Answer:** Write the confidence interval for slope as $(0.0421,0.0529)$. We can see that $0.05\in (0.0421,0.0529)$. So, 0.05 becomes a reasonable candidate for the true slope. 
+    
+    *Construct your 95% confidence interval for `Intercept`.*
+    
+    **Answer:** Getting the corresponding `Estimate` and `Std.Error` from the R summary, we have
+    $8.44  \pm 2 \times  0.55$,
+    or $(7.34,9.54)$.
+
+3. Continue reading `Coefficients:`
+
+    * The `t value` column is giving the number of standard deviations away from 0 the slope and intercept estimates are (i.e. `t value = (Estimate-0)/Std. Error`, $17.67 =  0.047537 / 0.002691$).      
+    
+    The confidence interval only gives us a rough idea that zero is not likely to be the true value of the `youtube` coeffcient. `t value` provides us a more quantitative measurement on how far zero is from the true value.
+    
+    Actually, `t value` here is  a **$T$-statistic** to check if the `youtube` coefficient is equal to zero, i.e. a hypothesis $b=0$. In statistics, this hypothesis is called the **null hypotheis** denoted $H_0$. 
+    
+    The bigger `t value` is, the more unlikely zero is the true coefficient. With a sufficient big `t value`, we can say we reject the null hypothesis $H_0:b=0$ and the corresponding regression coefficient is non-zero. If `t value` is small enough, we can say that we accept the null hypothesis.
+      
+    Need a cut-off point to make the decision on accept or reject! P-values will finish this task.
+     
+    * The `Pr(>|t|)` column is the P-values of $T$-statistics for each of these estimates given the null hypothesis is true - the slope (or intercept) is exactly zero.
+    
+    From a nonrigorous perspective, P-values is the probability of getting the point estimates reported in the summary under the condition of the null hypothesis being true. 
+    
+    As a probability, `Pr(>|t|)` will be confined between 0 and 1. Provided `t value`, the corresponding `Pr(>|t|)` can be calculated by the following R chunk
+    ```{r}
+    t.value <- 17.67
+    2*(1-pnorm(t.value))
+    ```
+    
+    If `Pr(>|t|)` is very small (close to 0), it seems that we meet some unusual phenomenon which goes against the condition - the null hypothesis being true. 
+    
+    A typical used cut-off point is 0.05. This cut-off point is called the *significance level* when testing a hypothesis. 
+
+    *Think about the line `Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1`. What does these codes mean? What would be your conclusion for the codes reported in `summary()`? Write some notes about this into your notebook. If you're not sure, discuss with those around you, or with Xun.*
+    
+    **Answer:** `Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1` define a symbolic way to interpret the P-values. The symbols between two numbers means the P-values fall into the corresponding intervals. 
+
+4. Following Exercise 2 in LabC1, we use `broom` to sweep `lm.youtube` and get the tidy tibble. We compute the ratio between the variance of residuals `.resid`($e$) and the variance of the response variable `sales`($y$) with `summarise()`. 
+
+    ```{r}
+    library(broom)
+    augment(lm.youtube) |> summarise(ratio.var = var(.resid)/var(sales))
+    ```
+
+    *Compare this ratio with the `Multiple R-squared:`($R^2$) value (at the bottom of the summary output) by summing them together.*
+    
+    *Think about what the `Multiple R-squared:`($R^2$) value means for the relationship between `sales` and `youtube`.*
+
+    **Answer:** The `Multiple R-squared:`($R^2$) is defined as $1-Var_{res}/Var_{y}$.  It provides a measure of how well observed outcomes are replicated by our linear model, based on the proportion of total variation of outcomes explained by the model.
+
+5. Retrieve another two linear models fitted in Workshop C1, i.e. `lm.facebook` and `lm.newspaper`. Peruse their summaries by following Step 1-4 in this exercise. 
+    
+    **Answer:** Just copy & paste the codes and follow the same procedures in each step.
+    
+**Point Estimation**, **Interval Estimation**, and **Hypothesis Testing** are three fundamental inference tools in statistics. 
+
+## Exercise 2: Prediction based on linear model
+
+**Inference** focuses on examining the observed data with some statistical models. Another important part in statistics is **prediction**, i.e. gauging the unknown values of $y$ provided some values of $x$. Linear model is one of the most powerful model for **prediction** in statistics!
+
+1. Suppose you wanted to predict the sales given a particular amount of the advertising budget on Youtube. Unprecedentedly, your advertising budget will be 400 thousands of dollars. What is your best guess as to the sales?  *Hint: Use the equation to work this out.*
+
+2. Let's re-do the prediction using R. We do this by creating a data frame with the data to predict on, and then use the `predict` function. Add a new code block to your notebook to do this:
+    ```{r}
+    # predict the sales with the advertising budget 400 thousands of dollars on Youtube
+    new_data <- data.frame(youtube=400)
+    predict(lm.youtube, new_data)
+    ```
+    
+3. We can improve this prediction by taking into account how much variation we expect this prediction to have. The variation comes from two sources:
+    * The potential error in the line itself (Our slope and intercept contain some error as they are point estimates, not true values).
+    * The variation of individuals about the line (i.e. variation not explained by our linear model).
+
+    We can account for either the first or both of these in our predictions. Try the following:
+    
+    ```{r}
+    predict(lm.youtube, new_data, interval="confidence")
+    predict(lm.youtube, new_data, interval="prediction")
+    ```
+    
+    The first accounts only for the error in the line itself. That is, it is a *confidence* interval for the **average** sales with 400 thousands of dollars advertising budget on Youtube. The second accounts for the error in the line plus the variation of different situations of sales with 400 thousands of dollars budget about the line. Thus, it gives a *prediction* interval for the sales of an **individual** advertising trial with 400 thousands of dollars budget. This is the range we expect the sales of a single trial to be in.
+ 
+4. By default, `predict()` reports a confidence interval with 95% confidence level. We can get different confidence intervals under other confidence levels, say 90% or 99% by adjusting `level` as follows. 
+
+    ```{r}
+    predict(lm.youtube, new_data, interval="confidence", level = 0.90)
+    predict(lm.youtube, new_data, interval="confidence", level = 0.99)
+    ```
+    
+    *Compare the confidence intervals at confidence level 90%, 95% and 99%. Discuss your findings.*
+    
+    **Answer:** The intervals become wider with higher confidence levels. It is not hard to image that the wider interval has a high change to cover encapsulate the true parameter but the narrower interval may not be able to catch the truth. 
+    
+5. Unfortunately, due to Covid-19, your company decides to cut the advertising budget on Youtube to zero dollars. *Use your linear model to predict the sales with a prediction interval. Do you think this prediction is a good one? State your reasoning.*
+
+    ```{r}
+    # predict the sales with the advertising budget 400 thousands of dollars on Youtube
+    new_data0 <- data.frame(youtube=0)
+    predict(lm.youtube, new_data0, interval="prediction")
+    ```
+    
+     **Answer:** Not a good prediction if we compare the prediction with the actual `sales` with low budgets on Youtube. 
