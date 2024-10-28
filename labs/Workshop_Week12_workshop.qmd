@@ -1,0 +1,234 @@
+---
+title: "Workshop Week 12, Assumptions and Diagnostic Plots"
+author: "Johnathan Marshall, Nick Knowlton"
+date: "2024-10-10"
+format: 
+  html:
+    toc: true
+    code-fold: true
+    code-download: true
+    embed_resources: true
+    self_contained: true
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(datarium)
+library(broom)
+data(`marketing`)
+lm.youtube <- lm(sales ~ youtube, data=marketing)
+lm.youtube.fit <- augment(lm.youtube)
+```
+
+## Exercise 1: Visualising the model with a prediction band
+
+`visreg` provides us an efficient routine to visualise our linear model. However, it only produces the line with a confidence band. We need to do a bit more work to visualise our model with a prediction band.
+
+### Question 1
+
+Load the package `datarium` and the data `marketing`. Fit the linear model, and save the result in the object `lm.youtube` again. Then, sweep your fitted result by the package `broom` and get the tidy version `lm.youtube`.
+
+```{r}
+library(datarium)
+library(broom)
+data(`marketing`)
+
+```
+
+### Question 2
+
+Get all prediction intervals for each observed `youtube` by calling `predict()` without supplying `new.data`, and save the result in `lm.youtube.pred`. We can then bind `lm.youtube.pred` with `lm.youtube.fit` by column with the R function `cbind()`, aka column bind.
+
+```{r}
+
+```
+
+
+### Question 3
+
+Visualise your linear model with the fitted line and the scatter plot. You can then add the prediction band by the R function `geom_ribbon()` with `aes(ymin = lwr, ymax = upr)` which defines a shaded region bounded by the lower limits and upper limits of the prediction intervals in your plot. You may need to adjust `fill` and `alpha` in `geom_ribbon()` to get a nicer plot.
+
+```{r}
+
+```
+
+### Question 4
+
+The default prediction interval in R is a 95% prediction interval which means around 95% of observations should fall within the bands. Check the plot in Step 3 and count the points falling outside the prediction band. Add one or two comments on your findings.
+
+```{r}
+
+```
+
+### Question 5
+
+Actually, the prediction band we plotted is a **pointwise** 95% prediction interval. The term **pointwise** means that each individual observation falls within the corresponding prediction interval with a probability of 95%. Try to split `youtube` into two groups `youtube < 200` and `youtube > 200` and count the points falling in the prediction band for each group. Add one or two comments on your findings.
+
+```{r}
+
+```
+
+
+
+## Exercise 2: Model diagnostics
+
+As we can see from Exercise 1, the prediction interval tends to be too wide when `youtube` is large and too narrow when `youtube` is small. A similar issue also arises when we try to predict the sales given zero budget in Exercise 3 of Lab C2. The prediction at zero budget may significantly overestimate the actual sales.
+
+These issues allude to a critical point: does our linear model provide a good fit to our data?
+
+Of course, we can always get some clues from the scatter plot and smoothed curve for `sales` against `youtube`. We can even conclude that the fitted line fails to capture a significant portion of uncertainties in our data. So a linear model may not be an adequate model for the relationship between `sales` and `youtube`.
+
+The next question is how to identify and quantify the inadequacy of our linear model?
+
+The visualisation of model identifies some ill-posed patterns in our model but it fails to identify the root cause of the problem. $R^2$ is a simple indicator but it won't capture the issues on prediction discussed above.
+
+What we need are some diagnostic tools to check the fitness of our linear model on the data set and identify the crux in our fitted model. However, before we carry out the examination on our fitted linear model, we need to know when a fitted linear model will behave well.
+
+To ensure the overall good performance of a fitted linear model, we need our data to satisfy a few conditions, i.e. four assumptions as follows:
+
+* **L**inearity
+
+    Residuals don't depend on $x$. The trend is correctly modelled as a line. A line won't fit an exponential trend.
+
+* **I**ndependence
+
+    Residuals don't depend on each other. If residuals are dependent, we can expect that one residual may contribute some information to another residual and vice versa.
+
+* **N**ormality
+
+    Residuals are distributed normally. Normality ensures that the least square estimation will catch the best possible line.
+
+* **E**qual variance
+
+    Residuals have constant variance. The variation doesn't change as we move along the trend.
+
+with Linearity being the most important.
+
+### Question 1
+
+Firstly we'll be looking at linearity and equal variance, both of which can be assessed using a plot of **the residuals versus the fitted value**.
+
+If linearity holds, we'd expect a plot of residuals vs fitted value to show no trend - the points should be scattered fairly constantly above and below the line - in particular we don't want to see a curve.
+
+If equal variance holds, we'd expect the scatter of points around the trend to be constant as the fitted value changes. You want it to be relatively even, and in particular not increasing from left to right (i.e. not spreading out).
+
+We can demonstrate this idea by using the stochastic simulation. An example of a good plot (left) and bad plot (right) is shown below for two artificial data sets, i.e., linear and exponential.
+
+```{r,  fig.width=8, fig.height=3}
+set.seed(2020)
+n <- 50
+ab <- c(0,2)
+demo <- tibble(x=(1:n)/n, e= rnorm(n, sd=0.1)) |> mutate (y=ab[1]+ab[2]*x+e) |> 
+  mutate (y2=exp(ab[1]+ab[2]*x+e))
+demo |> select(x, y, y2) |> gather(key = "Group", value = "Y", -x) |>
+  ggplot(aes(x=x,y=Y,col=Group)) + geom_point()
+g1 <- lm(y~x,data=demo) |> augment() |> 
+  ggplot(aes(x=.fitted,y=.resid)) + geom_point() +geom_smooth(formula=y~x)+geom_hline(yintercept=0)
+g2 <- lm(y2~x,data=demo) |> augment() |> 
+  ggplot(aes(x=.fitted,y=.resid)) + geom_point() +geom_smooth(formula=y~x)+geom_hline(yintercept=0)
+library(patchwork)
+g1+g2 
+```
+
+Compare the scatter plots and the plots of residuals versus fitted values. Think about the reason why we include horizontal lines at $y=0$ and smoothed curves with confidence bands in the residual plots.
+
+### Question 2
+
+Let's see how well our model for sales does by producing the diagnostic plot for the linear model you fit above using the following code.
+
+```{r}
+lm.youtube.fit |> ggplot(aes(x=.fitted,y=.resid)) +
+  geom_point() + geom_smooth(formula=y~x) + geom_hline(yintercept=0)
+```
+
+Take a good look at the plot. Do you think linearity and equal variance hold? Add some notes about each assumption to your notebook.
+
+
+### Question 3
+
+In addition to the residuals vs fits plot, we have another tool, i.e. **the scale-location plot**, to check linearity and equal variance. The plot can be generated by using the following R code chunk:
+
+```{r}
+lm.youtube.fit |> mutate(.root.abs.std.resid=sqrt(abs(.std.resid))) |>
+  ggplot(aes(x=.fitted,y=.root.abs.std.resid)) + geom_point() + geom_smooth(formula=y~x) + geom_hline(yintercept=0)
+```
+
+Similar to the residual versus fits plot, the scale-Location plot shows whether residuals are spread equally along the ranges of input variables (predictor). The assumption of equal variance (**homoscedasticity**) could also be checked with this plot. If we see a horizontal line with randomly spread points, it means that the model is good.
+
+Take a good look at the plot. Do you think linearity and equal variance hold? Add some notes about each assumption to your notebook.
+
+
+### Question 4
+
+The residuals vs fits plot and scale-location plot are usually sufficient for us to tell the issues on linearity and equal variance. Our next task is to verify the normality. Recall the simulation study in Lab 2 where we make a scatter plot of the residuals versus true random errors which can be approximated by the line $y=x$. Even if we can't observe the true random error in a real problem, we can still make a similar plot called **quantile-quantile plot**, aka **Q-Q plot**, via `geom_qq()` and `geom_qq_line` as follows.
+
+```{r}
+lm.youtube.fit |> ggplot(aes(sample=.std.resid)) + geom_qq(alpha=0.3) +  geom_qq_line(color='red')
+```
+
+Take a good look at the above two plots. Do you think the normality hold? Add some notes about the assumption to your notebook.
+
+### Question 5
+
+The last thing to check is slightly different from the above assumptions. We will look at the **outliers** in linear model. Just like we observe some distant points in a boxplot for one variable, we can have some outliers for $x$ and $y$. The trick thing is that, even both $x$ and $y$ look good in their own boxplots, their joint effort may push the point away from the main body in a scatter plot. A possible pitfall in fitting a linear model is that the linear model found by least square method is not very robust against outliers. Only a few outliers can distort the point estimates significantly. So it is essential to spot those bad guys hidden in our data.**
+
+Of course, even a scatter plot can help us identify the outliers. If we want some more quantitative measurements, there is a specific measure called **Cook's distance**, or just Cook's $D$, for each data point to measure its influence on the regression line. A large Cook's distance suggests that this point may be an outlier which has a big influence on the whole regression line.
+
+This piece of information is readily collected by `augment()` in the column `.cooksd`. The following R code chunk produces a plot of Cook's distance against the index.
+
+```{r}
+lm.youtube.fit |> mutate(.index=1:n()) |> ggplot(aes(y=.cooksd,x=.index)) + geom_col() 
+```
+
+Those spikes in the above plot suggest potential outliers. However, one needs a cut-off point to distinguish the outliers from those tamed observations. Unfortunately, there is no golden rule to split these two groups of points for arbitrary data sets. Some people use 0.5 or 1 as a cut-off point but our Cook's distances here are much smaller. We will see a refined diagnostic plot for outlier detection in the next step.
+
+### Question 6
+
+One can easily generate a set of residuals diagnostic plots via `plot()`, i.e the default plot function in R, as follows.
+
+```{r}
+plot(lm.youtube)
+```
+
+The last one of the above plots is called **the residuals versus leverage plot**. The **leverage** is another measure for identifying outliers and you shall notice that there are several points being flagged already. This plot will also contain a cut-off curve in the red dash line for Cook's distances if there are any points with Cook's $D>0.5$.
+
+Besides the convenience, another advantage of `plot()` is that the indices of potential outliers will be flagged in the plot. You can use the information in these diagnostic plots to locate the untamed outliers in your data.
+
+However, one shall notice that we can't customise those plots by following the same procedures in `ggplot()`.
+
+In fact, `plot()` can produce six different diagnostic plots. You can make the individual plot by specifying `which` in `plot()` like `plot(lm.youtube,which=1)` or `plot(lm.youtube,which=4)`. Have a try with `which=1,2,3,4,5,6` and see which number gives you the desired plot.
+
+```{r which_plot}
+
+
+```
+
+
+## Exercise 3: Log Model
+
+We have to acknowledge that the residuals plots of `lm.youtube` suggest that the linear model is not a great one for describing the relationship between `sales` and `youtube`. A transformation is one way to deal with the non-linearity and unequal variance of the data. We will try the log transformation in this exercise.
+
+### Question 1
+
+**Instead of modelling `sales` in terms of `youtube`, we could instead take log transforms of `sales` and `youtube` to see if it is possible to get rid of the curvature in the relationship.**
+
+```{r}
+
+```
+
+Compare the summary output of the two models you have. Which do you think is better? Why?
+
+
+
+### Question 2
+
+**Run the diagnostic plots for the log model.**
+
+```{r}
+
+```
+
+What do you think of the diagnostic plots for the log model? Are there any violations of the log model? Why?
+
+
+
