@@ -1,0 +1,159 @@
+---
+title: "Workshop Week 11, Lecture C02: Inference and Prediction"
+author: "Johnathan Marshall, Nick K# Income (keep broad median; we'll drop ethnicity-specific later if present)
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+format: 
+  html:
+    toc: true
+    code-fold: true
+    code-download: true
+    embed_resources: true
+---
+
+#### Creating a data set for Regression
+
+In this workshop we will use your data processing skills to import 3 datasets and merge them into one large CSV file for analysis. The data 
+
+```{r include=FALSE}
+
+```
+
+```{r}
+
+# -----------------------------
+# Part 1: Import & Merge (tidyverse)
+# -----------------------------
+library(tidyverse)
+library(janitor)   # for clean_names()
+library(readr)
+library(stringr)
+library(purrr)
+library(broom)
+
+# ---- Helper: standardise FIPS in any frame ----
+standardise_fips <- function(df) {
+  df <- df |> clean_names()
+  has_fips  <- "fips" %in% names(df)
+  has_state <- "statefips" %in% names(df)
+  has_county<- "countyfips" %in% names(df)
+
+  if (has_fips) {
+    # If already a single fips col (possibly numeric), coerce -> 5-digit char
+    df <- df |>
+      mutate(fips = as.character(fips),
+             fips = str_remove_all(fips, "\\.0$"), # if came from Excel
+             fips = suppressWarnings(as.integer(fips)),
+             fips = str_pad(as.character(fips), width = 5, side = "left", pad = "0")) |>
+      rename(FIPS = fips)
+  } else if (has_state && has_county) {
+    df <- df |>
+      mutate(statefips  = str_pad(as.character(statefips),  width = 2, side = "left", pad = "0"),
+             countyfips = str_pad(as.character(countyfips), width = 3, side = "left", pad = "0"),
+             FIPS = paste0(statefips, countyfips)) |>
+      select(-statefips, -countyfips)
+  } else {
+    stop("No FIPS or (StateFIPS + CountyFIPS) found. Check your column names.")
+  }
+  df
+}
+
+# ---- 1) Read all six CSVs ----
+# Update the paths if your files live elsewhere
+hinsdf_raw   <- read_csv("hinsdf.csv", show_col_types = FALSE)
+incddf_raw   <- read_csv("incddf.csv", show_col_types = FALSE)
+incomedf_raw <- read_csv("incomedf.csv", show_col_types = FALSE)
+mortdf_raw   <- read_csv("mortdf.csv", show_col_types = FALSE)
+popdf_raw    <- read_csv("populationdf.csv", show_col_types = FALSE)
+povdf_raw    <- read_csv("povdf.csv", show_col_types = FALSE)
+
+# ---- 2) Light clean + standardise names ----
+hinsdf <- hinsdf_raw   |> clean_names() |> standardise_fips()
+incddf <- incddf_raw   |> clean_names() |> standardise_fips()
+incomedf <- incomedf_raw |> clean_names() |> standardise_fips()
+mortdf <- mortdf_raw   |> clean_names() |> standardise_fips()
+popdf  <- popdf_raw    |> clean_names() |> standardise_fips()
+povdf  <- povdf_raw    |> clean_names() |> standardise_fips()
+
+# Debug: Show column names to understand data structure
+cat("=== COLUMN NAMES AFTER CLEANING ===\n")
+cat("Incidence columns:", paste(names(incddf), collapse = ", "), "\n")
+cat("Mortality columns:", paste(names(mortdf), collapse = ", "), "\n")
+cat("Income columns:", paste(names(incomedf), collapse = ", "), "\n")
+cat("Population columns:", paste(names(popdf), collapse = ", "), "\n")
+cat("Poverty columns:", paste(names(povdf), collapse = ", "), "\n")
+cat("Health ins columns:", paste(names(hinsdf), collapse = ", "), "\n")
+
+
+```
+
+```{r}
+# ---- 4) Quick key diagnostics BEFORE merging ----
+# Duplicates on key? (should be 0)
+check_dupes <- function(df, nm) {
+  n_dup <- df |> count(FIPS) |> filter(n > 1) |> nrow()
+  if (n_dup > 0) warning(glue::glue("{nm}: {n_dup} duplicated FIPS rows"))
+}
+walk2(list(hinsdf, incddf, incomedf, mortdf, popdf, povdf),
+      c("hinsdf","incddf","incomedf","mortdf","populationdf","povdf"),
+      check_dupes)
+
+# ---- 5) Merge: inner_join on FIPS (only keep counties present in ALL sources)
+# Tip: If you want to preserve cancer records and add what you can from others,
+# use left_join starting from mortdf or incddf instead.
+merged <- list(povdf, incomedf, hinsdf, incddf, mortdf, popdf) |>
+  reduce(~ inner_join(.x, .y, by = "FIPS"))
+
+# ---- 6) Tidy columns likely to be non-numeric placeholders ----
+# Mortality_Rate may contain "*"; we’ll keep only rows with numeric rates for modeling
+merged <- merged |>
+  mutate(
+    Mortality_Rate_num = suppressWarnings(as.numeric(mortality_rate)),
+    Incidence_Rate_num = suppressWarnings(as.numeric(incidence_rate))
+  )
+
+# Explore how many got dropped if we filter to numeric mortality:
+n_before <- nrow(merged)
+merged_model <- merged |> filter(!is.na(Mortality_Rate_num))
+message(glue::glue("Filtered missing/placeholder Mortality_Rate rows: {n_before - nrow(merged_model)} removed"))
+
+# (Optional) If you prefer to impute Incidence_Rate later, keep NA for now.
+# Otherwise, a simple median impute:
+# merged_model <- merged_model |>
+#   mutate(Incidence_Rate_num = ifelse(is.na(Incidence_Rate_num),
+#                                      median(Incidence_Rate_num, na.rm = TRUE),
+#                                      Incidence_Rate_num))
+
+# ---- 7) Drop highly incomplete ethnicity-specific income columns (optional now, or later)
+drop_cols <- intersect(c("Med_Income_White","Med_Income_Black","Med_Income_Nat_Am",
+                         "Med_Income_Asian","Hispanic"),
+                       names(merged_model))
+merged_model <- merged_model |> select(-all_of(drop_cols))
+
+# ---- 8) Save outputs for fast reuse in later parts ----
+# Clean CSV (model-ready) + full CSV
+write_csv(merged,        "merged_full_raw.csv")
+write_csv(merged_model,  "merged_model_ready.csv")
+
+# RData + RDS for quick loading
+save(merged, merged_model, file = "cancer_workshop_data.RData")
+saveRDS(merged_model, file = "merged_model_ready.rds")
+
+# ---- 9) Sanity checks you should glance at ----
+merged_model |>
+  summarise(
+    n_rows = n(),
+    n_counties = n_distinct(FIPS),
+    pct_missing_incidence = mean(is.na(Incidence_Rate_num))*100,
+    pct_missing_income    = mean(is.na(med_income))*100
+  ) |> print()
+
+# Peek at a few rows
+merged_model |>
+  select(FIPS, state.x, area_name, popestimate2015,
+         mortality_rate, Mortality_Rate_num,
+         incidence_rate, Incidence_Rate_num,
+         med_income, all_poverty, m_poverty, f_poverty) |>
+  slice_head(n = 8) |> print(n = 8)
+```
+
+Data imported
