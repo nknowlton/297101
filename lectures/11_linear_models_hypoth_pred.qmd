@@ -6,7 +6,7 @@ date: last-modified
 format: 
   revealjs:
     code-copy: hover
-    embed-resources: false
+    embed-resources: true
     css: "knowlton.css"
     theme: sky
     slide-number: true

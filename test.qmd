@@ -1,0 +1,103 @@
+---
+title: "Interactive Penguin Data Analysis with Python"
+format:
+  html:
+    echo: false
+    code-tools: true
+    page-layout: full
+    toc: false
+---
+
+## Python Code
+
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import panel as pn
+import hvplot.pandas
+
+# Enable panel extension for notebook and Quarto compatibility
+pn.extension()
+
+# Load the penguins dataset from seaborn
+from seaborn import load_dataset
+penguins = load_dataset('penguins').dropna()
+
+# Filter the dataset to use specific columns
+data_filtered = penguins[['bill_length_mm', 'flipper_length_mm']]
+
+# Function to modify data based on user selection
+def modify_data(data, violation_type):
+    updated_data = data.copy()
+    if violation_type == 'Add Linearity Violation':
+        updated_data['flipper_length_mm'] += np.sin(updated_data['bill_length_mm']) * 5
+    elif violation_type == 'Add Independence Violation':
+        updated_data['flipper_length_mm'] += [5 if i % 2 == 0 else -5 for i in range(len(updated_data))]
+    elif violation_type == 'Add Normality Violation':
+        updated_data['flipper_length_mm'] += np.random.choice([10, -10], size=len(updated_data))
+    elif violation_type == 'Add Equal Variance Violation':
+        updated_data['flipper_length_mm'] *= (np.random.rand(len(updated_data)) + 0.5)
+    return updated_data
+
+# Function to update the plot
+def update_plot(violation_type):
+    # Modify data based on selected violation
+    data_modified = modify_data(data_filtered, violation_type)
+
+    # Create scatter plot
+    scatter_plot = data_modified.hvplot.scatter(
+        x='bill_length_mm',
+        y='flipper_length_mm',
+        color='blue',
+        xlabel='Bill Length (mm)',
+        ylabel='Flipper Length (mm)',
+        title='Scatter Plot of Bill Length vs Flipper Length',
+        grid=True,
+        height=400,
+        width=600
+    )
+
+    # Calculate fitted values and residuals for diagnostic plot
+    slope = np.random.uniform(-1, 1)
+    intercept = np.random.uniform(0, 5)
+    fitted_values = slope * data_modified['bill_length_mm'] + intercept
+    residuals = data_modified['flipper_length_mm'] - fitted_values
+
+    # Create residuals vs fitted values plot
+    residuals_plot = hvplot.scatter(
+        x=fitted_values,
+        y=residuals,
+        color='blue',
+        xlabel='Fitted Values',
+        ylabel='Residuals',
+        title='Residuals vs Fitted Values',
+        grid=True,
+        height=300,
+        width=600
+    )
+
+    return pn.Column(scatter_plot, residuals_plot)
+
+# Dropdown widget for selecting violation type
+violation_type_widget = pn.widgets.Select(
+    name='Violation Type',
+    options=['Add Linearity Violation', 'Add Independence Violation', 'Add Normality Violation', 'Add Equal Variance Violation'],
+    value='Add Linearity Violation'
+)
+
+# Interactive panel for updating the plot
+interactive_plot = pn.bind(update_plot, violation_type=violation_type_widget)
+
+# Create a dashboard with the widgets and plots
+dashboard = pn.Column(
+    "# Interactive Penguin Data Analysis",
+    violation_type_widget,
+    interactive_plot
+)
+
+# Display the dashboard
+dashboard.servable()
+
+```
