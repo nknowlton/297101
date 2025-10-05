@@ -2,7 +2,6 @@
 title: "297.101 Week 11: Lecture C02"
 subtitle: "Testing hypotheses and making predictions with linear models"
 author: Dr. Nick Knowlton
-date: last-modified	
 format: 
   revealjs:
     code-copy: hover
