@@ -1,6 +1,6 @@
 ---
 title: "Workshop Week 11, Lecture C02: Inference and Prediction"
-author: "Johnathan Marshall, Nick K# Income (keep broad median; we'll drop ethnicity-specific later if present)
+author: "Johnathan Marshall, Nick K"
 date: "`r format(Sys.Date(), '%Y-%m-%d')`"
 format: 
   html:
