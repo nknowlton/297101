@@ -3,7 +3,6 @@ title: "Workshop Week 10"
 subtitle: "Regression Part I: Inference and Prediction"
 author:
   - name: "Nick Knowlton"
-  - name: "Johnathan Marshall"
 date: "Spring 2025"
 date-format: "[Spring 2025]"
 format: 
@@ -11,7 +10,11 @@ format:
     toc: true
     code-fold: false
     code-download: true
-    embed_resources: true
+embed-resources: true
+resources:
+  - regression/cancer_data.csv.gz
+  
+output-dir: _html
 ---
 
 ```{r include=FALSE}
@@ -53,6 +56,14 @@ Why lung cancer data? Well, lung cancer remains one of the leading causes of can
 
 *Note: This dataset was preprocessed following the excellent tutorial by [Nick Rippner](https://data.world/nrippner/cancer-analysis-hackathon-challenge), which walks through the complete data gathering and cleaning process.*
 
+You can [download the dataset (CSV.GZ)](regression/cancer_data.csv.gz).
+
+```{r}
+library(readr)
+cancer <- read_csv("regression/cancer_data.csv.gz", show_col_types = FALSE)
+
+
+
 ```{r Import_data}
 
 cancer<- read_csv(file="./regression/cancer_data.csv.gz", show_col_types = F) # Don't forget the gz ending
@@ -70,7 +81,8 @@ skim(cancer)
 
 
 ```
-We see that medium income for black, native american, asian and hispanic are <= 80% complete. That might lead to some issues when we create models with the data as we need complete cases (no missing values) to estimate coefficients. So, lets remove those additional med income values. 
+
+**Answer**: We see that medium income for black, native american, asian and hispanic are <= 80% complete. That might lead to some issues when we create models with the data as we need complete cases (no missing values) to estimate coefficients. So, lets remove those additional med income values. 
 
 ```{r clean_income}
 
@@ -138,6 +150,8 @@ cancer_clean <- data_try2 |>
 
 1.  Fit a linear model of `Incidence_Rate_num` based on `all_poverty` and save the result in `lm.poverty`. Then, view the summary of the model:
 
+**Answer**:
+
 ```{r}
 
 lm.poverty <- lm(Mortality_Rate_num ~ all_poverty_log, data = cancer_clean)
@@ -161,6 +175,8 @@ For the slope: $$
 -2.8592 \pm 2 \times 0.47
 $$ The 2 comes from a normal approximation (use the `qnorm()` function if needed). Calculate the confidence interval and interpret it.
 
+**Answer**:
+
 ```{r}
 conf.level <- 0.95
 qnorm(1 - (1 - conf.level) / 2)
@@ -182,14 +198,14 @@ c(-2.8592-2*0.47,-2.8592+2*0.47)
 For the intercept, the confidence interval is:
 ```{r}
 
-c(63.93-2*0.57,63.93+2*0.57)
+c(63.93-2*1.7855,63.93+2*1.7855)
 
 ```
 
 
 > **Question**: Based on your confidence interval, is -3.5 a plausible value for the true coefficient of `all_poverty`?
 
-Yes, the `all_poverty` slope is within -3.5, which is plausible.
+**Answer**: Yes, the `all_poverty` slope is within -3.5, which is plausible.
 
 ### Step 3: P-Values and Hypothesis Testing
 
@@ -198,6 +214,8 @@ Yes, the `all_poverty` slope is within -3.5, which is plausible.
     -   **p-value**: A low p-value (e.g., \<0.05) suggests that the coefficient is significantly different from zero, implying a real relationship between `Mortality_Rate_num` and `all_poverty`.
 
 > **Task**: Use the `t value` to calculate the p-value manually using this code:
+
+**Answer**
 
 ```{r}
 t.value <- 2
@@ -222,6 +240,8 @@ The result is approximately 0, which matches the summary output.
 
 **Hint**: Use the `augment()` function from the `broom` package to calculate the residuals.
 
+**Answer**:
+
 ```{r}
 
 augment(lm.poverty) |> summarise(ratio.var = var(.resid) / var(Mortality_Rate_num),
@@ -231,7 +251,7 @@ augment(lm.poverty) |> summarise(ratio.var = var(.resid) / var(Mortality_Rate_nu
 
 > **Question**: Compare this ratio with the `Multiple R-squared:` value in the summary. What does `R-squared` tell us about the relationship between `Mortality_Rate` and `all_poverty`?
 
-The `Multiple R-squared:` value is about 0.013, meaning 1.3% of the variability in `Mortality_Rate` is explained by the `all_poverty` variable. This is very low and although significant statistically, it likely to not be a helpful model.  
+**Answer**: The `Multiple R-squared:` value is about 0.013, meaning 1.3% of the variability in `Mortality_Rate` is explained by the `all_poverty` variable. This is very low and although significant statistically, it likely to not be a helpful model.  
 
 > **📊 What R-squared Really Means**: Think of R-squared as the percentage of "mystery" in your data that your model has solved. An R-squared of 0.74 means your model explains 74% of why counties have different mortality rates - that's pretty good! The remaining 26% is due to factors we haven't measured or random variation.
 
@@ -245,7 +265,13 @@ Earlier I mentioned that the poverty data is count based and the mortality rate 
 
 cancer_clean <- cancer_clean |>
   mutate(pov_norm = all_poverty / popestimate2015 * 10**5)
+```
 
+**Hint**: Use the normalized data to plot poverty vs mortality.
+
+**Answer**
+
+```{r PovNormPlot}
 ### Now we will plot all poverty vs pov_norm to see how they relate
 
 p <- ggplot(cancer_clean, aes(x = all_poverty, y = pov_norm, color = popestimate2015)) +
@@ -276,6 +302,8 @@ We see that there are many small areas (FIPS) where poverty is very high and the
 What has changed in the model output besides the coefficients themselves?
 >**Hint: Are the terms still significant? Does this model explain more variablility? Etc**
 
+**Answer**:
+
 ```{r PovNormModel}
 
 lm.poverty.norm <- lm(Mortality_Rate_num ~ pov_norm, data = cancer_clean)
@@ -287,6 +315,8 @@ This model explains 14% more variability in mortality by simply normalizing the 
 ### Step 6: Expanding the Analysis
 
 5.  Now, repeat the analysis for one additional models: `lm.med_income`. Fit this models and compare their summaries as you did for `lm.all_poverty` and `lm.poverty.norm`.
+
+**Answer**:
 
 ```{r}
 
@@ -309,6 +339,8 @@ summary(lm.med_income)
 
 > **Task**: Calculate the predicted Mortality_Rate_num manually using the coefficients from the model summary.
 
+**Answer**:
+
 ```{r ManualCalcs}
 
 38.35 + .0009130 * 75000
@@ -320,6 +352,8 @@ summary(lm.med_income)
 
 2.  Use R to automate the prediction process. Create a new dataset and predict the sales:
 
+**Answer**
+
 ```{r}
 
 new_data <- data.frame(pov_norm = 75000)
@@ -327,18 +361,61 @@ predict(lm.poverty.norm, new_data)
 
 
 ```
-Whoa! A mortality rate over 100%. 
 
-> **⚠️ Reality Check**: Our model predicts over 100,000 deaths per 100,000 people for 75% poverty rate. This seems unrealistic because:
-> 1. You can only die once (so 100% is the theoretical maximum)
-> 2. Very few counties actually have 75% poverty rates
-> 3. We're **extrapolating** beyond our data range, which is dangerous!
-> 
+> **Self check**: Did you get a value around 106 deaths per 100,000 people?
+
+```{r Poorest}
+
+# Create extrapolated point at 75% poverty (75,000 per 100k)
+extrapolated <- tibble(
+  area_name = "Extrapolated (75% Poverty)",
+  pov_norm = 75000,
+  Mortality_Rate_num = 106
+)
+
+# Combine for plotting
+compare_df <- cancer_clean |> 
+  select(pov_norm, Mortality_Rate_num) |> 
+  drop_na()
+
+# Jefferson County data (hard-coded since state info isn't in dataset)
+jefferson <- tibble(
+  area_name = "Jefferson County, MS",
+  pov_norm = 46490,               # 46.5% poverty = 46,490 per 100k
+  Mortality_Rate_num = 59.7       # observed death rate per 100k
+)
+
+# Add to your existing plot
+ggplot(compare_df, aes(x = pov_norm, y = Mortality_Rate_num)) +
+  geom_point(alpha = 0.4, color = "gray60") +
+  geom_point(data = jefferson, aes(x = pov_norm, y = Mortality_Rate_num),
+             color = "blue", size = 3) +
+  geom_text(data = jefferson, aes(x = pov_norm, y = Mortality_Rate_num,
+             label = "Jefferson Co., MS (46.5%, 59.7/100k)"),
+             vjust = -1, color = "blue", size = 3.5) +
+  labs(
+    title = "Highest Observed Poverty and Mortality in Data",
+    subtitle = "Jefferson County, Mississippi (hard-coded reference)",
+    x = "Poverty per 100,000 People",
+    y = "Lung Cancer Mortality (per 100,000)"
+  ) +
+  theme_minimal(base_size = 12)
+
+
+```
+
+> **⚠️ Reality Check**: Our model predicts over 106 deaths per 100,000 people for 75% poverty rate. This seems unrealistic because:
+> The most impoverished county in the dataset, Jefferson County, Mississippi, has a poverty rate of 46.5% (46,490 per 100,000) and a lung cancer mortality rate of 59.7 deaths per 100,000. When we extrapolate our model to a hypothetical 75% poverty rate, it predicts 106 deaths per 100,000—almost double Jefferson County’s mortality rate and well above the data’s upper bound. This demonstrates that the prediction is outside the observed data range and not epidemiologically plausible. However, there are some counties with mortality rates above 100/100k, but these have <30% mortality potentially indicating that other factors besides poverty are driving these rates.
 > This is why checking your predictions against reality is crucial in data science.
+
+
+
 
 ### Step 3: Confidence vs. Prediction Intervals
 
-3.  Understand the difference between confidence intervals (for the mean prediction) and prediction intervals (for an individual prediction). Use R to compute both:
+3.  Explore the difference between confidence intervals (for the mean prediction) and prediction intervals (for an individual prediction). Use R to compute both:
+
+**Answer**
 
 ```{r}
 
@@ -355,6 +432,7 @@ The confidence interval is tighter because it estimates the mean (average) respo
 
 4.  Calculate predictions for different confidence levels (90%, 95%, and 99%):
 
+**Answer**: The confidence intervals widen as the confidence level increases. A 99% confidence interval is the widest because it accounts for greater uncertainty.
 ```{r}
 
 predict(lm.poverty.norm, new_data, interval = "confidence", level = 0.90)
@@ -362,8 +440,6 @@ predict(lm.poverty.norm, new_data, interval = "confidence", level = 0.95)
 predict(lm.poverty.norm, new_data, interval = "confidence", level = 0.99)
 
 ```
-
-The confidence intervals widen as the confidence level increases. A 99% confidence interval is the widest because it accounts for greater uncertainty.
 
 > **Task**: Compare the intervals at different confidence levels. What happens as the confidence level increases?
 
@@ -377,12 +453,15 @@ new_data0 <- data.frame(pov_norm = 0)
 predict(lm.poverty.norm, new_data0, interval = "prediction")
 
 ```
-
+The predicted deaths are 38/100k.
 
 
 > **Reflection**: Does this prediction seem realistic? Why or why not?
 
-The predicted deaths are still 38/100k. To tell if this value is reasonable, we need to place it in context. Let's use a quick histogram of all mortality rates and see where this falls.
+**Hint: Try a histogram**
+
+
+**Answer** :The predicted deaths are still 38/100k. To tell if this value is reasonable, we need to place it in context. Let's use a quick histogram of all mortality rates and see where this falls.
 
 ```{r hist}
 
@@ -415,5 +494,6 @@ By completing these exercises, you should be familiar with:
 
   * Point estimation, confidence intervals, and hypothesis testing in linear models. 
   * How to make predictions using linear models, including understanding the uncertainty around these predictions.
-
-Feel free to ask for help during the workshop if you have any questions about the exercises!
+  * The importance of data cleaning and context in regression analysis.
+  * The limitations of models and the dangers of extrapolation.
+  
