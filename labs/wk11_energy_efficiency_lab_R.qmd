@@ -1,0 +1,394 @@
+
+---
+title: "Linear Regression Lab: Energy Efficiency (R)"
+author: "Nick Knowlton"
+date: "2025-08-26"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-tools: true
+    code-download: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+> This lab uses **R**, **tidyverse**, and **ggplot2**. Students will import data, inspect variables, visualize relationships, compute correlations, fit and compare linear models, check **LINE** assumptions, and make predictions on new data.
+
+## 0. Setup
+
+```{r}
+library(tidyverse)
+library(GGally)      # for scatterplot matrices
+library(broom)       # for tidying model outputs
+library(performance) # for diagnostics (check_model)
+library(easystats)   # for reporting
+library(qqplotr)     # for confidence bands around qqplots
+library(see)         # for model diagnostics
+library(ggcorrplot)  # for correlation plot GGPlot2 style
+
+```
+
+### Data source
+
+Set the CSV URL. If the URL fails, it falls back to a local file named `energy_efficiency_clean.csv`.
+
+```{r}
+energy<-readr::read_csv("energy_efficiency.csv", show_col_types = FALSE)
+
+# Tidy variable dictionary
+var_dict <- tribble(
+  ~variable, ~description,
+  "Relative_Compactness", "Ratio summarizing building compactness",
+  "Surface_Area", "Total exterior surface area (m^2)",
+  "Wall_Area", "Total wall area (m^2)",
+  "Roof_Area", "Total roof area (m^2)",
+  "Overall_Height", "Building height (m)",
+  "Orientation", "Cardinal orientation category 2..5",
+  "Glazing_Area", "Glazing area ratio 0..0.4",
+  "Glazing_Area_Distribution", "Distribution category of glazing 0..5",
+  "Heating_Load", "Target: heating energy load",
+  "Cooling_Load", "Target: cooling energy load"
+)
+
+
+energy |> glimpse()
+var_dict
+```
+
+## 1. Variable inspection
+
+
+Basic summaries and missingness.
+
+```{r}
+
+energy |> skimr::skim()
+```
+
+## 2. Scatterplot matrices with histograms on the diagonal
+
+We will review predictors against both targets. Use a subset of variables for clarity.
+
+```{r}
+C <- energy |>
+  cor(use = "pairwise.complete.obs", method = "pearson")
+
+ggcorrplot(C,
+           hc.order = TRUE,     # Order by clustering
+           type = "upper",
+           lab = TRUE,           # numeric labels
+           title="Correlation Matrix of Energy Efficiency Dataset",
+           tl.cex = 10,
+           lab_size = 2.8,
+           outline.col = "white")
+
+```
+
+## 4. Build simple linear models
+
+We will start with **Heating_Load** as the outcome and compare two candidate single-predictor models. Choose any two you like. Here we try **Relative_Compactness**, **Surface_Area**, and **Glazing_Area**.
+
+```{r}
+m1 <- lm(Heating_Load ~ Relative_Compactness, data = energy)
+m2 <- lm(Heating_Load ~ Surface_Area, data = energy)
+m3 <- lm(Heating_Load ~ Glazing_Area, data = energy)
+
+tidy(m1)
+glance(m1) |> select(r.squared, adj.r.squared, AIC, BIC, sigma)
+
+tidy(m2)
+glance(m2) |> select(r.squared, adj.r.squared, AIC, BIC, sigma)
+
+tidy(m3)
+glance(m3) |> select(r.squared, adj.r.squared, AIC, BIC, sigma)
+```
+
+Visualize fitted lines.
+
+```{r}
+p1 <- ggplot(energy, aes(Relative_Compactness, Heating_Load)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Heating_Load ~ Relative_Compactness")
+
+p2 <- ggplot(energy, aes(Surface_Area, Heating_Load)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Heating_Load ~ Surface_Area")
+
+p3 <- ggplot(energy, aes(Glazing_Area, Heating_Load)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Heating_Load ~ Glazing_Area")
+
+p1; p2; p3
+```
+Non of these models look especially great and there are some strong vertical bands due to the simulated grid-search used to generate the data. 
+
+
+## 5. Pick the "best" simple model and check LINE assumptions
+
+For this exercise, we need to proceed in a step wise manner. Firstly, examine if the slopes computed are different from 0, because if they are not then we really aren't predicting anything or showing any relationship between the variables. Second, of the models that show a significant slope we will order them by Adjusted R^2 to select which one to carry forward.
+
+```{r}
+# Examine the model coefficients for the slopes in a tidy way
+
+models <- list(m1 = m1, m2 = m2, m3 = m3)
+
+coef_tbl <- models |>
+  imap(~ tidy(.x) |> mutate(model = .y)) |>
+  bind_rows()
+
+coef_tbl |> 
+   filter(term != "(Intercept)")
+```
+
+We see that Relative compactness and Glazing Area are positively associated with Heating load while Surface Area is negatively associated. All three models have non-zero slopes, that is their p value is less than a standard alpha cutoff of 0.05 providing evidence against the NULL hypothesis (H_0)
+
+Now we can rank our three prospective models of heating load by the amount of variability they explain. Here will will use Adjusted R^2, while we only have one variable, it is a good habit to examine adjusted R^2 for your models.
+
+```{r}
+
+compare_performance(m1,m2,m3)
+report(m1)
+```
+
+We can see that Surface area is a bit better predictor than relative compactness and much better than Glazing Area. Having selected the best model, we will examine it for violations of the LINE assumptions.
+
+```{r}
+m_best <- m2
+summary(m_best)
+```
+
+### LINE checks
+
+- **Linearity**: residuals vs fitted should be patternless around zero.
+- **Independence**: use Durbin–Watson as a rough check in absence of time/order information.
+- **Normality**: QQ plot should be approximately straight.
+- **Equal variance**: Scale–location plot should show constant spread.
+
+```{r Linearity}
+
+# ========================
+# LINE checks with easystats
+# ========================
+
+# Packages
+library(tidyverse)
+library(performance)  # diagnostics
+library(see)          # ggplot2-based visualizations for performance outputs
+library(broom)        # tidy model summaries
+
+# Example model (replace with your lab's final_model if you prefer)
+m_best <- lm(Heating_Load ~ Relative_Compactness + Surface_Area, data = energy)
+
+# ---------------------------------------------------
+# Quick dashboard: multiple assumption plots at once
+# ---------------------------------------------------
+# Tip to students: this produces several ggplot panels covering LINE.
+# Panels typically include Residuals vs Fitted, QQ plot, Scale-Location,
+# and Outliers/Leverage. Use the per-assumption blocks below to focus.
+
+check_model(m_best)
+
+# ===============================================
+# L: Linearity of E[Y|X]  (residuals vs fitted)
+# ===============================================
+# Visual proxy: residuals should have no pattern against fitted values.
+# If you want a dedicated "linearity" panel, check_model already includes it.
+
+# Option A: extract residuals and make an explicit tidy plot
+augment(m_best) |>
+  ggplot(aes(.fitted, .resid)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Linearity check: Residuals vs Fitted",
+       x = "Fitted values", y = "Residuals") +
+  theme_minimal()
+
+
+# Interpretation prompt:
+# - Do points oscillate randomly around 0 without a curve or funnel?
+# - If not, consider transformations or adding non-linear terms.
+
+# ===============================================
+# I: Independence of errors  (autocorrelation)
+# ===============================================
+# Use Durbin–Watson style check. Especially relevant when data have a
+# natural order such as time or spatial sequence.
+
+ac <- performance::check_autocorrelation(m_best)
+ac
+see::plot(ac) +
+  labs(title = "Independence check: Autocorrelation of residuals")
+
+# Interpretation prompt:
+# - p > 0.05 suggests no evidence of autocorrelation in residuals.
+# - If autocorrelation is present, consider time-series structures or
+#   adding lagged terms.
+
+# ===============================================
+# N: Normality of residuals
+# ===============================================
+# Two visuals: QQ plot and residual histogram/density.
+
+norm <- performance::check_normality(m_best)
+norm +
+  labs(title = "Normality check: Residual QQ plot and density")
+
+# Interpretation prompt:
+# - Points close to the 45-degree line indicate approximate normality.
+# - Deviations in the tails suggest non-normal errors. Large samples make
+#   OLS estimates robust for coefficients, but prediction intervals can be affected.
+
+# ===============================================
+# E: Equal variance (Homoscedasticity)
+# ===============================================
+# Visual proxy: Scale–Location plot shows constant spread across fitted.
+# Statistical proxy: heteroscedasticity test.
+
+het <- performance::check_heteroscedasticity(m_best)
+het+
+  labs(title = "Equal variance check: Heteroscedasticity")
+
+# Also show the classic Scale–Location panel via the dashboard
+check_model(m_best,panel=F,check="normality")
+
+# Interpretation prompt:
+# - A roughly horizontal band of points suggests constant variance.
+# - Funnel shapes indicate heteroscedasticity. Consider transforming Y,
+#   using weighted least squares, or modeling variance.
+
+# ===========================
+# Compact helper for teaching
+# ===========================
+# Wrap the four checks into a single function that returns a list of plots
+# and prints brief textual summaries. Students can call plot(line_check(...))
+# for visuals and inspect the objects for p-values.
+
+line_checks <- function(model) {
+  list(
+    linearity = performance::check_model(model),                  # multi-panel
+    independence = performance::check_autocorrelation(model),
+    normality = performance::check_normality(model),
+    equal_variance = performance::check_heteroscedasticity(model)
+  )
+}
+
+# Example usage:
+res <- line_checks(m_best)
+
+# Visuals
+see::plot(res$linearity) + ggtitle("Dashboard for LINE")
+see::plot(res$independence) + ggtitle("Autocorrelation of residuals")
+see::plot(res$normality) + ggtitle("Residual normality")
+see::plot(res$equal_variance) + ggtitle("Homoscedasticity")
+
+# Text outputs (print to console)
+res$independence
+res$normality
+res$equal_variance
+
+
+```
+
+
+```{r Normality}
+# performance::check_model summary plots
+
+plot(check_normality(m_best),type="qq",detrend=FALSE)
+# Or a Worm plot
+
+plot(check_normality(m_best))
+
+```
+
+Write a brief interpretation in your own words addressing each of LINE for the selected model.
+
+## 6. Extend to a two-predictor model
+
+Add the other candidate predictor and compare against the simple model.
+
+```{r}
+# Build a two-predictor model using both candidates
+m12 <- lm(Heating_Load ~ Relative_Compactness + Surface_Area, data = energy)
+
+bind_rows(
+  glance(m_best) |> mutate(model = "Best simple"),
+  glance(m12)    |> mutate(model = "Two predictors")
+) |>
+  select(model, r.squared, adj.r.squared, AIC, BIC)
+
+```
+
+Discuss whether adding the second predictor materially improves fit. 
+
+## 7. Predict on new values
+
+Create a small tibble of hypothetical buildings and generate predictions with confidence and prediction intervals.
+
+```{r}
+# Choose the final model for prediction
+final_model <- m12  # or m_best
+
+new_buildings <- tribble(
+  ~Relative_Compactness, ~Surface_Area,
+   0.70,                  650,
+   0.80,                  600,
+   0.90,                  560
+)
+
+# Ensure required columns exist for the chosen model
+needed <- all(all.vars(formula(final_model))[-1] %in% names(new_buildings))
+if (!needed) {
+  stop("new_buildings is missing predictors required by the chosen model.")
+}
+
+pred_ci <- predict(final_model, newdata = new_buildings, interval = "confidence") |>
+  as_tibble()
+
+pred_pi <- predict(final_model, newdata = new_buildings, interval = "prediction") |>
+  as_tibble() |>
+  select(-fit) |>                # remove duplicate fit
+  rename(pred_lwr = lwr, pred_upr = upr)
+
+out <- bind_cols(new_buildings, pred_ci, pred_pi) |>
+  rename(fit_conf = fit, lwr_conf = lwr, upr_conf = upr) |>
+  mutate(across(where(is.numeric), \(x) round(x, 3)))
+
+out
+
+```
+
+Visualize prediction bands for one predictor model if applicable.
+
+```{r}
+if (identical(final_model, m2)) {
+  ggplot(energy, aes(Relative_Compactness, Heating_Load)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth(method = "lm", se = TRUE) +
+    geom_point(data = new_buildings, aes(Relative_Compactness, ..y..),
+               inherit.aes = FALSE, color = "red") +
+    labs(title = "Predictions for new Relative_Compactness values")
+}
+```
+
+## 8. Optional: Cooling_Load as an outcome
+
+Repeat the same workflow using **Cooling_Load**.
+
+```{r}
+m1_c <- lm(Cooling_Load ~ Relative_Compactness, data = energy)
+m2_c <- lm(Cooling_Load ~ Surface_Area, data = energy)
+
+bind_rows(
+  glance(m1_c) |> mutate(model = "Cooling ~ Relative_Compactness"),
+  glance(m2_c) |> mutate(model = "Cooling ~ Surface_Area")
+) |>
+  select(model, r.squared, adj.r.squared, AIC, BIC, sigma) |>
+  arrange(desc(adj.r.squared))
+```
