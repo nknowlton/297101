@@ -1,0 +1,1040 @@
+
+---
+title: "Workshop Week 12, Assumptions and Diagnostic Plots"
+author: "Nick Knowlton"
+format: 
+  html:
+    toc: true
+    code-fold: true
+    code-download: true
+    embed-resources: true
+  pdf:
+    toc: true
+    code-fold: true
+    code-download: true
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+# Core packages
+library(tidyverse)
+library(broom)
+library(patchwork)
+
+# Extras for this workshop
+library(plotly)        # interactive plots
+library(visreg)        # quick regression visualisation
+library(lmtest)        # bptest, dwtest
+library(car)           # ncvTest optional
+```
+
+## Preface
+
+This workshop builds on Week 11 where you learned about inference and prediction using the cancer dataset. Last week, you discovered that **normalizing poverty counts by population** dramatically improved model fit. This week, we'll use that normalized poverty model to learn about **regression diagnostics** - the tools that tell us whether our model assumptions are valid.
+
+The target is **mortality rate per 100k** and the predictor is **normalized poverty rate per 100k**.
+
+### At the end of this workshop, you should be able to
+
+1. Recap the population-normalized model from Week 11 and understand why normalization matters
+2. Fit a simple linear regression and visualise a fitted line with a **95 percent prediction band**.
+3. Compute and interpret **coverage** of prediction bands overall and in subgroups.
+4. Diagnose **linearity, independence, normality, and equal variance** (LINE) using plots and **confirm with numerical tests**.
+5. **Articulate what to look for** in each diagnostic plot **before** examining it
+6. **Comment on observed patterns** in diagnostic plots and what they reveal about model fit
+7. Identify **influential observations** using Cook's distance and residuals vs leverage.
+8. Apply a **log transformation**, refit the model, and compare diagnostics to decide if the transform improves fit.
+
+::: callout-note
+Quick glossary
+- Residuals vs fitted checks linearity.
+- Scale-location checks variance stability.
+- Q-Q plot checks normality.
+- Cook's distance and leverage highlight influential observations.
+:::
+
+## Data
+
+We will use your cancer dataset from last week.
+
+```{r data-load}
+# Adjust path if running outside the course environment
+cancer <- readr::read_csv("./regression/cancer_data.csv.gz", show_col_types = FALSE)
+
+# Inspect key fields we will rely on
+cancer |> 
+  select(Mortality_Rate_num, Incidence_Rate_num, med_income, avg_ann_deaths, popestimate2015) |> 
+  head()
+```
+
+::: callout-tip
+If you see any NA values, we will filter them out before modelling.
+:::
+
+```{r data-clean}
+cancer_clean <- cancer |>
+  select(Mortality_Rate_num, Incidence_Rate_num, med_income, avg_ann_deaths, popestimate2015, all_poverty) |>
+  filter(is.finite(Mortality_Rate_num),
+         is.finite(med_income),
+         is.finite(all_poverty),
+         is.finite(popestimate2015),
+         popestimate2015 > 0) |>
+  # Create the normalized poverty rate (per 100k people)
+  mutate(pov_norm = all_poverty / popestimate2015 * 100000)
+
+nrow(cancer_clean)
+```
+
+## Part 0. Recap from Week 11: Why normalize poverty by population?
+
+### The Problem with Raw Counts
+
+Last week, you discovered that using **raw poverty counts** as a predictor gave a very poor model (R² ≈ 0.013). The problem? A county with 10,000 people in poverty might have:
+- 100,000 total residents (10% poverty rate) 
+- 1,000,000 total residents (1% poverty rate)
+
+These represent **completely different socioeconomic contexts**, but raw counts treat them the same!
+
+### The Solution: Normalize per 100k
+
+Just as mortality is reported "per 100k people", we normalize poverty the same way:
+
+$$\text{Poverty per 100k} = \frac{\text{People in Poverty}}{\text{Total Population}} \times 100,000$$
+
+```{r recap-why-normalize}
+# Show the relationship between raw counts and normalized rates
+gg_norm <- cancer_clean |>
+  ggplot(aes(x = all_poverty, y = pov_norm, color = log10(popestimate2015))) +
+  geom_point(alpha = 0.6) +
+  scale_color_viridis_c(name = "log10(Population)") +
+  labs(
+    title = "Raw poverty counts vs normalized poverty rate",
+    subtitle = "Color shows population size - notice how normalization adjusts for county size",
+    x = "People in poverty (raw count)",
+    y = "Poverty rate (per 100k)"
+  ) +
+  theme_minimal()
+ggplotly(gg_norm)
+```
+
+### Comparing the Models from Week 11
+
+```{r recap-model-comparison}
+# Raw count model (poor fit)
+lm_raw <- lm(Mortality_Rate_num ~ log10(all_poverty), data = cancer_clean)
+
+# Normalized model (much better fit)
+lm_norm <- lm(Mortality_Rate_num ~ pov_norm, data = cancer_clean)
+
+# Compare
+tibble(
+  Model = c("Raw poverty count (log10)", "Normalized poverty per 100k"),
+  R_squared = c(glance(lm_raw)$r.squared, glance(lm_norm)$r.squared),
+  Adj_R_squared = c(glance(lm_raw)$adj.r.squared, glance(lm_norm)$adj.r.squared),
+  Improvement = c("Baseline", 
+                  sprintf("+%.1f%%", (glance(lm_norm)$r.squared - glance(lm_raw)$r.squared) * 100))
+)
+```
+
+::: callout-important
+**Key Insight from Week 11**: By normalizing poverty by population, we improved the model R² from **1.3%** to about **15%** - explaining **10 times more variation** in mortality rates! This shows that **matching the scale** of your predictor and response is crucial.
+:::
+
+Today, we'll use the **normalized model** (`Mortality_Rate_num ~ pov_norm`) to learn about regression diagnostics.
+
+## Part 1. Visualising the model with a prediction band
+
+We will model **mortality rate per 100k** as a simple linear function of **normalized poverty rate per 100k**.
+
+### Question 1: Fit the normalized poverty model
+
+Fit the linear model and create an augmented table with fitted values and residuals.
+
+```{r fit-augment}
+# This is the model from Week 11 - poverty normalized by population
+lm.mortality <- lm(Mortality_Rate_num ~ pov_norm, data = cancer_clean)
+lm.mortality.fit <- augment(lm.mortality)
+glance(lm.mortality)
+```
+
+### Question 2: Compute prediction intervals
+
+Compute **prediction intervals** for each observed `pov_norm` value and bind them to the augmented data.
+
+```{r predict-bind}
+lm.mortality.pred <- predict(lm.mortality, interval = "prediction")
+lm.mortality.fit.pred <- lm.mortality.fit |>
+  cbind(lm.mortality.pred) |>
+  tibble()
+head(lm.mortality.fit.pred)
+```
+
+### Question 3: Visualize with prediction bands
+
+Plot the **scatter**, **fitted line**, and **prediction band** using `geom_ribbon`. Then convert to an interactive chart.
+
+```{r vis-pred-band, fig.width=7, fig.height=4}
+p_band <- lm.mortality.fit.pred |>
+  ggplot(aes(x = pov_norm, y = Mortality_Rate_num)) +
+  geom_point(alpha = 0.6) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), fill = "grey70", alpha = 0.4) +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
+  labs(title = "Mortality rate vs normalized poverty with 95% prediction band",
+       x = "Poverty rate per 100k",
+       y = "Mortality rate per 100k")
+p_band
+```
+
+
+### Question 4: Evaluate prediction band coverage
+
+Count the number and percentage of points inside the prediction band. Then split on a threshold and compare coverage by group. We will use the **median of `pov_norm`** as the split.
+
+```{r coverage-counts}
+median_pov <- median(lm.mortality.fit.pred$pov_norm, na.rm = TRUE)
+
+coverage <- lm.mortality.fit.pred |>
+  mutate(in_band = between(Mortality_Rate_num, lwr, upr)) |>
+  summarise(
+    count_in_band = sum(in_band, na.rm = TRUE),
+    total_points = n(),
+    pct_in_band = 100 * count_in_band / total_points
+  )
+
+by_group <- lm.mortality.fit.pred |>
+  mutate(in_band = between(Mortality_Rate_num, lwr, upr),
+         group = ifelse(pov_norm < median_pov, 
+                       paste0("Low poverty (< ", round(median_pov, 0), " per 100k)"),
+                       paste0("High poverty (>= ", round(median_pov, 0), " per 100k)"))) |>
+  group_by(group) |>
+  summarise(
+    count_in_band = sum(in_band, na.rm = TRUE),
+    total_points = n(),
+    pct_in_band = 100 * count_in_band / total_points,
+    .groups = "drop"
+  )
+
+coverage
+by_group
+```
+
+::: callout-note
+**Interpretation Question**
+
+The default is a pointwise 95% prediction interval. What coverage would you expect approximately overall? What about within each subgroup split by median poverty rate? If coverage differs between low and high poverty counties, what might this suggest about the model?
+:::
+
+## Part 2. Diagnostics: Evaluating the LINE Assumptions
+
+We now systematically evaluate the **L I N E** assumptions that underpin linear regression:
+
+| Letter | Assumption | What it means | How we check |
+|--------|------------|---------------|--------------|
+| **L** | **Linearity** | The relationship between X and Y is linear | Residuals vs Fitted plot |
+| **I** | **Independence** | Observations don't influence each other | Residuals vs Index; domain knowledge |
+| **N** | **Normality** | Residuals follow a normal distribution | Q-Q plot; Shapiro-Wilk test |
+| **E** | **Equal variance** | Residual spread is constant across X values | Scale-Location plot; Breusch-Pagan test |
+
+::: callout-tip
+**Diagnostic Strategy**
+
+For each assumption, we will:
+1. **State what to look for** in the diagnostic plot
+2. **Create and examine** the plot
+3. **Comment on what we observe** and whether the assumption holds
+4. **Confirm with a numerical test** when appropriate
+:::
+
+### Visual diagnostics
+
+#### L - Linearity: Residuals vs Fitted
+
+::: callout-note
+**What to look for BEFORE examining the plot:**
+
+The residuals vs fitted plot checks whether the **linear relationship** is appropriate. We want to see:
+
+✅ **Good signs:**
+- Random scatter of points around the horizontal line at zero
+- No clear pattern or curve in the points
+- The smooth line (blue) should be roughly horizontal and close to zero
+
+❌ **Warning signs:**
+- A curved pattern (suggests a non-linear relationship)
+- Funnel shape (suggests non-constant variance)
+- Systematic patterns (suggests missing predictors or wrong functional form)
+
+**Why this matters:** If the relationship isn't linear, our predictions will be systematically biased.
+:::
+
+```{r resid-vs-fitted, fig.width=7, fig.height=4}
+g_resid <- lm.mortality.fit |>
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(formula = y ~ x, se = TRUE) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "Residuals vs Fitted: Checking Linearity (L)",
+       subtitle = "Look for random scatter around zero with no pattern",
+       x = "Fitted value",
+       y = "Residual")
+g_resid
+```
+
+::: callout-important
+**What we observe:**
+
+Examine the plot above. Do you see:
+- Random scatter or a pattern?
+- Is the blue smoothing line roughly horizontal?
+- Any funnel shape indicating changing variance?
+
+**Comment:** [Students should describe what they see. For the poverty model, there may be some curvature and the variance appears to increase slightly with fitted values, suggesting potential issues with both linearity and equal variance assumptions.]
+:::
+
+#### E - Equal Variance (Homoscedasticity): Scale-Location Plot
+
+::: callout-note
+**What to look for BEFORE examining the plot:**
+
+The scale-location plot checks whether the **variance of residuals is constant** across all fitted values (homoscedasticity). We want to see:
+
+✅ **Good signs:**
+- Points spread randomly in a horizontal band
+- The smooth line (blue) is roughly horizontal
+- No increasing or decreasing trend in the vertical spread
+
+❌ **Warning signs:**
+- Funnel shape (spread increases or decreases with fitted values)
+- Upward or downward trend in the smooth line
+- Clusters of high or low values at certain fitted values
+
+**Why this matters:** Non-constant variance violates the equal variance assumption and makes our prediction intervals unreliable. Predictions in high-variance regions will be too confident, while those in low-variance regions will be too conservative.
+:::
+
+```{r scale-location, fig.width=7, fig.height=4}
+g_scale <- lm.mortality.fit |>
+  mutate(.root.abs.std.resid = sqrt(abs(.std.resid))) |>
+  ggplot(aes(x = .fitted, y = .root.abs.std.resid)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(formula = y ~ x, se = TRUE) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "Scale-Location: Checking Equal Variance (E)",
+       subtitle = "Look for horizontal band with constant vertical spread",
+       x = "Fitted value",
+       y = "Sqrt(|standardized residual|)")
+g_scale
+```
+
+::: callout-important
+**What we observe:**
+
+Examine the plot above. Do you see:
+- A horizontal band or a trend?
+- Does the spread increase or decrease with fitted values?
+- Is the blue smoothing line roughly flat?
+
+**Comment:** [Students should describe what they see. For the poverty model, there is likely an upward trend, suggesting heteroscedasticity - variance increases with poverty rate. This means our model is less precise for high-poverty counties.]
+:::
+
+#### N - Normality: Q-Q Plot
+
+::: callout-note
+**What to look for BEFORE examining the plot:**
+
+The Q-Q (quantile-quantile) plot checks whether **residuals follow a normal distribution**. We want to see:
+
+✅ **Good signs:**
+- Points fall close to the diagonal red line
+- Maybe slight deviations at the extreme ends (tails)
+- No systematic S-curve or hockey stick pattern
+
+❌ **Warning signs:**
+- **S-curve**: Heavy-tailed distribution (more extreme values than normal)
+- **Inverted S-curve**: Light-tailed distribution (fewer extreme values)
+- **Points curving away at one end**: Skewed distribution
+- **Gaps or discrete patterns**: Suggests rounding or grouped data
+
+**Why this matters:** Normality of residuals ensures our confidence intervals and p-values are valid. Moderate departures from normality are usually not problematic with large sample sizes (Central Limit Theorem), but severe non-normality suggests transformation or different modeling approach.
+:::
+
+```{r qq-plot, fig.width=7, fig.height=4}
+g_qq <- lm.mortality.fit |>
+  ggplot(aes(sample = .std.resid)) +
+  geom_qq(alpha = 0.5) +
+  geom_qq_line(color = "red") +
+  labs(title = "Q-Q Plot: Checking Normality (N)",
+       subtitle = "Points should fall close to the red diagonal line",
+       x = "Theoretical quantiles",
+       y = "Standardized residuals")
+g_qq
+```
+
+```{r qq-plot-interactive}
+plotly::ggplotly(g_qq)
+```
+
+::: callout-important
+**What we observe:**
+
+Examine the plot above. Do you see:
+- Points following the red line closely?
+- Deviations in the tails? (left end, right end, or both?)
+- Any S-curve or systematic pattern?
+
+**Comment:** [Students should describe what they see. For the poverty model, there is likely some deviation in the tails, suggesting slightly heavier-tailed residuals than a normal distribution. This is common with real-world data and often not a major concern with our large sample size.]
+:::
+
+#### I - Independence and Influential Observations
+
+::: callout-note
+**Understanding Independence:**
+
+The **independence** assumption means each observation doesn't influence others. This is harder to check with plots and often relies on:
+- **Study design**: Are observations collected independently?
+- **Spatial/temporal patterns**: Counties near each other might have similar characteristics
+- **Durbin-Watson test**: Checks for autocorrelation in residuals
+
+For our county-level data, we might expect some spatial correlation (neighboring counties are similar), but we don't have spatial information in our plots today.
+:::
+
+::: callout-note
+**What to look for in Cook's Distance plot:**
+
+**Cook's Distance** measures how much the entire regression would change if we removed a single observation. It combines:
+- **Leverage**: How unusual is this observation's X value?
+- **Residual size**: How far off is the prediction?
+
+✅ **Good signs:**
+- Most Cook's D values are small (< 0.5)
+- No individual observations dominate
+
+❌ **Warning signs:**
+- Any Cook's D > 1 (very influential)
+- Cook's D > 0.5 (moderately influential - worth investigating)
+- A few observations much larger than others
+
+**Why this matters:** Influential observations can dominate your regression line. If your results depend on one or two counties, that's a problem! You should investigate these cases - are they data errors, or do they represent genuine outliers?
+:::
+
+```{r cooks-distance, fig.width=7, fig.height=3}
+g_cook <- lm.mortality.fit |>
+  mutate(.index = 1:n()) |>
+  ggplot(aes(x = .index, y = .cooksd)) +
+  geom_col() +
+  labs(title = "Cook's Distance: Identifying Influential Observations",
+       subtitle = "Values > 0.5 (orange) or > 1 (red) warrant investigation",
+       x = "Observation index",
+       y = "Cook's D")
+g_cook
+```
+
+::: callout-important
+**What we observe:**
+
+Examine the plot above. Do you see:
+- Any values exceeding the red line (Cook's D > 1)?
+- Any values exceeding the orange line (Cook's D > 0.5)?
+- Are there many influential observations or just a few?
+
+**Comment:** [Students should describe what they see. Typically there will be a few observations with moderately high Cook's D, but likely none > 1. These might represent unusual counties worth investigating.]
+:::
+
+```{r influential-investigation}
+# Identify and examine the most influential observations
+influential <- lm.mortality.fit |>
+  mutate(index = 1:n()) |>
+  filter(.cooksd > 0.5) |>
+  arrange(desc(.cooksd)) |>
+  select(index, pov_norm, Mortality_Rate_num, .fitted, .resid, .cooksd)
+
+if(nrow(influential) > 0) {
+  cat("Most influential observations (Cook's D > 0.5):\n")
+  print(influential)
+} else {
+  cat("No highly influential observations found (all Cook's D < 0.5)\n")
+}
+```
+
+
+
+```{r base-plots, fig.width=10, fig.height=6}
+# Base R diagnostic plots provide additional perspectives
+# Plot 5 (Residuals vs Leverage) is particularly useful for influence
+par(mfrow = c(2, 3))
+plot(lm.mortality, which = 1:6)
+par(mfrow = c(1, 1))
+```
+
+```{r leverage-plot-ggplot, fig.width=8, fig.height=5}
+# ggplot version of Residuals vs Leverage (Base R Plot 5)
+# This shows which observations have high leverage AND large residuals
+
+# Calculate leverage and standardized residuals
+leverage_data <- lm.mortality.fit |>
+  mutate(
+    .leverage = hatvalues(lm.mortality),
+    .cooksd_size = .cooksd,
+    # Create contour lines for Cook's Distance
+    # Cook's D contours: roughly where .std.resid^2 * leverage / (1-leverage) = constant
+    .index = row_number()
+  )
+
+# Find observations with high Cook's D to label
+high_influence <- leverage_data |>
+  filter(.cooksd > 0.5) |>
+  arrange(desc(.cooksd)) |>
+  slice_head(n = 5)  # Top 5 most influential
+
+# Create the leverage plot
+g_leverage <- ggplot(leverage_data, aes(x = .leverage, y = .std.resid)) +
+  geom_point(aes(size = .cooksd_size, color = .cooksd_size), alpha = 0.6) +
+  geom_hline(yintercept = 0, linetype = 2, color = "gray50") +
+  # Add Cook's distance contour reference lines (approximate)
+  geom_function(fun = function(x) sqrt(0.5 * (1 - x) / x), 
+                linetype = 2, color = "red", alpha = 0.5, linewidth = 0.5) +
+  geom_function(fun = function(x) -sqrt(0.5 * (1 - x) / x), 
+                linetype = 2, color = "red", alpha = 0.5, linewidth = 0.5) +
+  geom_function(fun = function(x) sqrt(1.0 * (1 - x) / x), 
+                linetype = 2, color = "red", alpha = 0.3, linewidth = 0.5) +
+  geom_function(fun = function(x) -sqrt(1.0 * (1 - x) / x), 
+                linetype = 2, color = "red", alpha = 0.3, linewidth = 0.5) +
+  # Label high influence points
+  geom_text(data = high_influence, 
+            aes(label = .index), 
+            vjust = -1, size = 3, color = "red") +
+  scale_color_gradient(low = "blue", high = "red", name = "Cook's D") +
+  scale_size_continuous(range = c(1, 5), name = "Cook's D") +
+  labs(
+    title = "Residuals vs Leverage: Identifying High-Influence Observations",
+    subtitle = "Points outside red dashed curves have high Cook's Distance",
+    x = "Leverage (Hat values)",
+    y = "Standardized Residuals"
+  ) +
+  theme_minimal(base_size = 12)
+
+g_leverage
+```
+
+::: callout-note
+**Understanding the Leverage Plot:**
+
+This plot combines two key concepts:
+
+1. **Leverage (x-axis)**: How unusual is this observation's predictor value?
+   - High leverage = far from mean of X
+   - Points on the right have more potential to influence the regression line
+
+2. **Standardized Residuals (y-axis)**: How far off is the prediction?
+   - Large positive/negative values = poor predictions
+   - Points far from zero are poorly fit by the model
+
+3. **Cook's Distance (size & color)**: The combination of leverage and residual
+   - Red dashed curves show Cook's D contours (0.5 and 1.0)
+   - Points outside these curves are increasingly influential
+   - Large, red points in corners are most concerning
+
+**The Four Quadrants:**
+- **Top-right**: High leverage + positive residual → pulls line UP on the right
+- **Top-left**: Low leverage + positive residual → minor influence
+- **Bottom-left**: Low leverage + negative residual → minor influence  
+- **Bottom-right**: High leverage + negative residual → pulls line DOWN on the right
+
+**Most Concerning:** Points in top-right or bottom-right corners with high Cook's D!
+:::
+
+::: callout-tip
+**Understanding the Base R Diagnostic Plots:**
+
+- **Plot 1 (Residuals vs Fitted)**: Same as our custom plot - checks linearity
+- **Plot 2 (Q-Q)**: Same as our custom plot - checks normality  
+- **Plot 3 (Scale-Location)**: Same as our custom plot - checks equal variance
+- **Plot 4 (Cook's Distance)**: Same as our custom plot - identifies influential points
+- **Plot 5 (Residuals vs Leverage)**: Shows which observations have high leverage (unusual X) AND large residuals - these are the most concerning
+- **Plot 6 (Cook's Distance vs Leverage)**: Combines both influence measures
+
+**Contour lines in Plot 5**: The dashed curves show Cook's Distance levels. Points outside these curves are increasingly influential.
+:::
+
+### Numerical Diagnostics: Formal Hypothesis Tests
+
+Visual diagnostics help us **see** patterns, but numerical tests provide **statistical evidence** for violations of assumptions.
+
+::: callout-note
+**Understanding the Tests:**
+
+| Test | Null Hypothesis | Assumption Tested | Interpretation |
+|------|----------------|-------------------|----------------|
+| **Breusch-Pagan** | Variance is constant | Equal variance (E) | p < 0.05: variance changes with X |
+| **Durbin-Watson** | No autocorrelation | Independence (I) | Values far from 2 suggest correlation |
+| **Shapiro-Wilk** | Residuals are normal | Normality (N) | p < 0.05: residuals not normal |
+
+**Key Point:** With large samples, tests can detect trivial departures from assumptions. Always consider:
+1. What does the **plot** show? (magnitude of violation)
+2. What does the **test** show? (statistical evidence)
+3. How much does it **matter** for your research question?
+:::
+
+```{r numeric-tests}
+# Breusch-Pagan test for heteroscedasticity (non-constant variance)
+bp <- bptest(lm.mortality)
+
+# Durbin-Watson test for residual independence (autocorrelation)
+dw <- dwtest(lm.mortality)
+
+# Shapiro-Wilk test for normality of residuals
+sh <- shapiro.test(resid(lm.mortality))
+
+# Summary table
+test_results <- tibble(
+  Test = c("Breusch-Pagan", "Durbin-Watson", "Shapiro-Wilk"),
+  `Tests For` = c("Equal Variance (E)", "Independence (I)", "Normality (N)"),
+  Statistic = c(unname(bp$statistic), unname(dw$statistic), unname(sh$statistic)),
+  `P-value` = c(bp$p.value, dw$p.value, sh$p.value),
+  `Significant?` = c(
+    ifelse(bp$p.value < 0.05, "Yes - Heteroscedasticity detected", "No - Variance constant"),
+    ifelse(abs(dw$statistic - 2) > 0.5, "Warning - Check independence", "OK - No autocorrelation"),
+    ifelse(sh$p.value < 0.05, "Yes - Non-normal residuals", "No - Residuals appear normal")
+  )
+)
+
+test_results
+```
+
+::: callout-important
+**Interpreting Your Results:**
+
+Compare the test results above with what you saw in the visual diagnostics:
+
+1. **Breusch-Pagan Test** (Equal Variance):
+   - Does the p-value match what you saw in the Scale-Location plot?
+   - If p < 0.05: Confirms heteroscedasticity (non-constant variance)
+   
+2. **Durbin-Watson Test** (Independence):
+   - DW statistic ≈ 2 suggests independence
+   - DW < 2: positive autocorrelation; DW > 2: negative autocorrelation
+   - For spatial data like counties, some correlation is expected
+   
+3. **Shapiro-Wilk Test** (Normality):
+   - Does the p-value match what you saw in the Q-Q plot?
+   - With n = `r nrow(cancer_clean)` observations, even minor deviations become "significant"
+   - Visual assessment often more useful than p-value here
+
+**Key Question:** Do the numerical tests confirm what you observed visually? If there's disagreement, trust the **combination** of both - the plot shows the **magnitude** of violation, the test shows **statistical evidence**.
+:::
+
+::: callout-tip
+**Rule of Thumb: Visual First, Then Test**
+
+1. **Always start with plots** to understand the nature and magnitude of any violations
+2. **Use tests to confirm** and provide statistical evidence
+3. **With large samples**, tests detect tiny violations - focus on practical significance
+4. **Report both** in your analysis: "The Scale-Location plot showed increasing variance (Breusch-Pagan test, p < 0.001)"
+:::
+
+### Quick LINE Summary Reference Table
+
+| Assumption | Visual Check | What "Good" Looks Like | What "Bad" Looks Like | Numerical Test |
+|------------|--------------|------------------------|----------------------|----------------|
+| **L**inearity | Residuals vs Fitted | Random scatter; flat smooth line at zero | Curved pattern; U-shape; systematic trend | (None standard) |
+| **I**ndependence | Time/Space plots; Domain knowledge | No pattern over order/location | Clustering; trend over time/space | Durbin-Watson (DW ≈ 2) |
+| **N**ormality | Q-Q plot | Points follow diagonal line | S-curve; points curve away from line | Shapiro-Wilk (p > 0.05) |
+| **E**qual Variance | Scale-Location | Horizontal band; flat smooth line | Funnel shape; increasing/decreasing spread | Breusch-Pagan (p > 0.05) |
+
+::: callout-tip
+**How to Use This Table:**
+
+1. **Before analyzing**: Review what you should look for in each plot
+2. **During analysis**: Compare your plots to the "good" vs "bad" descriptions
+3. **After analysis**: Use tests to confirm what you saw visually
+4. **In reports**: Reference specific patterns you observed (e.g., "The Scale-Location plot showed a funnel pattern with increasing variance at higher fitted values")
+:::
+
+## Part 3. Transformation: Log-Log Model
+
+### When and Why to Transform
+
+Based on our diagnostics, we saw:
+- Some **non-linearity** in the Residuals vs Fitted plot
+- **Heteroscedasticity** (increasing variance) in the Scale-Location plot
+- Possibly **heavy tails** in the Q-Q plot
+
+::: callout-note
+**Log Transformations: A Common Fix**
+
+Log transformations are useful when:
+- The relationship appears curved (multiplicative rather than additive)
+- Variance increases with the mean (common in count-like data)
+- The data spans several orders of magnitude
+- You want to interpret effects as **percentage changes**
+
+**Log-Log Model Interpretation:**
+If we fit: $\log(Y) = \beta_0 + \beta_1 \log(X)$
+
+Then: A 1% increase in X is associated with a $\beta_1$% change in Y.
+
+This is called an **elasticity** in economics.
+:::
+
+### Question 1: Fit and compare models
+
+We'll try a log-log transformation on both mortality rate and poverty rate.
+
+```{r fit-log}
+# Filter to positive values for log transform (log of zero is undefined)
+cancer_log <- cancer_clean |>
+  filter(Mortality_Rate_num > 0, pov_norm > 0)
+
+# Fit log-log model
+lm.mortality.log <- lm(log(Mortality_Rate_num) ~ log(pov_norm), data = cancer_log)
+
+# Compare summaries side by side
+model_comp <- tibble(
+  Model = c("Linear (Y ~ X)", "Log-Log (log Y ~ log X)"),
+  `R²` = c(glance(lm.mortality)$r.squared, glance(lm.mortality.log)$r.squared),
+  `Adj R²` = c(glance(lm.mortality)$adj.r.squared, glance(lm.mortality.log)$adj.r.squared),
+  Sigma = c(glance(lm.mortality)$sigma, glance(lm.mortality.log)$sigma),
+  Note = c("Residual std dev in deaths/100k", "Residual std dev in log(deaths/100k)")
+)
+model_comp
+```
+
+::: callout-important
+**Comparing R² Across Transformations**
+
+⚠️ **Warning:** You **cannot directly compare** R² between models with different response variables!
+- Linear model: R² measures variance explained in **Mortality_Rate_num**
+- Log model: R² measures variance explained in **log(Mortality_Rate_num)**
+
+These are different scales. Instead, compare:
+1. **Diagnostic plots** - did violations improve?
+2. **Sigma** (residual standard deviation) - but remember different units
+3. **Prediction accuracy** on the original scale
+:::
+
+```{r compare-slopes}
+# Extract and compare coefficients
+tibble(
+  Model = c("Linear", "Log-Log"),
+  Intercept = c(coef(lm.mortality)[1], coef(lm.mortality.log)[1]),
+  Slope = c(coef(lm.mortality)[2], coef(lm.mortality.log)[2]),
+  Interpretation = c(
+    sprintf("1 unit ↑ in pov_norm → %.4f ↑ in mortality", coef(lm.mortality)[2]),
+    sprintf("1%% ↑ in pov_norm → %.2f%% ↑ in mortality", coef(lm.mortality.log)[2])
+  )
+)
+```
+
+### Question 2: Diagnostics for the log model
+
+::: callout-note
+**What We Hope to See:**
+
+After transformation, we hope the diagnostic plots show:
+- **More linear** relationship (flatter smooth line in residuals vs fitted)
+- **More constant variance** (horizontal band in scale-location)
+- **Better normality** (points closer to line in Q-Q plot)
+
+If the log model diagnostics are **worse**, stick with the linear model!
+:::
+
+```{r diag-log, fig.width=10, fig.height=8}
+aug_log <- augment(lm.mortality.log)
+
+p1 <- aug_log |>
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(formula = y ~ x, se = TRUE) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "LOG MODEL: Residuals vs Fitted",
+       subtitle = "Compare to linear model - is it more random?",
+       x = "Fitted log(mortality)",
+       y = "Residual")
+
+p2 <- aug_log |>
+  mutate(.root.abs.std.resid = sqrt(abs(.std.resid))) |>
+  ggplot(aes(x = .fitted, y = .root.abs.std.resid)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(formula = y ~ x, se = TRUE) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(title = "LOG MODEL: Scale-Location",
+       subtitle = "Compare to linear model - is variance more constant?",
+       x = "Fitted log(mortality)",
+       y = "Sqrt(|std residual|)")
+
+p3 <- aug_log |>
+  ggplot(aes(sample = .std.resid)) +
+  geom_qq(alpha = 0.5) +
+  geom_qq_line(color = "red") +
+  labs(title = "LOG MODEL: Q-Q Plot",
+       subtitle = "Compare to linear model - closer to red line?",
+       x = "Theoretical quantiles",
+       y = "Sample quantiles")
+
+p4 <- aug_log |>
+  mutate(.index = 1:n()) |>
+  ggplot(aes(x = .index, y = .cooksd)) +
+  geom_col() +
+  geom_hline(yintercept = 0.5, linetype = 2, color = "orange") +
+  labs(title = "LOG MODEL: Cook's Distance",
+       subtitle = "Are there fewer influential observations?",
+       x = "Index",
+       y = "Cook's D")
+
+(p1 | p2) / (p3 | p4)
+```
+
+::: callout-important
+**Systematic Comparison: Which Model is Better?**
+
+Create a side-by-side assessment:
+
+| Diagnostic | Linear Model | Log-Log Model | Winner? |
+|------------|--------------|---------------|---------|
+| **Linearity** | [Describe pattern] | [Describe pattern] | ? |
+| **Equal Variance** | [Describe pattern] | [Describe pattern] | ? |
+| **Normality** | [Describe pattern] | [Describe pattern] | ? |
+| **Influential Points** | [Max Cook's D] | [Max Cook's D] | ? |
+
+**Your Conclusion:** Based on the diagnostics, which model better satisfies the LINE assumptions?
+:::
+
+```{r log-numeric-tests}
+# Numerical diagnostics for log model
+bp_log <- bptest(lm.mortality.log)
+dw_log <- dwtest(lm.mortality.log)
+sh_log <- shapiro.test(resid(lm.mortality.log))
+
+# Compare tests side by side
+comparison <- tibble(
+  Test = c("Breusch-Pagan", "Durbin-Watson", "Shapiro-Wilk"),
+  `Linear p-value` = c(bp$p.value, NA, sh$p.value),
+  `Log-Log p-value` = c(bp_log$p.value, NA, sh_log$p.value),
+  `Linear Statistic` = c(bp$statistic, dw$statistic, sh$statistic),
+  `Log-Log Statistic` = c(bp_log$statistic, dw_log$statistic, sh_log$statistic)
+) |>
+  mutate(across(where(is.numeric), ~round(., 4)))
+
+comparison
+```
+
+::: callout-tip
+**Interpreting the Comparison:**
+
+- **Breusch-Pagan**: Higher p-value (closer to 1) is better → variance more constant
+- **Durbin-Watson**: Closer to 2 is better → less autocorrelation  
+- **Shapiro-Wilk**: Higher p-value (closer to 1) is better → more normal residuals
+
+Which model improved on which assumptions?
+:::
+
+```{r diag-log-interactive}
+plotly::ggplotly(p1)
+```
+
+### Question 3: Predictions and back-transformation
+
+::: callout-note
+**The Challenge of Transformed Models**
+
+When we fit a model to **log(Y)**, predictions are also on the log scale. To interpret predictions in the **original scale** (deaths per 100k), we must **back-transform** using the exponential function:
+
+$$\text{If } \log(\hat{Y}) = \hat{y}, \text{ then } \hat{Y} = e^{\hat{y}}$$
+
+**Important:** When back-transforming, the prediction interval is no longer symmetric! This is actually more realistic - mortality rates are bounded below by 0 but unbounded above.
+:::
+
+```{r pred-log, fig.width=10, fig.height=5}
+# Predict on log scale with prediction intervals
+pred_log <- predict(lm.mortality.log, interval = "prediction")
+aug_log_pred <- augment(lm.mortality.log) |>
+  cbind(pred_log) |>
+  tibble()
+
+# Back-transform to original scale
+aug_back <- aug_log_pred |>
+  mutate(
+    # Back-transform fitted values and intervals
+    fit_back = exp(.fitted),
+    lwr_back = exp(lwr),
+    upr_back = exp(upr),
+    # Original mortality for comparison
+    mortality_orig = exp(`log(Mortality_Rate_num)`),
+    pov_norm_orig = exp(`log(pov_norm)`)
+  )
+
+# Create comparison plots
+p_log_scale <- aug_back |>
+  ggplot(aes(x = `log(pov_norm)`, y = `log(Mortality_Rate_num)`)) +
+  geom_point(alpha = 0.4) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), fill = "blue", alpha = 0.2) +
+  geom_line(aes(y = .fitted), color = "blue", linewidth = 1) +
+  labs(title = "Log Scale: Symmetric Intervals",
+       x = "log(Poverty per 100k)",
+       y = "log(Mortality per 100k)")
+
+p_orig_scale <- aug_back |>
+  ggplot(aes(x = pov_norm_orig, y = mortality_orig)) +
+  geom_point(alpha = 0.4) +
+  geom_ribbon(aes(ymin = lwr_back, ymax = upr_back), fill = "red", alpha = 0.2) +
+  geom_line(aes(y = fit_back), color = "red", linewidth = 1) +
+  labs(title = "Original Scale: Asymmetric Intervals",
+       subtitle = "Notice how intervals widen at higher values",
+       x = "Poverty per 100k",
+       y = "Mortality per 100k")
+
+p_log_scale + p_orig_scale
+```
+
+::: callout-important
+**Key Observation:**
+
+Notice how the prediction bands look in each plot:
+- **Log scale (left)**: Bands appear symmetric and constant width
+- **Original scale (right)**: Bands are asymmetric and widen with higher values
+
+This asymmetry on the original scale is actually **more realistic** - it reflects greater uncertainty in high-mortality areas.
+:::
+
+```{r coverage-comparison}
+# Coverage on original scale (using back-transformed intervals)
+coverage_log <- aug_back |>
+  mutate(in_band = between(mortality_orig, lwr_back, upr_back)) |>
+  summarise(
+    count_in_band = sum(in_band, na.rm = TRUE),
+    total_points = n(),
+    pct_in_band = 100 * count_in_band / total_points
+  )
+
+# Compare coverage between models
+tibble(
+  Model = c("Linear Model", "Log-Log Model (back-transformed)"),
+  `Points in Band` = c(coverage$count_in_band, coverage_log$count_in_band),
+  `Total Points` = c(coverage$total_points, coverage_log$total_points),
+  `Coverage %` = c(coverage$pct_in_band, coverage_log$pct_in_band)
+)
+```
+
+::: callout-tip
+**Expected Coverage:**
+
+Both models should have approximately **95% coverage** if prediction intervals are working correctly. If one model has coverage much different from 95%, it suggests:
+- **> 95%**: Intervals too wide (overly conservative)
+- **< 95%**: Intervals too narrow (overly optimistic) - more concerning!
+
+Which model has better coverage?
+:::
+
+## Wrap-up and Key Takeaways
+
+### Summary of the Diagnostic Process
+
+1. **Start with context** (Week 11): We learned that normalizing by population dramatically improved our model
+2. **Visualize predictions**: Use prediction bands to see if the model is capturing the relationship
+3. **Check assumptions systematically** (LINE):
+   - **L**inearity: Residuals vs Fitted plot
+   - **I**ndependence: Consider study design; Durbin-Watson test
+   - **N**ormality: Q-Q plot; Shapiro-Wilk test
+   - **E**qual variance: Scale-Location plot; Breusch-Pagan test
+4. **Identify influential observations**: Cook's Distance and Leverage plots
+5. **Transform if needed**: Log transformation can address curvature and heteroscedasticity
+6. **Compare models**: Use both visual and numerical diagnostics to decide
+
+::: callout-important
+**The Golden Rule of Diagnostics**
+
+Always use this three-step process:
+1. **Before the plot**: State what you're looking for (good and bad signs)
+2. **Examine the plot**: Describe what you actually see
+3. **Interpret**: Does the assumption hold? How serious is any violation?
+
+This disciplined approach helps you:
+- Understand the "why" behind each diagnostic
+- Communicate findings clearly
+- Make defensible modeling decisions
+:::
+
+### Self-Check: Can You...
+
+✅ **Conceptual Understanding:**
+- [ ] Explain what each diagnostic plot shows and why it matters
+- [ ] Articulate what to look for BEFORE examining a diagnostic plot
+- [ ] Describe what you observe in a diagnostic plot using proper terminology
+- [ ] Distinguish between statistical significance and practical importance
+- [ ] Explain why normalization per 100k matters for our data
+
+✅ **Technical Skills:**
+- [ ] Fit a linear model and extract predictions with intervals
+- [ ] Compute and interpret prediction band coverage
+- [ ] Create and interpret all four LINE diagnostic plots
+- [ ] Use Cook's Distance to identify influential observations
+- [ ] Apply log transformation and compare models
+- [ ] Back-transform predictions to the original scale
+
+✅ **Critical Thinking:**
+- [ ] Decide whether a transformation improved model fit
+- [ ] Integrate visual and numerical diagnostics
+- [ ] Recognize when violations are too severe to ignore
+- [ ] Suggest appropriate next steps when assumptions fail
+
+### When Diagnostics Fail: Your Options
+
+If your diagnostics reveal serious violations, we have many tools in the toolbox to help us. Note this is outside the scope of this course, but mentioned here to get you excited about courses. ;) 
+
+1. **Transform variables** (log, square root, etc.)
+2. **Add polynomial terms** (X², X³) for non-linearity
+3. **Include additional predictors** that might explain patterns
+4. **Use robust regression** methods that handle outliers better
+5. **Try non-linear models** (e.g., GAMs, regression trees)
+6. **Collect more/better data** if fundamental issues exist
+
+## Weeks 10 to 12: Connected Focus
+
+| Week 10 Focus | Week 11 Focus | Week 12 Focus |
+|---|---|---|
+| **Exploration**: Visualise \(y\) vs \(x\) with scatterplots and smoothers. Quantify correlation to identify a useful predictor. | **Inference**: Is there a relationship? | **Diagnostics**: Is the relationship linear? |
+| **Model setup**: Specify \(y = a + b x\). Fit with a linear model. Interpret intercept and slope in real units. | **Prediction**: What is the point estimate? | **Uncertainty**: Are prediction intervals valid? |
+| **Fit intuition**: Show variance reduction by comparing Var(\(y\)) to Var(residuals). Motivate the idea behind variance explained. | **R²**: How much variance is explained? | **Assumptions**: Can we trust our inferences? |
+| **Scale awareness**: Compare slopes only after checking ranges and units. Relate slope magnitude to correlation and predictor scale. | **Normalization**: Match scales | **Transformation**: Improve fit |
+| **Residual structure**: Define residuals \(e = y - \hat y\). Verify mean near zero and near-zero correlation with \(\hat y\). Note fan-shaped spread as an early heteroscedasticity cue. | **Error model matters** for valid tests and intervals. | **Residual plots** confirm homoscedasticity, linearity, and independence before trusting results. |
+| **Visual storytelling**: Use clear captions and precise language to describe fitted lines and remaining uncertainty. | **Show evidence** for claims about effects. | **Stress test** conclusions against model checks and alternative specifications. |
+
+**Cross-week principle**: Context matters, visualise first, and think critically about numbers.
+
+
+::: callout-note
+**Final Reflection Prompts**
+
+1. **Comparative**: Which diagnostic changed the most between the linear and log models? What does this tell you about the nature of the data?
+
+2. **Persistent Issues**: After transformation, which assumption improved the least? What might explain this?
+
+3. **Next Steps**: If diagnostics remain poor despite transformation, what would be your next modeling move? (Hint: Think about additional predictors, non-linear terms, or different model families.)
+
+4. **Real-World Impact**: How would you explain to a health policy maker why checking these assumptions matters for predicting cancer mortality?
+
+5. **Normalization Insight**: Reflecting on both weeks, why is population normalization so crucial for county-level health data? How might ignoring it lead to wrong conclusions?
+:::
+
+### Additional Resources
+
+- **Book**: *Applied Linear Regression* by Weisberg (comprehensive diagnostics)
+- **Online**: [UCLA IDRE Statistical Consulting](https://stats.idre.ucla.edu/r/dae/) (R examples)
+- **R Package**: `{performance}` - automated diagnostic checking with `check_model()`
+
+::: callout-tip
+**Pro Tip for Future Work**
+
+Create a diagnostic checklist for every regression analysis:
+1. ✅ Checked linearity
+2. ✅ Checked independence  
+3. ✅ Checked normality
+4. ✅ Checked equal variance
+5. ✅ Identified influential observations
+6. ✅ Considered transformations
+7. ✅ Compared competing models
+
+This ensures reproducible, rigorous analysis!
+:::
