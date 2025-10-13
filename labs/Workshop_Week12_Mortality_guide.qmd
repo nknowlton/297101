@@ -6,6 +6,8 @@ format:
   html:
     toc: true
     code-fold: true
+    code-download: false
+    embed-resources: true
 execute:
   warning: false
   message: false
@@ -151,7 +153,6 @@ Fit the linear model and create an augmented table with fitted values and residu
 lm.mortality <- lm(Mortality_Rate_num ~ pov_norm, data = cancer_clean)
 lm.mortality.fit <- augment(lm.mortality)
 glance(lm.mortality)
-
 ```
 
 ### Question 2: Compute prediction intervals
@@ -159,7 +160,11 @@ glance(lm.mortality)
 Compute **prediction intervals** for each observed `pov_norm` value and bind them to the augmented data.
 
 ```{r predict-bind}
-
+lm.mortality.pred <- predict(lm.mortality, interval = "prediction")
+lm.mortality.fit.pred <- lm.mortality.fit |>
+  cbind(lm.mortality.pred) |>
+  tibble()
+head(lm.mortality.fit.pred)
 ```
 
 ### Question 3: Visualize with prediction bands
@@ -167,7 +172,15 @@ Compute **prediction intervals** for each observed `pov_norm` value and bind the
 Plot the **scatter**, **fitted line**, and **prediction band** using `geom_ribbon`. 
 
 ```{r vis-pred-band, fig.width=7, fig.height=4}
-
+p_band <- lm.mortality.fit.pred |>
+  ggplot(aes(x = pov_norm, y = Mortality_Rate_num)) +
+  geom_point(alpha = 0.6) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), fill = "grey70", alpha = 0.4) +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
+  labs(title = "Mortality rate vs normalized poverty with 95% prediction band",
+       x = "Poverty rate per 100k",
+       y = "Mortality rate per 100k")
+p_band
 ```
 
 
@@ -176,7 +189,31 @@ Plot the **scatter**, **fitted line**, and **prediction band** using `geom_ribbo
 Count the number and percentage of points inside the prediction band. Then split on a threshold and compare coverage by group. We will use the **median of `pov_norm`** as the split.
 
 ```{r coverage-counts}
+median_pov <- median(lm.mortality.fit.pred$pov_norm, na.rm = TRUE)
 
+coverage <- lm.mortality.fit.pred |>
+  mutate(in_band = between(Mortality_Rate_num, lwr, upr)) |>
+  summarise(
+    count_in_band = sum(in_band, na.rm = TRUE),
+    total_points = n(),
+    pct_in_band = 100 * count_in_band / total_points
+  )
+
+by_group <- lm.mortality.fit.pred |>
+  mutate(in_band = between(Mortality_Rate_num, lwr, upr),
+         group = ifelse(pov_norm < median_pov, 
+                       paste0("Low poverty (< ", round(median_pov, 0), " per 100k)"),
+                       paste0("High poverty (>= ", round(median_pov, 0), " per 100k)"))) |>
+  group_by(group) |>
+  summarise(
+    count_in_band = sum(in_band, na.rm = TRUE),
+    total_points = n(),
+    pct_in_band = 100 * count_in_band / total_points,
+    .groups = "drop"
+  )
+
+coverage
+by_group
 ```
 
 ::: callout-note
@@ -184,6 +221,8 @@ Count the number and percentage of points inside the prediction band. Then split
 
 The default is a pointwise 95% prediction interval. What coverage would you expect approximately overall? What about within each subgroup split by median poverty rate? If coverage differs between low and high poverty counties, what might this suggest about the model?
 :::
+
+What happens when we split the data at other points? Explore this on your own.
 
 ## Part 2. Diagnostics: Evaluating the LINE Assumptions
 
@@ -287,9 +326,7 @@ The scale-location plot checks whether the **variance of residuals is constant**
 
 **Try it** Plot the square root absolute valued standardized residuals vs the fitted values.
 
-```{r scale-location, fig.height=4, fig.width=7}
-#| message: false
-#| warning: false
+```{r scale-location, fig.width=7, fig.height=4}
 g_scale <- lm.mortality.fit |>
   mutate(.root.abs.std.resid = sqrt(abs(.std.resid))) |>
   ggplot(aes(x = .fitted, y = .root.abs.std.resid)) +
@@ -508,7 +545,6 @@ This plot combines two key concepts:
 **Most Concerning:** Points in top-right or bottom-right corners with high Cook's D!
 :::
 
-**Answer**: Overall it looks like there are no high leverage points points.
 
 
 ### Statistical Diagnostics: Formal Hypothesis Tests
@@ -624,7 +660,7 @@ Log transformations are useful when:
 - You want to interpret effects as **percentage changes**
 
 **Linear-Log Model Interpretation:**
-If we fit: $Y = \beta_0 + \beta_1 \log(X)$
+If we fit: $\log(Y) = \beta_0 + \beta_1 \log(X)$
 
 Then: A 1% increase in X is associated with a $\beta_1$% change in Y.
 
@@ -633,14 +669,14 @@ This is called an **elasticity** in economics.
 
 ### Question 1: Fit and compare models
 
-We'll try a log transformation on poverty rate.
+We'll try a Linear-Log transformation on both mortality rate and poverty rate.
 
 ```{r fit-log}
 # Filter to positive values for log transform (log of zero is undefined)
 cancer_log <- cancer_clean |>
-  filter(pov_norm > 0)
+  filter(Mortality_Rate_num > 0, pov_norm > 0)
 
-# Fit linear-log model
+# Fit Linear-Log model
 lm.mortality.log <- lm(Mortality_Rate_num ~ log(pov_norm), data = cancer_log)
 
 # Compare summaries side by side
@@ -672,7 +708,7 @@ tibble(
 
 ```
 
-What are you seeing as different in these models. Do these differences make sense?
+
 
 ### Question 2: Diagnostics for the log model
 
@@ -742,12 +778,15 @@ Create a side-by-side assessment:
 
 | Diagnostic | Linear Model | Linear-Log Model | Winner? |
 |------------|--------------|---------------|---------|
-| **Linearity** | [Describe pattern] | [Describe pattern] | ? |
-| **Equal Variance** | [Describe pattern] | [Describe pattern] | ? |
-| **Normality** | [Describe pattern] | [Describe pattern] | ? |
-| **Influential Points** | [Max Cook's D] | [Max Cook's D] | ? |
+| **Linearity** | Random around 0 | Funnel shape | Linear |
+| **Equal Variance** | Upward- Funnel | Upward- No funnel | Linear-Log |
+| **Normality** | OK | OK | Draw |
+| **Influential Points** | None | None | Draw |
 
 **Your Conclusion:** Based on the diagnostics, which model better satisfies the LINE assumptions?
+
+**Answer** The diagnostics for each model are very similar. I would choose the linear-log model as explainng percent changes in poverty vs normalized values makes more intuitive sense, additionally using a log of poverty gave another 2% increase in R2.
+
 :::
 
 ```{r log-numeric-tests}
