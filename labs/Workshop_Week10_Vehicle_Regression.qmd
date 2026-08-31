@@ -1,0 +1,434 @@
+---
+title: "Workshop Week 10: Vehicle Fuel Efficiency"
+subtitle: "Exploring and fitting a first linear model"
+author: "297.101 Statistical Data Science"
+date: "Spring 2026"
+format:
+  html:
+    toc: true
+    code-tools: true
+    code-copy: true
+    code-block-bg: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor:
+  markdown:
+    wrap: 72
+---
+
+::: {.callout-note}
+## Today’s question
+
+How does engine size relate to the fuel use of a petrol passenger vehicle?
+
+For each new topic, first work through the **Demonstration** using engine
+size. Then complete **Your turn** using engine power. At the end, you will
+apply the whole workflow independently using vehicle mass.
+:::
+
+## Learning objectives
+
+By the end of this workshop you should be able to:
+
+- describe the direction, form and strength of a relationship from a plot;
+- fit and inspect a simple linear model with `lm()`;
+- extract and interpret the fitted coefficients;
+- obtain and examine fitted values and residuals; and
+- apply the complete workflow to a new explanatory variable.
+
+## 1. Meet and explore the data (15 minutes)
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(broom)
+
+vehicles <- read_csv("nz_vehicles_2025.csv", show_col_types = FALSE)
+```
+
+Each row is one **unique vehicle specification** found in the New Zealand
+vehicle data. The data were prepared from Waka Kotahi’s vehicle fleet data as
+at **31 July 2026**. They contain model-year 2025 petrol passenger cars and
+vans with complete measurements; repeated specifications have been removed.
+
+The fuel-use values come from a standard test, not from the driving of a
+particular person. An association in these data does not show that changing
+one vehicle feature would cause another feature to change.
+
+Waka Kotahi publishes the source under the [CC-BY 4.0 International
+licence](https://creativecommons.org/licenses/by/4.0/). Read more in the
+[vehicle-fleet documentation](https://nzta.govt.nz/resources/new-zealand-motor-vehicle-register-statistics/new-zealand-vehicle-fleet-open-data-sets).
+
+```{r}
+#| label: glimpse
+glimpse(vehicles)
+```
+
+| Column | Meaning | Units |
+|:--|:--|:--|
+| `make`, `model`, `body_type` | vehicle description | — |
+| `engine_l` | engine displacement | litres |
+| `power_kw` | engine power rating | kilowatts |
+| `gross_mass_kg` | maximum permitted laden mass | kilograms |
+| `fuel_use_l_per_100km` | combined-cycle fuel use | litres per 100 km |
+
+### Demonstration: engine size
+
+Before fitting a line, start with a scatterplot and a LOESS smooth. The smooth
+helps us see the general shape without requiring it to be a straight line.
+
+```{r}
+#| label: engine-loess
+#| fig-cap: "Combined fuel use and engine size for 2025 petrol passenger vehicles."
+#| fig-alt: "Scatterplot with engine size in litres on the horizontal axis and combined fuel use in litres per 100 kilometres on the vertical axis, showing a generally increasing relationship."
+#| out-width: "100%"
+ggplot(vehicles, aes(x = engine_l, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.55) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)",
+    title = "Do larger engines tend to use more fuel?"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+The correlation coefficient measures the direction and strength of a
+*linear* relationship. It has no units and ranges from -1 to 1.
+
+```{r}
+#| label: engine-correlation
+vehicles |>
+  summarise(
+    engine_correlation = cor(engine_l, fuel_use_l_per_100km)
+  )
+```
+
+Describe the direction, form and strength shown by the plot. Then explain what
+the sign and size of the correlation add to that description.
+
+### Your turn: engine power
+
+Repeat the exploration with `power_kw` as the explanatory variable. Create a
+scatterplot with a LOESS smooth, use labels with units, and calculate the
+correlation between power and fuel use.
+
+```{r}
+#| label: power-loess
+# Use the engine-size plot as your template.
+# Your code here
+```
+
+```{r}
+#| label: power-correlation
+# Use the engine-size correlation as your template.
+# Your code here
+```
+
+Compare the engine-size and power plots. Which appears more nearly linear?
+Which has the larger correlation? Remember that correlation is not a slope.
+
+## 2. Fit and inspect the models (15 minutes)
+
+A simple linear model describes the average response as a straight-line
+function of one explanatory variable:
+
+$$
+\mathsf{Mean}(y) = a + bx.
+$$
+
+### Demonstration: engine-size model
+
+Fit the model, save it, and then print the saved model object. Keeping the
+model in an object lets us return to it throughout the workshop.
+
+```{r}
+#| label: fit-engine-model
+engine_model <- lm(
+  fuel_use_l_per_100km ~ engine_l,
+  data = vehicles
+)
+
+engine_model
+```
+
+The next plot changes the flexible LOESS smooth to the straight line fitted by
+`lm()`.
+
+```{r}
+#| label: plot-engine-model
+#| fig-cap: "The fitted engine-size linear model."
+#| fig-alt: "Scatterplot of engine size and combined fuel use with a fitted straight line."
+#| out-width: "100%"
+ggplot(vehicles, aes(x = engine_l, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.55) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)",
+    title = "A straight-line model for engine size and fuel use"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+### Your turn: power model
+
+Fit `fuel_use_l_per_100km ~ power_kw`, save it as `power_model`, print the
+model object, and make the corresponding scatterplot with a fitted straight
+line.
+
+```{r}
+#| label: fit-power-model
+# Use fit-engine-model as your template.
+# Your code here
+```
+
+```{r}
+#| label: plot-power-model
+# Use plot-engine-model as your template.
+# Your code here
+```
+
+Look at both fitted lines. What does each line capture, and what variation is
+still visible around it?
+
+## 3. Extract and interpret the coefficients (15 minutes)
+
+### Demonstration: engine-size coefficients
+
+`coef()` extracts the intercept and slope from the saved model.
+
+```{r}
+#| label: engine-coefficients
+engine_coef <- coef(engine_model)
+engine_coef
+```
+
+Use these values to write the fitted equation:
+
+$$
+\widehat{\text{fuel use}} = a + b\,\text{engine size}.
+$$
+
+Then answer:
+
+1. What does the slope mean in **L/100 km per litre of engine size**?
+2. What does the intercept mean mathematically?
+3. Is an engine size of zero within the observed data? How does that affect
+   the practical interpretation of the intercept?
+
+### Your turn: power coefficients
+
+Extract the coefficients from `power_model`, save them as `power_coef`, and
+write the fitted equation using `power_kw`.
+
+```{r}
+#| label: power-coefficients
+# Use engine-coefficients as your template.
+# Your code here
+```
+
+Interpret the slope in **L/100 km per kilowatt**. Also explain the expected
+difference associated with 100 kW so that the magnitude is easier to
+communicate. Is zero kW within the observed data?
+
+::: {.callout-important}
+The coefficients describe associations among these vehicle specifications.
+Do not turn either slope into a causal claim.
+:::
+
+## 4. Extract and inspect the residuals (25 minutes)
+
+For each vehicle specification, the fitted value is the value on the fitted
+line. The residual is the observed value minus the fitted value:
+
+$$
+e_i = y_i - \hat{y}_i.
+$$
+
+### Demonstration: engine-size residuals
+
+`augment()` returns the original variables together with useful model columns,
+including `.fitted` and `.resid`.
+
+```{r}
+#| label: engine-augment
+engine_results <- augment(engine_model)
+
+engine_results |>
+  select(engine_l, fuel_use_l_per_100km, .fitted, .resid) |>
+  slice_head(n = 8)
+```
+
+The orange segments below show a sample of residuals as vertical gaps from the
+observed values to the fitted line.
+
+```{r}
+#| label: engine-residual-gaps
+#| fig-cap: "Observed fuel use, the engine-size fitted line, and a sample of residual gaps."
+#| fig-alt: "Scatterplot with a fitted straight line and vertical segments connecting selected observations to the line."
+#| out-width: "100%"
+set.seed(297101)
+engine_gap_data <- engine_results |>
+  slice_sample(n = min(35, nrow(engine_results)))
+
+ggplot(vehicles, aes(x = engine_l, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.35) +
+  geom_line(
+    data = engine_results |> arrange(engine_l),
+    aes(y = .fitted),
+    colour = "#2C7FB8",
+    linewidth = 1
+  ) +
+  geom_segment(
+    data = engine_gap_data,
+    aes(xend = engine_l, yend = .fitted),
+    alpha = 0.65,
+    colour = "#D95F02"
+  ) +
+  labs(
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)",
+    title = "Residuals are the vertical gaps from observations to the line"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+Plot all residuals against their fitted values, then summarise the mean
+residual and compare the original response variance with the residual
+variance.
+
+```{r}
+#| label: engine-residual-plot
+#| fig-cap: "Residuals from the engine-size model versus fitted fuel-use values."
+#| fig-alt: "Engine-size model residuals plotted against fitted values with a horizontal zero line."
+#| out-width: "100%"
+ggplot(engine_results, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.55) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x = "Fitted fuel use (L/100 km)",
+    y = "Residual (L/100 km)",
+    title = "What the engine-size model leaves unexplained"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: engine-residual-summary
+engine_results |>
+  summarise(
+    mean_residual = mean(.resid),
+    response_variance = var(fuel_use_l_per_100km),
+    residual_variance = var(.resid)
+  )
+```
+
+### Your turn: power residuals
+
+Repeat the same core checks with `power_model`:
+
+1. Create `power_results` with `augment()` and inspect `.fitted` and `.resid`.
+2. Plot the power-model residuals against fitted values.
+3. Calculate the mean residual, response variance and residual variance.
+4. Compare the power residual variance with the engine residual variance.
+
+```{r}
+#| label: power-augment
+# Use engine-augment as your template.
+# Your code here
+```
+
+```{r}
+#| label: power-residual-plot
+# Use engine-residual-plot as your template.
+# Your code here
+```
+
+```{r}
+#| label: power-residual-summary
+# Use engine-residual-summary as your template.
+# Your code here
+```
+
+Describe what the power model leaves unexplained. This is an early look at
+model leftovers; formal LINE checks belong to Week 12.
+
+## 5. Independent workflow: gross vehicle mass (25 minutes)
+
+Now complete the entire workflow independently using `gross_mass_kg` as the
+explanatory variable. Reuse only operations already demonstrated above.
+
+### A. Explore
+
+- Plot fuel use against gross mass with a LOESS smooth.
+- Calculate and interpret the correlation.
+
+```{r}
+#| label: mass-explore
+# Your code here
+```
+
+### B. Fit and inspect
+
+- Fit `fuel_use_l_per_100km ~ gross_mass_kg` as `mass_model`.
+- Print the model and plot its fitted straight line.
+
+```{r}
+#| label: mass-fit
+# Your code here
+```
+
+### C. Extract and interpret coefficients
+
+- Save `coef(mass_model)` as `mass_coef`.
+- Write the fitted equation.
+- Interpret the slope in **L/100 km per kilogram** and, more usefully, per
+  **1000 kg**.
+
+```{r}
+#| label: mass-coefficients
+# Your code here
+```
+
+### D. Inspect residuals
+
+- Create `mass_results` with `augment()`.
+- Plot residuals against fitted values.
+- Calculate the mean residual, response variance and residual variance.
+
+```{r}
+#| label: mass-residuals
+# Your code here
+```
+
+### E. Compare all three models
+
+Using your plots, correlations and residual variances, compare engine size,
+power and gross mass as single predictors of fuel use. Name the strongest
+predictor in these data, give evidence, and state what remains unexplained.
+
+::: {.callout-important}
+## Scope of today’s conclusion
+
+You can describe an association and how well a line summarises these data.
+You cannot yet quantify uncertainty in the slope, test a null hypothesis, or
+construct an interval for a future vehicle. Those are Week 11 questions.
+:::
+
+## 6. Exit ticket and bridge to Week 11 (10 minutes)
+
+Write three short responses:
+
+1. **Supported conclusion:** What does the engine-size model suggest about
+   fuel use for these vehicles?
+2. **Limitation:** Name one feature of the data or model that limits the
+   conclusion.
+3. **Next question:** What would you want to know about the fitted slope or a
+   prediction that this workshop did not answer?
+
+Next week we will use model output to study point estimates, confidence
+intervals, hypothesis tests, prediction intervals and variance explained.

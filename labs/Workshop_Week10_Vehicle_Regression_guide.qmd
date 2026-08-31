@@ -1,0 +1,503 @@
+---
+title: "Workshop Week 10: Vehicle Fuel Efficiency"
+subtitle: "Answer guide — exploring and fitting a first linear model"
+author: "297.101 Statistical Data Science"
+date: "Spring 2026"
+format:
+  html:
+    toc: true
+    code-tools: true
+    code-copy: true
+    code-block-bg: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor:
+  markdown:
+    wrap: 72
+---
+
+This guide follows the student workshop in
+[`Workshop_Week10_Vehicle_Regression.qmd`](Workshop_Week10_Vehicle_Regression.qmd).
+It mirrors each Demonstration and Your turn exercise and then completes the
+independent gross-mass workflow.
+
+::: {.callout-note}
+## Today’s question
+
+How does engine size relate to the fuel use of a petrol passenger vehicle?
+
+Each new operation is demonstrated with engine size, repeated with engine
+power, and finally applied independently using gross vehicle mass.
+:::
+
+## Learning objectives
+
+Students should be able to describe a quantitative relationship, fit and
+inspect a simple linear model, extract and interpret its coefficients, obtain
+and examine fitted values and residuals, and repeat the workflow with a new
+explanatory variable.
+
+## 1. Meet and explore the data (15 minutes)
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(broom)
+
+vehicles <- read_csv("nz_vehicles_2025.csv", show_col_types = FALSE)
+```
+
+```{r}
+#| label: glimpse
+glimpse(vehicles)
+```
+
+There are **467** unique vehicle specifications. The data were prepared from
+Waka Kotahi’s vehicle fleet data as at **31 July 2026** and contain model-year
+2025 petrol passenger cars and vans with complete measurements. Standard test
+values are not the observed fuel use of individual drivers.
+
+Waka Kotahi publishes the source under the [CC-BY 4.0 International
+licence](https://creativecommons.org/licenses/by/4.0/). Source details and
+caveats are in the [vehicle-fleet documentation](https://nzta.govt.nz/resources/new-zealand-motor-vehicle-register-statistics/new-zealand-vehicle-fleet-open-data-sets).
+
+| Column | Meaning | Units |
+|:--|:--|:--|
+| `make`, `model`, `body_type` | vehicle description | — |
+| `engine_l` | engine displacement | litres |
+| `power_kw` | engine power rating | kilowatts |
+| `gross_mass_kg` | maximum permitted laden mass | kilograms |
+| `fuel_use_l_per_100km` | combined-cycle fuel use | litres per 100 km |
+
+### Demonstration: engine size
+
+```{r}
+#| label: engine-loess
+#| fig-cap: "Combined fuel use and engine size for 2025 petrol passenger vehicles."
+#| fig-alt: "Scatterplot with engine size in litres on the horizontal axis and combined fuel use in litres per 100 kilometres on the vertical axis, showing a generally increasing relationship."
+#| out-width: "100%"
+ggplot(vehicles, aes(x = engine_l, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.55) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)",
+    title = "Do larger engines tend to use more fuel?"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: engine-correlation
+vehicles |>
+  summarise(
+    engine_correlation = cor(engine_l, fuel_use_l_per_100km)
+  )
+```
+
+The plot shows a positive, approximately straight and fairly strong
+relationship with visible scatter. The engine-size correlation is
+approximately **0.901**, supporting the description of a strong positive
+linear association.
+
+### Your turn: engine power
+
+```{r}
+#| label: power-loess
+#| fig-cap: "Combined fuel use and engine power for 2025 petrol passenger vehicles."
+#| fig-alt: "Scatterplot with power in kilowatts on the horizontal axis and combined fuel use in litres per 100 kilometres on the vertical axis, showing a generally increasing relationship."
+#| out-width: "100%"
+ggplot(vehicles, aes(x = power_kw, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.55) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    x = "Engine power (kW)",
+    y = "Combined fuel use (L/100 km)",
+    title = "Do more powerful engines tend to use more fuel?"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: power-correlation
+vehicles |>
+  summarise(
+    power_correlation = cor(power_kw, fuel_use_l_per_100km)
+  )
+```
+
+Power also has a strong positive relationship with fuel use. Its correlation
+is approximately **0.884**, slightly smaller than the engine-size
+correlation. Both plots are broadly linear, with some departures and scatter.
+
+## 2. Fit and inspect the models (15 minutes)
+
+### Demonstration: engine-size model
+
+```{r}
+#| label: fit-engine-model
+engine_model <- lm(
+  fuel_use_l_per_100km ~ engine_l,
+  data = vehicles
+)
+
+engine_model
+```
+
+```{r}
+#| label: plot-engine-model
+#| fig-cap: "The fitted engine-size linear model."
+#| fig-alt: "Scatterplot of engine size and combined fuel use with a fitted straight line."
+#| out-width: "100%"
+ggplot(vehicles, aes(x = engine_l, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.55) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)",
+    title = "A straight-line model for engine size and fuel use"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+The printed object identifies the model formula and gives the two fitted
+coefficients. The straight line captures the main increasing trend but not
+all differences among vehicles.
+
+### Your turn: power model
+
+```{r}
+#| label: fit-power-model
+power_model <- lm(
+  fuel_use_l_per_100km ~ power_kw,
+  data = vehicles
+)
+
+power_model
+```
+
+```{r}
+#| label: plot-power-model
+#| fig-cap: "The fitted power linear model."
+#| fig-alt: "Scatterplot of engine power and combined fuel use with a fitted straight line."
+#| out-width: "100%"
+ggplot(vehicles, aes(x = power_kw, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.55) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Engine power (kW)",
+    y = "Combined fuel use (L/100 km)",
+    title = "A straight-line model for engine power and fuel use"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+The power model also captures a clear increasing trend. Its points have
+slightly more variation around the line than the engine-size model.
+
+## 3. Extract and interpret the coefficients (15 minutes)
+
+### Demonstration: engine-size coefficients
+
+```{r}
+#| label: engine-coefficients
+engine_coef <- coef(engine_model)
+engine_coef
+```
+
+The fitted equation is approximately
+
+$$
+\widehat{\text{fuel use}} = 4.070 + 1.886\,\text{engine size}.
+$$
+
+A one-litre difference in engine size is associated with about **1.886
+L/100 km** higher average fuel use. The intercept is the line’s fitted value
+at zero litres. Zero is outside the observed engine-size range, so the
+intercept has no useful direct vehicle interpretation.
+
+### Your turn: power coefficients
+
+```{r}
+#| label: power-coefficients
+power_coef <- coef(power_model)
+power_coef
+```
+
+The fitted equation is approximately
+
+$$
+\widehat{\text{fuel use}} = 4.705 + 0.0186\,\text{power}.
+$$
+
+A one-kilowatt difference in power is associated with about **0.0186 L/100
+km** higher average fuel use. A 100 kW difference is therefore associated
+with about **1.86 L/100 km** higher average fuel use. Zero kW is outside the
+observed data, so the intercept should not be given a direct practical
+interpretation.
+
+::: {.callout-important}
+The coefficients describe associations among these vehicle specifications.
+Neither slope is a causal effect.
+:::
+
+## 4. Extract and inspect the residuals (25 minutes)
+
+### Demonstration: engine-size residuals
+
+```{r}
+#| label: engine-augment
+engine_results <- augment(engine_model)
+
+engine_results |>
+  select(engine_l, fuel_use_l_per_100km, .fitted, .resid) |>
+  slice_head(n = 8)
+```
+
+`.fitted` is the point on the fitted line for an engine size. `.resid` is the
+observed value minus the fitted value; positive residuals lie above the line
+and negative residuals lie below it.
+
+```{r}
+#| label: engine-residual-gaps
+#| fig-cap: "Observed fuel use, the engine-size fitted line, and a sample of residual gaps."
+#| fig-alt: "Scatterplot with a fitted straight line and vertical segments connecting selected observations to the line."
+#| out-width: "100%"
+set.seed(297101)
+engine_gap_data <- engine_results |>
+  slice_sample(n = min(35, nrow(engine_results)))
+
+ggplot(vehicles, aes(x = engine_l, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.35) +
+  geom_line(
+    data = engine_results |> arrange(engine_l),
+    aes(y = .fitted),
+    colour = "#2C7FB8",
+    linewidth = 1
+  ) +
+  geom_segment(
+    data = engine_gap_data,
+    aes(xend = engine_l, yend = .fitted),
+    alpha = 0.65,
+    colour = "#D95F02"
+  ) +
+  labs(
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)",
+    title = "Residuals are the vertical gaps from observations to the line"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: engine-residual-plot
+#| fig-cap: "Residuals from the engine-size model versus fitted fuel-use values."
+#| fig-alt: "Engine-size model residuals plotted against fitted values with a horizontal zero line."
+#| out-width: "100%"
+ggplot(engine_results, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.55) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x = "Fitted fuel use (L/100 km)",
+    y = "Residual (L/100 km)",
+    title = "What the engine-size model leaves unexplained"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: engine-residual-summary
+engine_results |>
+  summarise(
+    mean_residual = mean(.resid),
+    response_variance = var(fuel_use_l_per_100km),
+    residual_variance = var(.resid)
+  )
+```
+
+The mean residual is essentially zero. The response variance is approximately
+**7.136**, while the residual variance is approximately **1.341**. Engine
+size accounts for substantial variation, although other differences remain.
+
+### Your turn: power residuals
+
+```{r}
+#| label: power-augment
+power_results <- augment(power_model)
+
+power_results |>
+  select(power_kw, fuel_use_l_per_100km, .fitted, .resid) |>
+  slice_head(n = 8)
+```
+
+```{r}
+#| label: power-residual-plot
+#| fig-cap: "Residuals from the power model versus fitted fuel-use values."
+#| fig-alt: "Power-model residuals plotted against fitted values with a horizontal zero line."
+#| out-width: "100%"
+ggplot(power_results, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.55) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x = "Fitted fuel use (L/100 km)",
+    y = "Residual (L/100 km)",
+    title = "What the power model leaves unexplained"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: power-residual-summary
+power_results |>
+  summarise(
+    mean_residual = mean(.resid),
+    response_variance = var(fuel_use_l_per_100km),
+    residual_variance = var(.resid)
+  )
+```
+
+The power-model mean residual is essentially zero and its residual variance
+is approximately **1.557**. This is slightly larger than the engine model’s
+1.341, agreeing with the slightly smaller correlation and greater visible
+scatter. Formal LINE checks still belong to Week 12.
+
+## 5. Independent workflow: gross vehicle mass (25 minutes)
+
+### A. Explore
+
+```{r}
+#| label: mass-explore
+#| fig-cap: "Combined fuel use and gross vehicle mass."
+#| fig-alt: "Scatterplot with gross vehicle mass in kilograms on the horizontal axis and combined fuel use in litres per 100 kilometres on the vertical axis, showing a moderately increasing relationship."
+#| out-width: "100%"
+ggplot(vehicles, aes(x = gross_mass_kg, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.55) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    x = "Gross vehicle mass (kg)",
+    y = "Combined fuel use (L/100 km)",
+    title = "Do heavier vehicles tend to use more fuel?"
+  ) +
+  theme_minimal(base_size = 13)
+
+vehicles |>
+  summarise(
+    mass_correlation = cor(gross_mass_kg, fuel_use_l_per_100km)
+  )
+```
+
+The mass correlation is approximately **0.576**, indicating a moderate
+positive linear association that is weaker than the engine-size and power
+relationships.
+
+### B. Fit and inspect
+
+```{r}
+#| label: mass-fit
+mass_model <- lm(
+  fuel_use_l_per_100km ~ gross_mass_kg,
+  data = vehicles
+)
+
+mass_model
+
+ggplot(vehicles, aes(x = gross_mass_kg, y = fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.55) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Gross vehicle mass (kg)",
+    y = "Combined fuel use (L/100 km)",
+    title = "A straight-line model for mass and fuel use"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+### C. Extract and interpret coefficients
+
+```{r}
+#| label: mass-coefficients
+mass_coef <- coef(mass_model)
+mass_coef
+```
+
+The fitted equation is approximately
+
+$$
+\widehat{\text{fuel use}} = 1.666 + 0.00329\,\text{gross mass}.
+$$
+
+A one-kilogram difference in gross mass is associated with about **0.00329
+L/100 km** higher average fuel use. More usefully, a 1000 kg difference is
+associated with about **3.29 L/100 km** higher average fuel use. Zero mass is
+outside the data and gives the intercept no direct practical interpretation.
+
+### D. Inspect residuals
+
+```{r}
+#| label: mass-residuals
+mass_results <- augment(mass_model)
+
+ggplot(mass_results, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.55) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x = "Fitted fuel use (L/100 km)",
+    y = "Residual (L/100 km)",
+    title = "What the mass model leaves unexplained"
+  ) +
+  theme_minimal(base_size = 13)
+
+mass_results |>
+  summarise(
+    mean_residual = mean(.resid),
+    response_variance = var(fuel_use_l_per_100km),
+    residual_variance = var(.resid)
+  )
+```
+
+The mass-model mean residual is essentially zero and its residual variance is
+approximately **4.772**, substantially larger than those of the engine-size
+and power models.
+
+### E. Compare all three models
+
+| Predictor | Correlation | Residual variance |
+|:--|--:|--:|
+| `engine_l` | 0.901 | 1.341 |
+| `power_kw` | 0.884 | 1.557 |
+| `gross_mass_kg` | 0.576 | 4.772 |
+
+Engine size is the strongest of these three single predictors: it has the
+largest correlation and smallest residual variance. Power performs almost as
+well. Gross mass has a moderate relationship but leaves substantially more
+variation unexplained. This comparison does not establish causation or test
+whether observed differences would persist in other vehicle data.
+
+::: {.callout-important}
+## Scope of today’s conclusion
+
+Students can describe associations and how well each line summarises these
+data. Inference, tests, intervals and formal LINE diagnosis belong to Weeks 11
+and 12.
+:::
+
+## 6. Exit ticket and bridge to Week 11 (10 minutes)
+
+An acceptable supported conclusion is that larger engines tend to have higher
+combined fuel use among the unique 2025 petrol passenger-vehicle
+specifications in these data.
+
+Acceptable limitations include standard test values rather than real-world
+driving, restriction to one vehicle year and fuel type, omitted vehicle
+features, association rather than causation, and the danger of extrapolating
+beyond the observed values.
+
+An unanswered uncertainty question should point toward Week 11—for example,
+how uncertain the slope is, how much variation the model explains, or how wide
+a prediction interval for a new vehicle should be.
+
+Next week covers point estimates, confidence intervals, hypothesis tests,
+prediction intervals and variance explained.
