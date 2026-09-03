@@ -1,0 +1,272 @@
+/* custom.css */
+.left-code {
+/* color: #777; */
+  width: 38%;
+  height: 92%;
+  float: left;
+}
+
+.right-plot {
+  width: 60%;
+  float: right;
+  padding-left: 1%;
+}
+
+/* custom.css */
+.left-code-wide {
+/* color: #777; */
+  width: 58%;
+  height: 92%;
+  float: left;
+}
+
+.right-out-narrow {
+  width: 40%;
+  float: right;
+  padding-left: 1%;
+}
+
+.remark-slide-number {
+  position: inherit;
+}
+
+.remark-slide-number .progress-bar-container {
+  position: absolute;
+  bottom: 0;
+  height: 4px;
+  display: block;
+  left: 0;
+  right: 0;
+}
+
+.remark-slide-number .progress-bar {
+  height: 100%;
+  background-color: red;
+}
+
+.center-fig {
+  margin: auto;
+  width: 75%;
+}
+
+
+/* Added by Adam */
+
+.left-plot {
+  width: 60%;
+  float: left;
+}
+
+.right-code {
+  width: 38%;
+  float: right;
+  padding-left: 1%;
+
+}
+ 
+
+
+/* Added by Adam to change code font size */
+
+.huge .remark-code { 
+  font-size: 200%;
+}
+
+.tiny .remark-code { 
+  font-size: 50%;
+}
+
+.small .remark-code { 
+  font-size: 90%;
+}
+
+.smaller .remark-code { 
+  font-size: 80%;
+}
+
+.huge {
+  font-size: 200%;
+}
+
+.small {
+  font-size: 90%;
+}
+
+.smaller {
+  font-size: 80%;
+}
+
+.tiny {
+  font-size: 50%;
+}
+
+/* Browser-based least-squares activity in lecture C01 */
+.reveal .regression-lab {
+  display: grid;
+  grid-template-columns: minmax(230px, 3fr) minmax(0, 7fr);
+  align-items: start;
+  gap: 0.8rem;
+  width: 100%;
+  margin-top: 0.25rem;
+  text-align: left;
+}
+
+.reveal .regression-instructions {
+  margin: 0 0 0.2rem;
+  font-size: 0.7em;
+}
+
+.reveal .regression-instructions p {
+  margin: 0;
+}
+
+.reveal .regression-controls {
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #ccd5df;
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.88);
+  box-sizing: border-box;
+  overflow: hidden;
+  font-size: 0.55em;
+}
+
+.reveal .regression-controls form {
+  width: 100%;
+  min-width: 0;
+  margin: 0.15rem 0 0.35rem;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.reveal .regression-controls input[type="range"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.reveal .regression-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  margin-bottom: 0.3rem;
+}
+
+.reveal .regression-actions form {
+  margin: 0;
+}
+
+.reveal .regression-actions button {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #657786;
+  border-radius: 0.25rem;
+  background: #f6f8fa;
+  color: #24313a;
+  font: inherit;
+  font-size: 0.82em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.reveal .regression-actions button:hover,
+.reveal .regression-actions button:focus-visible {
+  background: #e6edf3;
+}
+
+.reveal .regression-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin: 0.2rem 0 0.4rem;
+}
+
+.reveal .regression-coefficient-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.15rem 0.4rem;
+  margin: 0.1rem 0 0.35rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 0.25rem;
+  background: #f3f5f7;
+}
+
+.reveal .regression-coefficient-toggles strong {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.reveal .regression-coefficient-toggles form,
+.reveal .regression-toggles form {
+  margin: 0;
+}
+
+.reveal .regression-controls form.coefficient-locked {
+  opacity: 0.65;
+}
+
+.reveal .regression-equations {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 3.1rem;
+  line-height: 1.3;
+}
+
+.reveal .line-key {
+  display: inline-block;
+  width: 1.5rem;
+  margin-right: 0.35rem;
+  border-top: 3px solid #d55e00;
+  vertical-align: middle;
+}
+
+.reveal .line-key.fitted {
+  border-top-color: #0072b2;
+  border-top-style: dashed;
+}
+
+.reveal .regression-mse {
+  margin-top: 0.55rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.25rem;
+  background: #edf4f8;
+  line-height: 1.35;
+}
+
+.reveal .regression-chart {
+  min-width: 0;
+  text-align: center;
+}
+
+.reveal .regression-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 525px;
+  margin: 0 auto;
+  font-size: 16px;
+}
+
+@media (max-width: 900px) {
+  .reveal .regression-lab {
+    grid-template-columns: 1fr;
+  }
+
+  .reveal .regression-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.25rem 0.75rem;
+  }
+
+  .reveal .regression-actions,
+  .reveal .regression-coefficient-toggles,
+  .reveal .regression-equations,
+  .reveal .regression-mse {
+    grid-column: 1 / -1;
+  }
+
+  .reveal .regression-chart svg {
+    width: auto;
+    max-width: 100%;
+    max-height: 360px;
+  }
+}
