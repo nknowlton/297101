@@ -1,0 +1,105 @@
+---
+title: "Checking the LINE Assumptions"
+subtitle: "Interactive widgets — draft preview"
+author: Dr. Nick Knowlton
+format:
+  revealjs:
+    embed-resources: true
+    theme: sky
+    css: ["line-assumptions-lab.css"]
+    slide-number: true
+    incremental: false
+    ratio: "16:9"
+    progress: true
+    logo: ./graphics/660491-ls_black_whitoutunz.png
+execute:
+  echo: false
+---
+
+## How these widgets work
+
+Each tool has the **same layout**: the scatterplot with the least-squares
+line on the left, the diagnostic plot on the right.
+
+**Guided mode**
+
+- Presets give a *Well-behaved* example or a *Violation*; sliders dial the
+  violation up and down against the *same underlying random draws*.
+- **Generate another sample** shows a fresh dataset — a valid model does
+  not produce perfectly patternless residuals every time.
+- Predict first: hidden diagnostic → think → **Reveal diagnostic**.
+
+**Free edit mode** (freezes the sample, disables guided controls)
+
+- Click blank space to add a point, drag to move, click to select,
+  *Delete selected*, *Undo/Redo*, *Reset edits*.
+
+**Reading the plots**
+
+- Dark grey points are generated data; orange points are yours.
+- Hover any point in either plot to link it across both, see its
+  $x_i$, $y_i$, $\hat y_i$, $e_i$, and its vertical residual segment.
+
+```{ojs}
+//| echo: false
+//| output: false
+import {
+  linearityLab,
+  independenceLab,
+  normalityLab,
+  equalVarianceLab,
+} from "./line-assumptions-lab.js"
+```
+
+## Linearity — what pattern has the straight line missed?
+
+```{ojs}
+//| echo: false
+linearityLab({ Inputs, Plot })
+```
+
+::: {.ll-slide-note}
+The straight line can overpredict at both ends and underpredict in the
+middle — and $R^2$ can stay high while it does.
+Reveal the diagnostic, add the running-mean smoother, then compare with
+the quadratic fit.
+:::
+
+## Independence — does one error tell you about the next?
+
+```{ojs}
+//| echo: false
+independenceLab({ Inputs, Plot })
+```
+
+::: {.ll-slide-note}
+Positive serial correlation gives *runs* above and below zero; negative
+gives alternation. Shuffling the order keeps the same $x, y$, fitted line
+and residual values — but destroys the sequence information.
+:::
+
+## Normality — what shape do the errors have?
+
+```{ojs}
+//| echo: false
+normalityLab({ Inputs, Plot })
+```
+
+::: {.ll-slide-note}
+A Q–Q point is an individual observation's residual — hover to see which.
+Small normal samples can look imperfect, so generate several samples
+before judging a departure.
+:::
+
+## Equal variance — does prediction uncertainty change with $x$?
+
+```{ojs}
+//| echo: false
+equalVarianceLab({ Inputs, Plot })
+```
+
+::: {.ll-slide-note}
+The line still passes through the middle. What changes is how precisely
+we can predict individual outcomes. Try the bow-tie pattern too, and
+reveal the mean $\pm$ 2 SD band.
+:::

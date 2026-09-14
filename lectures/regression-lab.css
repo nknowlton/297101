@@ -1,0 +1,114 @@
+/* Shared styling for the Week 10–11 regression widgets. */
+
+.regression-lab {
+  display: grid;
+  grid-template-columns: minmax(235px, 300px) minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+  text-align: left;
+  align-items: start;
+  color: #24313a;
+}
+.regression-instructions { margin: 0 0 4px; font-size: 0.7em; }
+.regression-instructions p { margin: 0; }
+
+.rl-controls {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid #ccd5df;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  box-sizing: border-box;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.rl-section-label {
+  margin: 5px 0 2px;
+  color: #5a6a75;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.rl-segment {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  margin-bottom: 5px;
+  overflow: hidden;
+  border: 1px solid #657786;
+  border-radius: 5px;
+}
+
+.rl-segment-btn {
+  padding: 3px 5px;
+  border: 0;
+  background: #f6f8fa;
+  color: #24313a;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rl-segment-btn + .rl-segment-btn { border-left: 1px solid #657786; }
+.rl-segment-btn[aria-pressed="true"] { background: #24313a; color: #fff; }
+
+.rl-btn {
+  width: 100%;
+  margin: 3px 0;
+  padding: 4px 7px;
+  border: 1px solid #657786;
+  border-radius: 4px;
+  background: #f6f8fa;
+  color: #24313a;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.rl-btn:hover:not(:disabled), .rl-btn:focus-visible { background: #e6edf3; }
+.rl-btn:disabled { opacity: 0.5; cursor: default; }
+.rl-new-sample { border-color: #3182bd; background: #edf4f8; color: #20506e; font-weight: 600; }
+.rl-reveal-btn { border-color: #24313a; background: #24313a; color: #fff; font-weight: 600; }
+.rl-reveal-btn:hover:not(:disabled) { background: #37485a; }
+
+.rl-field { min-width: 0; margin-top: 5px; }
+.rl-field-label { display: block; margin-bottom: 1px; color: #41525e; font-size: 10.5px; font-weight: 600; }
+.rl-field select { width: 100%; box-sizing: border-box; padding: 2px 3px; border: 1px solid #9fb0bc; border-radius: 4px; background: #fff; font: inherit; font-size: 11px; }
+.rl-range-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 6px; align-items: center; }
+.rl-range-row input[type="range"] { width: 100%; margin: 0; }
+.rl-readout { color: #41525e; font-size: 10.5px; font-variant-numeric: tabular-nums; text-align: right; }
+.rl-reveal-note { margin-top: 6px; color: #8a6d1a; font-size: 10px; }
+.rl-check { display: flex; gap: 5px; align-items: baseline; margin-top: 5px; cursor: pointer; font-size: 10.5px; }
+.rl-option-list { display: grid; gap: 3px; margin-top: 6px; padding: 5px 7px; border-radius: 4px; background: #f3f5f7; }
+
+.rl-viz { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; min-width: 0; align-items: start; }
+.rl-panel { min-width: 0; }
+.rl-panel-title { margin-bottom: 2px; overflow: hidden; color: #24313a; font-size: 12.5px; font-weight: 700; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.rl-panel-body { position: relative; min-height: 200px; }
+.rl-panel-body svg { display: block; width: 100%; height: auto; max-height: 490px; margin: 0 auto; font-size: 12px; }
+.rl-stats { min-height: 16px; color: #24313a; font-size: 10.5px; font-variant-numeric: tabular-nums; line-height: 1.4; text-align: center; }
+.rl-hover-info { grid-column: 1 / -1; min-height: 28px; padding: 4px 6px; border: 1px solid #9fb0bc; border-radius: 5px; background: rgba(255,255,255,.96); box-shadow: 0 2px 8px rgba(36,49,58,.12); color: #24313a; font-size: 10px; font-variant-numeric: tabular-nums; line-height: 1.45; }
+.rl-hidden-panel { display: flex; min-height: 250px; align-items: center; justify-content: center; padding: 14px; border: 2px dashed #b8c5cf; border-radius: 6px; background: rgba(246,248,250,.75); color: #56656f; font-size: 12px; line-height: 1.5; text-align: center; }
+.rl-interpretation { min-height: 250px; padding: 20px 18px; border: 1px solid #ccd5df; border-radius: 6px; background: #f8fafb; font-size: 13px; line-height: 1.55; }
+.rl-equation { margin-bottom: 18px; color: #0072b2; font-size: 22px; font-weight: 700; text-align: center; }
+.rl-muted { color: #55656f; font-size: 11px; }
+.rl-interval-note { margin-top: 5px; padding: 5px 7px; border-radius: 4px; background: #f3f5f7; font-size: 10.5px; line-height: 1.4; }
+.rl-captured { color: #007a59; font-weight: 700; }
+.rl-missed { color: #b13d00; font-weight: 700; }
+.rl-slide-note { margin-top: 6px; color: #55656f; font-size: 12px; line-height: 1.4; text-align: left; }
+
+@media (max-width: 900px) {
+  .regression-lab { grid-template-columns: 1fr; }
+  .rl-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; }
+  .rl-controls > .rl-section-label, .rl-controls > .rl-segment, .rl-controls > .rl-reveal-note, .rl-controls > .rl-reveal-btn, .rl-controls > .rl-option-list { grid-column: 1 / -1; }
+  .rl-viz { grid-column: 1 / -1; }
+}
+
+@media (max-width: 640px) {
+  .rl-viz { grid-template-columns: 1fr; }
+  .rl-panel-body svg { max-height: 46vh; }
+}

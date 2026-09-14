@@ -1,0 +1,74 @@
+---
+title: "Interactive Regression Widgets"
+subtitle: "Weeks 10–11 draft preview"
+author: Dr. Nick Knowlton
+format:
+  revealjs:
+    embed-resources: true
+    theme: sky
+    css: ["regression-lab.css"]
+    slide-number: true
+    incremental: false
+    ratio: "16:9"
+    progress: true
+    logo: ./graphics/660491-ls_black_whitoutunz.png
+execute:
+  echo: false
+---
+
+## How these widgets work
+
+Each tool uses a compact control panel and linked visual panels. Controls use
+seeded samples: changing a setting and returning to it reproduces the same
+draws, while **Generate another sample** advances to a new sample.
+
+Use the staged reveal: ask students to predict the interpretation, loss basin,
+or interval before pressing the reveal button. Hover observations to inspect
+their fitted values and residuals.
+
+```{ojs}
+//| echo: false
+//| output: false
+import {
+  coefficientLab,
+  regressionLab,
+  predictionIntervalLab,
+} from "./regression-lab.js"
+```
+
+## Coefficients — what do α and β mean?
+
+```{ojs}
+//| echo: false
+coefficientLab({ Inputs, Plot })
+```
+
+::: {.rl-slide-note}
+Ask: what is the predicted mean at x = 0? What happens to the predicted mean
+when x increases by one?
+:::
+
+## Least squares — where is the smallest MSE?
+
+```{ojs}
+//| echo: false
+regressionLab({ Inputs, Plot })
+```
+
+::: {.rl-slide-note}
+Ask students to move the line toward the darkest part of the MSE landscape,
+then reveal the exact least-squares solution.
+:::
+
+## Confidence interval or prediction interval?
+
+```{ojs}
+//| echo: false
+predictionIntervalLab({ Inputs, Plot })
+```
+
+::: {.rl-slide-note}
+Ask: are we estimating the mean response or predicting one new outcome? What
+changes near the edge of the observed x-range?
+:::
+

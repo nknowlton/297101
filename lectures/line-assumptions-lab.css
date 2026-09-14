@@ -1,0 +1,373 @@
+/* Shared styling for the LINE assumption widgets.
+ * Sizes are absolute pixels so both RevealJS (which scales the slide
+ * canvas) and plain-page previews render identically. Base control text
+ * of 11px on a 1050x700 slide renders at ~18px on a 1600px projector. */
+
+.line-lab {
+  display: grid;
+  grid-template-columns: minmax(235px, 300px) minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+  text-align: left;
+  align-items: start;
+}
+
+/* ------------------------------- controls ------------------------------- */
+
+.line-lab-controls {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid #ccd5df;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  box-sizing: border-box;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #24313a;
+}
+
+.ll-section-label {
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #5a6a75;
+  margin: 5px 0 2px;
+}
+
+.ll-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid #657786;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+.ll-segment-btn {
+  padding: 3px 5px;
+  border: none;
+  background: #f6f8fa;
+  color: #24313a;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ll-segment-btn + .ll-segment-btn {
+  border-left: 1px solid #657786;
+}
+
+.ll-segment-btn[aria-pressed="true"] {
+  background: #24313a;
+  color: #fff;
+}
+
+.ll-segment-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ll-guided {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.ll-guided.ll-disabled {
+  opacity: 0.55;
+}
+
+.ll-btn {
+  padding: 4px 7px;
+  border: 1px solid #657786;
+  border-radius: 4px;
+  background: #f6f8fa;
+  color: #24313a;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ll-btn:hover:not(:disabled) {
+  background: #e6edf3;
+}
+
+.ll-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ll-new-sample {
+  background: #edf4f8;
+  border-color: #3182bd;
+  color: #20506e;
+  font-weight: 600;
+}
+
+.ll-new-sample:hover:not(:disabled) {
+  background: #dcebf4;
+}
+
+.ll-field {
+  min-width: 0;
+}
+
+.ll-field-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #41525e;
+  margin-bottom: 1px;
+}
+
+.ll-field select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 3px;
+  border: 1px solid #9fb0bc;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.ll-range-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 6px;
+  align-items: center;
+}
+
+.ll-range-row input[type="range"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.ll-readout {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #41525e;
+  font-size: 10.5px;
+}
+
+.ll-reveal {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #dde4ea;
+}
+
+.ll-predict-note {
+  font-size: 10px;
+  color: #8a6d1a;
+  margin-bottom: 3px;
+}
+
+.ll-reveal-btn {
+  width: 100%;
+  background: #24313a;
+  border-color: #24313a;
+  color: #fff;
+  font-weight: 600;
+}
+
+.ll-reveal-btn:hover:not(:disabled) {
+  background: #37485a;
+}
+
+.ll-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: #f3f5f7;
+}
+
+.ll-check {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  cursor: pointer;
+  font-size: 10.5px;
+}
+
+.ll-view-field {
+  margin-top: 3px;
+}
+
+.ll-edit-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #dde4ea;
+}
+
+.ll-legend {
+  margin-top: 7px;
+  font-size: 10.5px;
+  color: #41525e;
+}
+
+.ll-keydot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.ll-keydot-generated {
+  background: #4d4d4d;
+}
+
+.ll-keydot-student {
+  background: #d55e00;
+}
+
+.ll-instructions {
+  margin-top: 5px;
+  font-size: 10px;
+  color: #55656f;
+}
+
+/* ---------------------------------- viz --------------------------------- */
+
+.line-lab-viz {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  align-items: start;
+}
+
+.ll-plot {
+  min-width: 0;
+}
+
+.ll-plot-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #24313a;
+  text-align: center;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ll-plot-body {
+  position: relative;
+}
+
+.ll-plot-body svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 490px;
+  margin: 0 auto;
+  touch-action: none;
+}
+
+.ll-stats {
+  min-height: 14px;
+  font-size: 11px;
+  color: #24313a;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ll-diag-hidden {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  aspect-ratio: 1.2;
+  border: 2px dashed #b8c5cf;
+  border-radius: 6px;
+  background: rgba(246, 248, 250, 0.75);
+}
+
+.ll-diag-hidden-inner {
+  font-size: 12px;
+  color: #56656f;
+  text-align: center;
+  line-height: 1.5;
+  padding: 8px;
+}
+
+.ll-hover-info {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #9fb0bc;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(36, 49, 58, 0.18);
+  padding: 4px 6px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #24313a;
+  min-width: 150px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ll-tag {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #d55e00;
+  color: #fff;
+  font-size: 9px;
+}
+
+/* ------------------------------ slide notes ------------------------------ */
+
+.ll-slide-note {
+  font-size: 12.5px;
+  color: #55656f;
+  margin-top: 6px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+/* ------------------------------- responsive ------------------------------ */
+
+@media (max-width: 900px) {
+  .line-lab {
+    grid-template-columns: 1fr;
+  }
+
+  .line-lab-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px 10px;
+  }
+
+  .ll-legend,
+  .ll-instructions,
+  .ll-reveal,
+  .ll-edit-buttons {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .line-lab-viz {
+    grid-template-columns: 1fr;
+  }
+
+  .ll-plot-body svg {
+    max-height: 46vh;
+  }
+}
