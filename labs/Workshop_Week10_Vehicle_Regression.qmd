@@ -19,15 +19,31 @@ editor:
     wrap: 72
 ---
 
+Fuel use affects the running cost and energy demand of a vehicle. A larger
+engine, greater power or higher mass might suggest higher fuel use, but vehicles
+with similar specifications can still perform differently. Comparing these
+features lets us see which patterns are strong enough for a straight line to
+summarise and how much variation the line leaves unexplained.
+
+[Waka Kotahi's vehicle-fleet data](https://www.nzta.govt.nz/resources/new-zealand-motor-vehicle-register-statistics/new-zealand-vehicle-fleet-open-data-sets)
+provide a snapshot of vehicles recorded on the Motor Vehicle Register, while
+[EECA's guide to vehicle energy-economy labels](https://www.eeca.govt.nz/regulations/vehicle-emissions-and-energy-economy-labelling-programme/about-the-vehicle-emissions-and-energy-economy-labelling-programme/)
+explains the standard fuel-economy measure in litres per 100 km. This workshop
+uses those standard test values to compare vehicle specifications rather than
+the fuel use experienced by a particular driver.
+
 ::: {.callout-note}
 ## Today’s question
 
-How does engine size relate to the fuel use of a petrol passenger vehicle?
-
-For each new topic, first work through the **Demonstration** using engine
-size. Then complete **Your turn** using engine power. At the end, you will
-apply the whole workflow independently using vehicle mass.
+How much can engine size, power and gross mass tell us about a vehicle's fuel
+use?
 :::
+
+Scatterplots reveal the direction, form and strength of each relationship;
+slopes quantify meaningful average differences in fuel use; and residuals show
+how much variation remains after fitting a line. Work through each new idea
+with engine size, apply it to engine power, and then use the complete workflow
+to investigate gross vehicle mass.
 
 ## Learning objectives
 
@@ -39,11 +55,14 @@ By the end of this workshop you should be able to:
 - obtain and examine fitted values and residuals; and
 - apply the complete workflow to a new explanatory variable.
 
-## 1. Meet and explore the data (15 minutes)
+## 1. Meet and explore the data
 
 ```{r}
 #| label: setup
-library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tibble)
 library(broom)
 
 vehicles <- read_csv("nz_vehicles_2025.csv", show_col_types = FALSE)
@@ -59,8 +78,8 @@ particular person. An association in these data does not show that changing
 one vehicle feature would cause another feature to change.
 
 Waka Kotahi publishes the source under the [CC-BY 4.0 International
-licence](https://creativecommons.org/licenses/by/4.0/). Read more in the
-[vehicle-fleet documentation](https://nzta.govt.nz/resources/new-zealand-motor-vehicle-register-statistics/new-zealand-vehicle-fleet-open-data-sets).
+licence](https://creativecommons.org/licenses/by/4.0/). Source details and
+caveats appear on the vehicle-fleet page linked above.
 
 ```{r}
 #| label: glimpse
@@ -107,8 +126,35 @@ vehicles |>
   )
 ```
 
+::: {.callout-note title="What to look for"}
+
+Look for the direction, form and strength of the relationship. Correlation
+summarises the strength of a *linear* relationship; it has no units and is not
+the slope of the fitted line.
+
+:::
+
 Describe the direction, form and strength shown by the plot. Then explain what
 the sign and size of the correlation add to that description.
+
+::: {.callout-important title="Discuss"}
+
+Is the relationship positive or negative? Is it approximately linear? How much
+scatter remains around the smooth? What does the correlation add?
+
+:::
+
+::: {#wk10-answer-engine-exploration .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+
+Fuel use increases as engine size increases, and the relationship is strong and
+approximately linear. The correlation is about 0.901, which supports that
+description and gives a unit-free measure of linear strength. The points still
+show vehicle-to-vehicle variation around the smooth, so engine size does not
+determine fuel use by itself. Correlation is not a slope: it does not have
+L/100 km per litre units and does not state the expected change in fuel use for
+one additional litre.
+
+:::
 
 ### Your turn: engine power
 
@@ -131,7 +177,7 @@ correlation between power and fuel use.
 Compare the engine-size and power plots. Which appears more nearly linear?
 Which has the larger correlation? Remember that correlation is not a slope.
 
-## 2. Fit and inspect the models (15 minutes)
+## 2. Fit and inspect the models
 
 A simple linear model describes the average response as a straight-line
 function of one explanatory variable:
@@ -174,6 +220,32 @@ ggplot(vehicles, aes(x = engine_l, y = fuel_use_l_per_100km)) +
   theme_minimal(base_size = 13)
 ```
 
+::: {.callout-note title="What to look for"}
+
+The straight line estimates average fuel use at each engine size. Compare the
+line with the individual points: the vertical gaps are variation the model
+does not explain.
+
+:::
+
+::: {.callout-important title="Discuss"}
+
+What does the line capture? Where are observations above and below it? Would
+the line predict every vehicle exactly?
+
+:::
+
+::: {#wk10-answer-engine-model .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+
+The fitted line describes the average fuel use associated with engine size in
+these vehicle specifications. It captures the overall increasing trend, while
+the spread around it represents differences among vehicles that engine size
+alone does not explain. The line is therefore useful for summarising the
+association, but it is not an exact rule for an individual vehicle and does not
+show that a larger engine causes higher fuel use.
+
+:::
+
 ### Your turn: power model
 
 Fit `fuel_use_l_per_100km ~ power_kw`, save it as `power_model`, print the
@@ -195,7 +267,7 @@ line.
 Look at both fitted lines. What does each line capture, and what variation is
 still visible around it?
 
-## 3. Extract and interpret the coefficients (15 minutes)
+## 3. Extract and interpret the coefficients
 
 ### Demonstration: engine-size coefficients
 
@@ -206,6 +278,14 @@ still visible around it?
 engine_coef <- coef(engine_model)
 engine_coef
 ```
+
+::: {.callout-note title="What to look for"}
+
+Read the intercept and slope together with their units. Check whether zero is
+within the observed engine-size range before giving the intercept a practical
+meaning.
+
+:::
 
 Use these values to write the fitted equation:
 
@@ -219,6 +299,29 @@ Then answer:
 2. What does the intercept mean mathematically?
 3. Is an engine size of zero within the observed data? How does that affect
    the practical interpretation of the intercept?
+
+::: {.callout-important title="Discuss"}
+
+What is the fitted equation? What change in fuel use corresponds to one litre
+of engine size? Is zero litres represented by these data?
+
+:::
+
+::: {#wk10-answer-engine-coefficients .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+
+The fitted equation is approximately
+
+$$
+\widehat{\text{fuel use}} = 4.070 + 1.886\,\text{engine size}.
+$$
+
+A one-litre difference is associated with about 1.886 L/100 km higher average
+fuel use. The intercept is the mathematical line value at zero litres, but zero
+is outside the observed range (0.998–6.749 litres), so it has no direct vehicle
+interpretation. Both coefficients describe an association among specifications
+rather than a causal effect.
+
+:::
 
 ### Your turn: power coefficients
 
@@ -240,7 +343,7 @@ The coefficients describe associations among these vehicle specifications.
 Do not turn either slope into a causal claim.
 :::
 
-## 4. Extract and inspect the residuals (25 minutes)
+## 4. Extract and inspect the residuals
 
 For each vehicle specification, the fitted value is the value on the fitted
 line. The residual is the observed value minus the fitted value:
@@ -297,6 +400,36 @@ ggplot(vehicles, aes(x = engine_l, y = fuel_use_l_per_100km)) +
   theme_minimal(base_size = 13)
 ```
 
+::: {.callout-note title="What to look for"}
+
+`.fitted` is the value on the fitted line and `.resid` is observed minus
+fitted. A positive residual is above the line; a negative residual is below it.
+
+:::
+
+::: {.callout-important title="Discuss"}
+
+Which segments are positive or negative? What are the units of a residual? Why
+are the gaps vertical?
+
+:::
+
+::: {#wk10-answer-engine-residual-gaps .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+
+Each segment joins an observed fuel-use value to its fitted value at the same
+engine size. The vertical distance is the residual
+
+$$
+e_i = y_i - \widehat{y}_i.
+$$
+
+Residuals are measured in L/100 km. Points above the line have positive
+residuals and points below it have negative residuals. Showing the gaps makes
+clear that the model predicts a conditional average; individual vehicles can
+lie either side of that average.
+
+:::
+
 Plot all residuals against their fitted values, then summarise the mean
 residual and compare the original response variance with the residual
 variance.
@@ -326,6 +459,32 @@ engine_results |>
     residual_variance = var(.resid)
   )
 ```
+
+::: {.callout-note title="What to look for"}
+
+Check that the residual mean is close to zero, then compare response variance
+with residual variance. A smaller residual variance means the line has removed
+some variation; it does not prove every model assumption holds.
+
+:::
+
+::: {.callout-important title="Discuss"}
+
+How much variation remains after fitting the line? Does a near-zero mean prove
+the model is adequate? What pattern would concern you in the residual plot?
+
+:::
+
+::: {#wk10-answer-engine-residual-summary .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+
+The mean residual is essentially zero, as expected for least squares with an
+intercept. The response variance is about 7.136 and the engine-model residual
+variance is about 1.341, so engine size accounts for substantial variation while
+leaving meaningful vehicle-specific variation unexplained. A near-zero mean is
+an algebraic property of this fit; it does not establish linearity, constant
+variance or accurate individual predictions.
+
+:::
 
 ### Your turn: power residuals
 
@@ -357,7 +516,7 @@ Repeat the same core checks with `power_model`:
 Describe what the power model leaves unexplained. This is an early look at
 model leftovers; formal LINE checks belong to Week 12.
 
-## 5. Independent workflow: gross vehicle mass (25 minutes)
+## 5. Independent workflow: gross vehicle mass
 
 Now complete the entire workflow independently using `gross_mass_kg` as the
 explanatory variable. Reuse only operations already demonstrated above.
@@ -419,16 +578,13 @@ You cannot yet quantify uncertainty in the slope, test a null hypothesis, or
 construct an interval for a future vehicle. Those are Week 11 questions.
 :::
 
-## 6. Exit ticket and bridge to Week 11 (10 minutes)
+## 6. Looking ahead
 
-Write three short responses:
-
-1. **Supported conclusion:** What does the engine-size model suggest about
-   fuel use for these vehicles?
-2. **Limitation:** Name one feature of the data or model that limits the
-   conclusion.
-3. **Next question:** What would you want to know about the fitted slope or a
-   prediction that this workshop did not answer?
+The evidence here supports conclusions about the direction and strength of
+associations and about how well each fitted line summarises these vehicle
+specifications. The remaining questions concern uncertainty: how stable is an
+estimated slope, and how wide should an interval be when predicting fuel use
+for another vehicle?
 
 Next week we will use model output to study point estimates, confidence
 intervals, hypothesis tests, prediction intervals and variance explained.
