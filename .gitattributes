@@ -1,0 +1,22 @@
+# Store all text files with LF line endings in the repository, and check them
+# out with LF on every platform. This keeps Windows and Linux working copies
+# byte-identical and prevents CRLF/LF churn in diffs.
+* text=auto eol=lf
+
+# Windows-only scripts should keep CRLF so they run in cmd.exe / PowerShell.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files must never be normalised.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.gz binary
+*.rds binary
+*.xlsx binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
