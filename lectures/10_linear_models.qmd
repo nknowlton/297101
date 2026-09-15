@@ -6,7 +6,7 @@ format:
   revealjs:
     embed-resources: true
     theme: sky
-    css: ["part_c.css"]
+    css: ["part_c.css", "regression-lab.css"]
     slide-number: true
     incremental: false
     highlight-style: breezedark
@@ -46,6 +46,12 @@ knitr::opts_chunk$set(fig.dim=c(8,5), out.width="70%", fig.retina=2)
 # Load the dataset
 donkey <- read.csv("https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv")
 
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+import { coefficientLab, regressionLab } from "./regression-lab.js"
 ```
 
 ## Learning Outcomes
@@ -432,6 +438,18 @@ text(3.5, yf(3.5), "1", adj=c(0.5,3), col="grey30")
 text(4.1, yf(3.5), expression(beta))
 ```
 
+## Coefficients — what do α and β mean?
+
+::: {.regression-instructions}
+Adjust the coefficients, then predict the intercept and the change in the
+predicted mean for a one-unit increase in x before revealing the explanation.
+:::
+
+```{ojs}
+//| echo: false
+coefficientLab({Inputs, Plot})
+```
+
 ## A mathematical formulation of the linear model
 
 -- We can denote the data set in simple linear regression by $(x_1,y_1),(x_2,y_2),\ldots,(x_n,y_n)$
@@ -595,8 +613,6 @@ with your intuition.
 
 ```{ojs}
 //| echo: false
-
-import { regressionLab } from "./regression-lab.js"
 regressionLab({Inputs, Plot})
 ```
 
