@@ -9,6 +9,11 @@ format:
     css: ["line-assumptions-lab.css"]
     slide-number: true
     incremental: false
+    # A true 16:9 canvas. Quarto's default is 1050x700 (3:2), which leaves a
+    # wide empty margin on each side of a 16:9 projector, so the widgets could
+    # not use the full width. 1120x630 is exactly 16:9.
+    width: 1120
+    height: 630
     ratio: "16:9"
     progress: true
     logo: ./graphics/660491-ls_black_whitoutunz.png
