@@ -1,8 +1,10 @@
 ---
-title: "Workshop Week 11"
-subtitle: "Answer guide — regression inference and prediction"
-author: "297.101 Statistical Data Science"
-date: "Spring 2026"
+title: "Workshop Week 11: Regression Testing"
+subtitle: "Answer guide — testing associations and making predictions"
+author:
+  - name: "Nick Knowlton"
+  - name: "297.101 Statistical Data Science"
+date-meta: "Spring 2026"
 format:
   html:
     toc: true

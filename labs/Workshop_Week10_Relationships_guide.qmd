@@ -1,8 +1,10 @@
 ---
-title: "Workshop Week 10: Vehicle Fuel Efficiency"
-subtitle: "Answer guide — exploring and fitting a first linear model"
-author: "297.101 Statistical Data Science"
-date: "Spring 2026"
+title: "Workshop Week 10: Vehicle Relationships"
+subtitle: "Answer guide — exploring relationships and fitting a first linear model"
+author:
+  - name: "Nick Knowlton"
+  - name: "297.101 Statistical Data Science"
+date-meta: "Spring 2026"
 format:
   html:
     toc: true
@@ -40,7 +42,7 @@ use?
 :::
 
 This guide revisits the analysis in
-[`Workshop_Week10_Vehicle_Regression.qmd`](Workshop_Week10_Vehicle_Regression.qmd).
+[`Workshop_Week10_Relationships.qmd`](Workshop_Week10_Relationships.qmd).
 Scatterplots reveal the direction, form and strength of each relationship;
 slopes quantify meaningful average differences in fuel use; and residuals show
 how much variation remains after fitting a line. The analysis begins with

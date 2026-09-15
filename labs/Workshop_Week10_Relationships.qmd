@@ -1,8 +1,10 @@
 ---
-title: "Workshop Week 10: Vehicle Fuel Efficiency"
-subtitle: "Exploring and fitting a first linear model"
-author: "297.101 Statistical Data Science"
-date: "Spring 2026"
+title: "Workshop Week 10: Vehicle Relationships"
+subtitle: "Exploring relationships and fitting a first linear model"
+author:
+  - name: "Nick Knowlton"
+  - name: "297.101 Statistical Data Science"
+date-meta: "Spring 2026"
 format:
   html:
     toc: true

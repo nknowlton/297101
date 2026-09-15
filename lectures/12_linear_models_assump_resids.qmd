@@ -1,6 +1,6 @@
 ---
-title: "297.101 Week 12 Lecture"
-subtitle: "Model Assumptions and Residuals"
+title: "297.101 Week 12: Assumptions"
+subtitle: "Assumptions, diagnostics and model choice"
 author: Dr. Nick Knowlton
 format: 
   revealjs:

@@ -1,6 +1,6 @@
 ---
-title: "297.101 Week 10"
-subtitle: "Simple Linear Regression"
+title: "297.101 Week 10: Relationships"
+subtitle: "Exploring relationships and fitting a first linear model"
 author: Dr. Nick Knowlton
 format: 
   revealjs:

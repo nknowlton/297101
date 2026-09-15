@@ -1,6 +1,6 @@
 ---
-title: "Workshop Week 11, Lecture C02: Inference and Prediction"
-author: "Johnathan Marshall, Nick K"
+title: "Workshop Week 11: Testing — data preparation"
+author: "Johnathan Marshall, Nick Knowlton"
 date: "`r format(Sys.Date(), '%Y-%m-%d')`"
 format: 
   html:
