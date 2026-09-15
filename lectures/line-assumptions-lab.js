@@ -18,7 +18,11 @@ const SMOOTHER_STROKE = "#E69F00";
 
 const X_DOMAIN = [0, 10];
 const Y_DOMAIN = [0, 24];
-const RESID_DOMAIN = [-10, 10];
+// Residuals from these generators rarely exceed about +/-5 at the settings the
+// widgets use. A wide axis would squash every pattern into a narrow band in the
+// middle of the plot and make each violation look subtle, so the axis is kept
+// snug while still leaving room at the extremes of the sliders.
+const RESID_DOMAIN = [-8, 8];
 
 const PLOT_W = 470;
 const PLOT_H = 400;
@@ -73,14 +77,120 @@ function makeStreams(key) {
   return { uniform, normal };
 }
 
-function shuffledIndices(n, key) {
-  const rng = mulberry32(cyrb53(`shuffle,${key},${n}`));
-  const idx = Array.from({ length: n }, (_, i) => i);
-  for (let i = n - 1; i > 0; i -= 1) {
-    const j = Math.floor(rng() * (i + 1));
-    [idx[i], idx[j]] = [idx[j], idx[i]];
+/* ------------------------------------------------------------------ */
+/* Ordering, for the independence widget                               */
+/* ------------------------------------------------------------------ */
+
+// A fixed random permutation of 0..n-1, drawn from the seeded stream.
+function randomPermutation(n, s) {
+  const draws = Array.from({ length: n }, () => s.uniform());
+  return draws
+    .map((u, i) => ({ u, i }))
+    .sort((a, b) => a.u - b.u)
+    .map((o) => o.i);
+}
+
+// A smooth wave along the sequence: neighbouring values stay similar, which is
+// what a run of residuals looks like. Two slow components keep it from looking
+// like a textbook sine. Standardised to unit spread, so mixing it with noise is
+// a simple weighted average.
+//
+// A random wave is used rather than a true AR(1) realisation because with only
+// a couple of dozen points an AR(1) sample can occasionally look flat, and a
+// teaching example that sometimes shows no pattern undercuts the point.
+function timePattern(n, s) {
+  const f1 = 0.75 + 1.0 * s.uniform();
+  const f2 = 3 + 3 * s.uniform();
+  const p1 = 2 * Math.PI * s.uniform();
+  const p2 = 2 * Math.PI * s.uniform();
+  const w2 = 0.25 + 0.25 * s.uniform();
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    const u = i / n;
+    out.push(Math.sin(2 * Math.PI * f1 * u + p1) + w2 * Math.sin(2 * Math.PI * f2 * u + p2));
   }
-  return idx;
+  const mean = out.reduce((a, b) => a + b, 0) / n;
+  const sd = sampleSd(out) || 1;
+  return out.map((v) => (v - mean) / sd);
+}
+
+// Sort part way towards a target arrangement. Each position is scored as a
+// blend of its target position and a random draw, weighted by progress. At 0
+// the random draw dominates and the result is an unbiased shuffle; at 1 the
+// target dominates and the result is exactly the target. Small slider moves
+// therefore make small changes rather than sudden jumps.
+function towardOrder(target, progress, key) {
+  const n = target.length;
+  const rng = mulberry32(cyrb53(`order,${key}`));
+  return target
+    .map((t, i) => ({ i, k: progress * t + (1 - progress) * n * rng() }))
+    .sort((a, b) => a.k - b.k)
+    .map((o) => o.i);
+}
+
+// Where each observation belongs when sorted into time order, spread over the
+// same 0..n-1 range as the alternation target so both ends sort comparably.
+function timeTarget(times) {
+  const n = times.length;
+  const lo = Math.min(...times);
+  const span = (Math.max(...times) - lo) || 1;
+  return times.map((t) => ((t - lo) / span) * (n - 1));
+}
+
+// Where each observation belongs in the alternating arrangement: smallest
+// residual, largest, next smallest, next largest, and so on. It is the same set
+// of points rearranged to zigzag, which is what negative autocorrelation looks
+// like.
+function alternatingTarget(residuals) {
+  const n = residuals.length;
+  const byValue = residuals
+    .map((v, i) => ({ v, i }))
+    .sort((a, b) => a.v - b.v)
+    .map((o) => o.i);
+  const half = Math.ceil(n / 2);
+  const low = byValue.slice(0, half);
+  const high = byValue.slice(half).reverse();
+  const target = new Array(n);
+  let pos = 0;
+  for (let i = 0; i < half; i += 1) {
+    target[low[i]] = pos;
+    pos += 1;
+    if (high[i] != null) {
+      target[high[i]] = pos;
+      pos += 1;
+    }
+  }
+  return target;
+}
+
+// Which sequence position 0..n-1 each observation occupies, for a slider value
+// s in [-1, 1]. Zero is the shuffled starting point; +1 sorts into time order
+// giving runs; -1 sorts into alternation. Values in between sort part way, so
+// the slider reads as one continuous operation in either direction.
+//
+// `signal` is how much time pattern the sample actually contains. The time-order
+// end reveals a pattern that must already be there, so it needs no help. The
+// alternation end rearranges the points by value, which would manufacture
+// alternation even from pure noise, so it is scaled back when there is no
+// pattern to show.
+function sequenceRank(times, residuals, s, key, signal = 1) {
+  if (!times.length) return [];
+  if (s >= 0) return towardOrder(timeTarget(times), Math.min(1, s), key);
+  const gate = Math.min(1, Math.max(0, signal));
+  return towardOrder(alternatingTarget(residuals), Math.min(1, -s) * gate, key);
+}
+
+// Lag-1 correlation of a sequence: the single number the widget reports.
+function lag1Correlation(values) {
+  const n = values.length;
+  if (n < 3) return null;
+  const mean = values.reduce((a, b) => a + b, 0) / n;
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i += 1) den += (values[i] - mean) ** 2;
+  for (let i = 1; i < n; i += 1) num += (values[i] - mean) * (values[i - 1] - mean);
+  if (den < 1e-12) return null;
+  return num / den;
 }
 
 /* ------------------------------------------------------------------ */
@@ -276,21 +386,58 @@ function generateLinearity(p, s) {
   return points;
 }
 
+// One fixed sample with an explicit time index. The slider reorders this
+// sample; it never changes x, y, the fitted line or any residual value.
+// `strength` (set by the presets) controls how much of the time pattern is
+// present; when it is 0 only noise remains, so the sequence genuinely has
+// nothing to find rather than merely hiding a pattern.
 function generateIndependence(p, s) {
-  const xs = Array.from({ length: p.n }, () => 0.3 + 9.4 * s.uniform()).sort((a, b) => a - b);
-  const errors = [];
-  let prev = 0;
-  for (let i = 0; i < p.n; i += 1) {
-    const nu = s.normal();
-    const e = i === 0 ? nu : p.rho * prev + Math.sqrt(Math.max(0, 1 - p.rho * p.rho)) * nu;
-    errors.push(e);
-    prev = e;
-  }
-  return xs.map((x, i) => ({
-    x,
-    y: clamp(11 + 1.3 * (x - 5) + 1.25 * errors[i], Y_DOMAIN),
-    latent: 1.25 * errors[i],
-  }));
+  const n = p.n;
+  const strength = typeof p.strength === "number" ? p.strength : 1;
+  const xs = Array.from({ length: n }, () => 0.3 + 9.4 * s.uniform()).sort((a, b) => a - b);
+
+  // Which moment each observation was recorded at, as a fixed permutation. It
+  // is deliberately independent of x: the time pattern is then invisible in the
+  // scatterplot and only shows up once the sequence is put back into time order.
+  const times = randomPermutation(n, s).map((slot) => slot / n);
+
+  // Build the series in time order, then hand each element to the observation
+  // recorded at that moment, so the pattern is a property of the sequence.
+  const pattern = timePattern(n, s);
+  const noise = Array.from({ length: n }, () => s.normal());
+  const mix = Math.sqrt(Math.max(0, 1 - strength * strength));
+  const series = pattern.map((z, k) => strength * z + mix * noise[k]);
+
+  const timeRank = times
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => a.t - b.t)
+    .map((o) => o.i);
+  const raw = new Array(n);
+  timeRank.forEach((pointIndex, k) => {
+    raw[pointIndex] = series[k];
+  });
+
+  // The fitted line is the least-squares line through these points. Remove any
+  // slope this error series happens to have, so the scatterplot stays a clean
+  // cloud and the whole story lives in the sequence.
+  const meanX = xs.reduce((a, b) => a + b, 0) / n;
+  const meanE = raw.reduce((a, b) => a + b, 0) / n;
+  let sxe = 0;
+  let sxx = 0;
+  xs.forEach((x, i) => {
+    sxe += (x - meanX) * raw[i];
+    sxx += (x - meanX) ** 2;
+  });
+  const slope = sxx > 1e-12 ? sxe / sxx : 0;
+  const errors = raw.map((e, i) => e - (meanE + slope * (xs[i] - meanX)));
+  const sd = sampleSd(errors) || 1;
+
+  return xs.map((x, i) => {
+    // Scaled so the runs and swings use a good share of the residual axis; the
+    // shape of the sequence, not its raw size, is what the widget teaches.
+    const e = (errors[i] / sd) * 1.7;
+    return { x, y: clamp(11 + 1.3 * (x - 5) + e, Y_DOMAIN), latent: e, t: times[i] };
+  });
 }
 
 function generateNormality(p, s) {
@@ -301,9 +448,9 @@ function generateNormality(p, s) {
     const z = s.normal();
     let r = z;
     if (p.shape === "skewed") {
-      r = Math.sign(u - 0.5) * Math.abs(z) ** (1 + 1.6 * p.severity);
+      r = Math.sign(u - 0.5) * Math.abs(z) ** (1 + 2.0 * p.severity);
     } else if (p.shape === "heavy") {
-      r = Math.sign(z) * Math.abs(z) ** (1 + 2.2 * p.severity);
+      r = Math.sign(z) * Math.abs(z) ** (1 + 2.4 * p.severity);
     }
     raws.push(r);
   }
@@ -316,9 +463,12 @@ function generateNormality(p, s) {
 
 function equalVarianceSdAt(pattern, severity, x) {
   const t = (x - X_DOMAIN[0]) / (X_DOMAIN[1] - X_DOMAIN[0]);
-  if (pattern === "increasing") return 0.3 + 1.7 * severity * t;
-  if (pattern === "decreasing") return 0.3 + 1.7 * severity * (1 - t);
-  if (pattern === "bowtie") return 0.35 + 1.55 * severity * Math.abs(x - 5) / 5;
+  // The narrow end is kept small and the wide end close to the y-axis limit, so
+  // the funnel opens widely enough to be obvious at a glance. The ratio between
+  // the ends is what students read, so a bigger contrast beats a bigger spread.
+  if (pattern === "increasing") return 0.2 + 1.7 * severity * t;
+  if (pattern === "decreasing") return 0.2 + 1.7 * severity * (1 - t);
+  if (pattern === "bowtie") return 0.22 + 1.62 * severity * Math.abs(x - 5) / 5;
   return 1.0;
 }
 
@@ -349,6 +499,7 @@ function createLab(Inputs, Plot, opts) {
     seedOffset: 0,
     sampleSize: opts.nDefault,
     freeSnapshot: null,
+    freeOrder: null,
     edits: { past: [], present: [], future: [] },
     idCounter: 1,
     selectedId: null,
@@ -440,7 +591,9 @@ function createLab(Inputs, Plot, opts) {
     const input = document.createElement("input");
     input.type = "range";
     input.min = "12";
-    input.max = "60";
+    // Capped at 50: a larger sample pushes the most extreme residual towards the
+    // edge of the residual axis, so past this the plot would start to clip.
+    input.max = "50";
     input.step = "1";
     input.value = String(state.sampleSize);
     const readout = h("span", "ll-readout", String(state.sampleSize));
@@ -458,6 +611,7 @@ function createLab(Inputs, Plot, opts) {
   opts.controlDefs.forEach((def) => {
     const field = h("div", "ll-field");
     field.append(h("label", "ll-field-label", def.label));
+    const readText = (v) => (typeof def.format === "function" ? def.format(v) : fmt(v));
     let input;
     let readout = null;
     if (def.type === "range") {
@@ -468,10 +622,10 @@ function createLab(Inputs, Plot, opts) {
       input.max = String(def.max);
       input.step = String(def.step);
       input.value = String(state.controls[def.key]);
-      readout = h("span", "ll-readout", fmt(Number(def.default)));
+      readout = h("span", "ll-readout", readText(Number(def.default)));
       input.addEventListener("input", () => {
         state.controls[def.key] = Number(input.value);
-        readout.textContent = fmt(Number(input.value));
+        readout.textContent = readText(Number(input.value));
         render();
       });
       row.append(input, readout);
@@ -533,7 +687,10 @@ function createLab(Inputs, Plot, opts) {
     guidedFields.forEach((f) => {
       if (f.kind !== "control" || !(f.def.key in values)) return;
       f.input.value = String(values[f.def.key]);
-      if (f.readout) f.readout.textContent = fmt(Number(values[f.def.key]));
+      if (f.readout) {
+        const v = Number(values[f.def.key]);
+        f.readout.textContent = typeof f.def.format === "function" ? f.def.format(v) : fmt(v);
+      }
     });
     if (!silent) render();
   }
@@ -544,10 +701,12 @@ function createLab(Inputs, Plot, opts) {
       const current = getActivePoints().map((p) => ({ ...p }));
       state.freeSnapshot = current.map((p) => ({ ...p }));
       state.edits = { past: [], present: current, future: [] };
+      state.freeOrder = null;
       state.mode = "free";
     } else {
       state.mode = "guided";
       state.freeSnapshot = null;
+      state.freeOrder = null;
       state.edits = { past: [], present: [], future: [] };
       state.selectedId = null;
       state.runtime.scatterDrag = null;
@@ -557,10 +716,15 @@ function createLab(Inputs, Plot, opts) {
   }
 
   function generationParams() {
-    return {
-      ...state.controls,
-      n: opts.hasNControl ? state.sampleSize : opts.nDefault,
-    };
+    const params = { n: opts.hasNControl ? state.sampleSize : opts.nDefault };
+    // Controls that only steer how the sample is displayed (e.g. the order
+    // slider) must stay out of the seeded draws, so the dataset itself is
+    // unaffected by them.
+    const displayOnly = opts.displayOnlyKeys || [];
+    Object.entries(state.controls).forEach(([key, value]) => {
+      if (!displayOnly.includes(key)) params[key] = value;
+    });
+    return params;
   }
 
   function generatedPoints() {
@@ -690,6 +854,41 @@ function createLab(Inputs, Plot, opts) {
     return finalizeSvg(Plot.plot({ ...plotDefaults("x", "y"), marks }));
   }
 
+  // Which row of the sequence plot each independence observation occupies.
+  // Midpoint of the order slider is a fixed shuffle of the recorded sequence;
+  // either end sorts that same sequence back into time (giving runs) or into
+  // the folded order (giving alternation). The data itself never move.
+  function independenceOrder(points, times) {
+    const n = points.length;
+    const s = clamp(state.controls.order, [-1, 1]);
+    const key = `${opts.seedBase},${state.seedOffset},${n}`;
+
+    // Free edit changes n while the student works. Freeze the arrangement taken
+    // when the mode was entered, and append added points after it, so the order
+    // plot does not reshuffle underneath them.
+    if (state.mode === "free") {
+      if (!state.freeOrder) state.freeOrder = new Map();
+      let next = n + 1;
+      state.freeOrder.forEach((v) => {
+        if (v >= next) next = v + 1;
+      });
+      return points.map((p) => {
+        if (!state.freeOrder.has(p.id)) state.freeOrder.set(p.id, next);
+        return state.freeOrder.get(p.id);
+      });
+    }
+
+    // `points` and `times` arrive in the same (recorded) order, so the k-th
+    // residual belongs to the k-th time index.
+    const signal = typeof state.controls.strength === "number" ? state.controls.strength : 1;
+    const rank = sequenceRank(times, points.map((p) => p.resid), s, key, signal);
+    const out = new Array(n);
+    rank.forEach((idx, pos) => {
+      out[idx] = pos;
+    });
+    return out;
+  }
+
   function makeCtx() {
     const data = getActivePoints();
     const fit = fitLeastSquares(data, 1);
@@ -702,17 +901,11 @@ function createLab(Inputs, Plot, opts) {
     });
     if (opts.assumption === "independence") {
       const sorted = [...withStats].sort((a, b) => a.order - b.order);
-      if (state.extras.shuffle) {
-        const perm = shuffledIndices(sorted.length,
-          `${opts.seedBase},${state.seedOffset}`);
-        sorted.forEach((p, i) => {
-          p.displayOrder = perm[i];
-        });
-      } else {
-        sorted.forEach((p) => {
-          p.displayOrder = p.order;
-        });
-      }
+      const times = sorted.map((p) => (Number.isFinite(p.t) ? p.t : p.order));
+      const positions = independenceOrder(sorted, times);
+      sorted.forEach((p, i) => {
+        p.displayOrder = positions[i];
+      });
     }
     // residual rank (stable by id) for the normality widget
     const rankOf = new Map();
@@ -793,6 +986,9 @@ function createLab(Inputs, Plot, opts) {
     const sorted = [...data].sort((a, b) => a.displayOrder - b.displayOrder);
     const n = sorted.length;
     const xDomain = [-0.6, Math.max(1, n) - 0.4];
+    // The number shown to students is the position in the sequence on display,
+    // so it matches the axis and the labels.
+    const sequenceNumber = (d) => d.displayOrder;
     const marks = [Plot.ruleY([0], { stroke: "#666" })];
     if (!fit) {
       marks.push(Plot.text([{ x: (xDomain[0] + xDomain[1]) / 2, y: 0 }], {
@@ -815,7 +1011,9 @@ function createLab(Inputs, Plot, opts) {
       marks.push(Plot.text(sorted, {
         x: "displayOrder",
         y: "resid",
-        text: (d) => String(d.order + 1),
+        // Number the point by where it sits in the sequence being shown, so the
+        // label agrees with the axis and with the hover panel.
+        text: (d) => String(sequenceNumber(d) + 1),
         dy: -11,
         fontSize: 9,
         fill: "#777",
@@ -831,12 +1029,18 @@ function createLab(Inputs, Plot, opts) {
       px: pxDomain(d.displayOrder, xDomain),
       py: pxY(d.resid, RESID_DOMAIN),
     }));
+    const r1 = lag1Correlation(sorted.map((d) => d.resid));
     return {
       title: opts.primaryDiagLabel,
       svg,
       items,
       invertY: (py) => invY(py, RESID_DOMAIN),
       draggable: true,
+      stats: r1 == null ? [] : [{
+        label: "Correlation with the previous residual",
+        value: `r\u2081 = ${fmt(r1)}`,
+        tone: r1 > 0.25 ? "positive" : (r1 < -0.25 ? "negative" : "neutral"),
+      }],
     };
   }
 
@@ -1283,12 +1487,17 @@ function createLab(Inputs, Plot, opts) {
     if (ctx.hovered) {
       const info = h("div", "ll-hover-info");
       const d = ctx.hovered;
+      // For independence, "observation number" means its place in the sequence
+      // currently on display, so it agrees with the diagnostic plot.
+      const heading = opts.assumption === "independence" && Number.isFinite(d.displayOrder)
+        ? `Observation ${d.displayOrder + 1} of ${ctx.data.length}`
+        : `Observation ${d.order + 1}`;
       const rows = [
-        `<strong>Observation ${d.order + 1}</strong>${d.origin === "student" ? ' <span class="ll-tag">added</span>' : ""}`,
-        `x<sub>i</sub> = ${fmt(d.x)}   y<sub>i</sub> = ${fmt(d.y)}`,
+        `<strong>${heading}</strong>${d.origin === "student" ? ' <span class="ll-tag">added</span>' : ""}`,
+        `x<sub>i</sub> = ${fmt(d.x)}   y<sub>i</sub> = ${fmt(d.y)}`,
       ];
       if (ctx.fit) {
-        rows.push(`ŷ<sub>i</sub> = ${fmt(d.fitted)}   e<sub>i</sub> = ${fmt(d.resid)}`);
+        rows.push(`ŷ<sub>i</sub> = ${fmt(d.fitted)}   e<sub>i</sub> = ${fmt(d.resid)}`);
         if (opts.assumption === "normality" && ctx.rankOf.has(d.id)) {
           rows.push(`residual rank ${ctx.rankOf.get(d.id)} of ${ctx.rankOf.size}`);
         }
@@ -1324,7 +1533,15 @@ function createLab(Inputs, Plot, opts) {
     const body = h("div", "ll-plot-body");
     body.append(built.svg);
     wireDiag(built.svg, built, ctx);
-    diagHost.replaceChildren(title, body);
+    const diagStats = h("div", "ll-diag-stats");
+    (built.stats || []).forEach((s) => {
+      const chip = h("span", `ll-chip ll-chip-${s.tone || "neutral"}`);
+      chip.innerHTML = `${s.label} <strong>${s.value}</strong>`;
+      diagStats.append(chip);
+    });
+    // Only occupy the space when there is something to report, so the other
+    // three widgets keep their original layout.
+    diagHost.replaceChildren(title, body, ...(built.stats && built.stats.length ? [diagStats] : []));
 
     // Cache geometry after layout so pointer projection stays correct even when
     // a later pointer event fires while the slide is being rebuilt.
@@ -1423,15 +1640,15 @@ export function linearityLab({ Inputs, Plot }) {
         default: "u",
       },
       {
-        key: "curvature", type: "range", label: "Curvature strength", min: 0, max: 1.2, step: 0.05, default: 0,
+        key: "curvature", type: "range", label: "Curvature strength", min: 0, max: 2, step: 0.05, default: 0,
       },
       {
-        key: "noise", type: "range", label: "Noise", min: 0.3, max: 2.5, step: 0.05, default: 1,
+        key: "noise", type: "range", label: "Noise", min: 0.3, max: 1.8, step: 0.05, default: 1,
       },
     ],
     presets: {
       well: { curveShape: "u", curvature: 0, noise: 1 },
-      violation: { curveShape: "u", curvature: 0.9, noise: 1 },
+      violation: { curveShape: "u", curvature: 1.6, noise: 1 },
     },
     extraOptionDefs: [
       { key: "showQuad", label: "Reveal quadratic fit & its residuals" },
@@ -1450,23 +1667,31 @@ export function independenceLab({ Inputs, Plot }) {
     diagKind: "order",
     primaryDiagLabel: "Residuals vs observation order",
     hasSmoother: false,
+    // Only affects how the sample is displayed, never how it is generated.
+    displayOnlyKeys: ["order"],
     controlDefs: [
       {
-        key: "rho", type: "range", label: "Serial correlation (ρ)", min: -0.9, max: 0.9, step: 0.05, default: 0,
+        key: "order", type: "range", label: "Sequence order", min: -1, max: 1, step: 0.05, default: 0,
+        // Plain words rather than a bare number: the middle is the shuffled
+        // starting point, and the two ends sort the same points two different
+        // ways, so the readout has to say which way and how far.
+        format: (v) => {
+          if (Math.abs(v) < 0.025) return "shuffled";
+          const level = fmt(Math.abs(v));
+          if (v > 0) return v >= 0.99 ? "time order" : `sorting into time order ${level}`;
+          return v <= -0.99 ? "alternation" : `sorting into alternation ${level}`;
+        },
       },
     ],
     presets: {
-      well: { rho: 0 },
-      violation: { rho: 0.75 },
+      well: { order: 0, strength: 0 },
+      violation: { order: 1, strength: 1 },
     },
-    extraOptionDefs: [
-      { key: "shuffle", label: "Shuffle observation order (same x, y, line & residuals)" },
-    ],
     extraViews: [
       { key: "lag", label: "Lag plot: e(i) vs e(i−1)" },
     ],
     generate: generateIndependence,
-    instructions: "Free edit: drag residual points <em>vertically in the diagnostic</em> to change y and build a run or an alternation. Positive ρ gives runs, negative ρ gives alternation. New points receive the next observation number.",
+    instructions: "The sample never changes. The slider only puts the recorded sequence back into <em>time order</em>: in the middle it has been shuffled, and either end sorts the same points so their time pattern shows. Positive r\u2081 gives runs above and below zero; negative r\u2081 gives alternation.",
   });
 }
 
@@ -1493,7 +1718,7 @@ export function normalityLab({ Inputs, Plot }) {
     ],
     presets: {
       well: { shape: "normal", severity: 0.6 },
-      violation: { shape: "skewed", severity: 0.85 },
+      violation: { shape: "skewed", severity: 0.95 },
     },
     extraViews: [
       { key: "hist", label: "Residual histogram" },
@@ -1531,7 +1756,7 @@ export function equalVarianceLab({ Inputs, Plot }) {
     ],
     presets: {
       well: { pattern: "constant", severity: 0.6 },
-      violation: { pattern: "increasing", severity: 0.9 },
+      violation: { pattern: "increasing", severity: 1 },
     },
     extraOptionDefs: [
       { key: "band", label: "Reveal generating mean ± 2 SD band" },
@@ -1541,6 +1766,28 @@ export function equalVarianceLab({ Inputs, Plot }) {
     instructions: "The line still passes through the middle when spread changes — what changes is prediction precision. Free edit: spread points vertically at large x while keeping their local centre unchanged.",
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Pure helpers exported for unit testing                               */
+/* (see line-assumptions-lab.test.mjs)                                  */
+/* ------------------------------------------------------------------ */
+
+export {
+  makeStreams,
+  generateLinearity,
+  generateIndependence,
+  generateNormality,
+  generateEqualVariance,
+  equalVarianceSdAt,
+  fitLeastSquares,
+  timePattern,
+  randomPermutation,
+  sequenceRank,
+  towardOrder,
+  timeTarget,
+  alternatingTarget,
+  lag1Correlation,
+};
 
 /* ------------------------------------------------------------------ */
 /* Plain <script> fallback (double-instantiation guarded)               */

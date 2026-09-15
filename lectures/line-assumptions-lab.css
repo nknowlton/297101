@@ -287,6 +287,46 @@
   font-variant-numeric: tabular-nums;
 }
 
+.ll-diag-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  min-height: 18px;
+  margin-top: 3px;
+}
+
+.ll-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9px;
+  border: 1px solid #c4d0d8;
+  background: #f2f5f7;
+  font-size: 11px;
+  color: #24313a;
+  font-variant-numeric: tabular-nums;
+}
+
+.ll-chip strong {
+  font-weight: 700;
+}
+
+.ll-chip-positive {
+  border-color: #2c7fb8;
+  background: #e3f0f8;
+}
+
+.ll-chip-negative {
+  border-color: #d55e00;
+  background: #fdece0;
+}
+
+.ll-chip-neutral {
+  border-color: #c4d0d8;
+  background: #f2f5f7;
+  color: #55656f;
+}
+
 .ll-diag-hidden {
   display: flex;
   align-items: center;
@@ -343,7 +383,12 @@
 
 /* ------------------------------- responsive ------------------------------ */
 
-@media (max-width: 900px) {
+/* The lecture setup is 1920x1080, where the controls stay beside the plots and
+ * the two plots stay side by side. These breakpoints only collapse the layout
+ * when the window is genuinely too narrow to hold it, so a modestly sized
+ * preview pane keeps the plots on the right rather than dropping them below. */
+
+@media (max-width: 700px) {
   .line-lab {
     grid-template-columns: 1fr;
   }
@@ -362,7 +407,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .line-lab-viz {
     grid-template-columns: 1fr;
   }

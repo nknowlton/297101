@@ -46,12 +46,15 @@ Each function returns one self-contained DOM element and must work with Quarto�
 
 ### Independence
 
-- [ ] Generate ordered errors with an AR(1)-style correlation slider from negative through zero to positive correlation.
-- [ ] Default to residuals versus observation order, connect neighbouring residuals, and show observation numbers.
-- [ ] Add “Shuffle order,” which changes only observation order: x, y, the fitted line, and fitted residual values remain unchanged.
-- [ ] Provide an optional lag view plotting e_i against e_(i-1); associate each lag point with observation i for linked highlighting.
-- [ ] In Free edit mode, permit vertical dragging in the ordered residual plot, update the corresponding y_i, and refit the model.
-- [ ] Ensure every newly added point receives the next visible observation number.
+- [x] Generate one fixed sample carrying a time index, with a real time pattern baked in. The sample itself never changes when the order slider moves.
+- [x] Replace the AR(1) correlation slider with an order slider: the middle is a fixed shuffle of the recorded sequence, `+1` sorts the same points into time order (runs) and `-1` sorts them into an alternating order. `x`, `y`, the fitted line and every residual value stay identical throughout.
+- [x] Default to residuals versus observation order, connect neighbouring residuals, and show observation numbers taken from the displayed sequence.
+- [x] Report the lag-1 correlation of the displayed sequence, since the widget is about correlation and the number makes it explicit.
+- [x] Treat the time index as independent of `x`, so the violation is invisible in the scatterplot and only appears once order is known.
+- [x] Let "Well-behaved" genuinely remove the time pattern, rather than merely hiding it.
+- [x] Provide an optional lag view plotting e_i against e_(i-1); associate each lag point with observation i for linked highlighting.
+- [x] In Free edit mode, permit vertical dragging in the ordered residual plot, update the corresponding y_i, and refit the model.
+- [x] Ensure every newly added point receives the next visible observation number, and freeze the shuffled arrangement while editing so the order plot does not reshuffle underneath the student.
 
 ### Normality
 

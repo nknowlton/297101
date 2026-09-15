@@ -73,9 +73,11 @@ independenceLab({ Inputs, Plot })
 ```
 
 ::: {.ll-slide-note}
-Positive serial correlation gives *runs* above and below zero; negative
-gives alternation. Shuffling the order keeps the same $x, y$, fitted line
-and residual values — but destroys the sequence information.
+The scatterplot never changes, because the data never change. The slider only
+puts the recorded sequence back into *time order*. In the middle the same points
+have been shuffled; either end sorts them so their time pattern shows. Positive
+$r_1$ gives runs above and below zero, negative $r_1$ gives alternation. A
+violation can be completely invisible until you know the order.
 :::
 
 ## Normality — what shape do the errors have?
