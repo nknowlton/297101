@@ -32,16 +32,17 @@ line on the left, the diagnostic plot on the right.
   violation up and down against the *same underlying random draws*.
 - **Generate another sample** shows a fresh dataset — a valid model does
   not produce perfectly patternless residuals every time.
-- Predict first: hidden diagnostic → think → **Reveal diagnostic**.
 
 **Free edit mode** (freezes the sample, disables guided controls)
 
-- Click blank space to add a point, drag to move, click to select,
-  *Delete selected*, *Undo/Redo*, *Reset edits*.
+- Click blank space in *either* plot to add a point — a residual clicked in
+  the diagnostic plot becomes a data point in the scatterplot — then drag
+  to move, click to select, *Delete selected*, *Undo/Redo*, *Reset edits*.
 
 **Reading the plots**
 
-- Dark grey points are generated data; orange points are yours.
+- Dark grey points are generated data; orange points are yours. The
+  diagnostic plot redraws the same points in slightly lighter tints.
 - Hover any point in either plot to link it across both, see its
   $x_i$, $y_i$, $\hat y_i$, $e_i$, and its vertical residual segment.
 
@@ -66,8 +67,8 @@ linearityLab({ Inputs, Plot })
 ::: {.ll-slide-note}
 The straight line can overpredict at both ends and underpredict in the
 middle — and $R^2$ can stay high while it does.
-Reveal the diagnostic, add the running-mean smoother, then compare with
-the quadratic fit.
+The dial bends the curve up (U-shape) or down (S-shape); compare with the
+quadratic fit to see how a curve hides from a straight line.
 :::
 
 ## Independence — does one error tell you about the next?
@@ -78,11 +79,11 @@ independenceLab({ Inputs, Plot })
 ```
 
 ::: {.ll-slide-note}
-The scatterplot never changes, because the data never change. The slider only
-puts the recorded sequence back into *time order*. In the middle the same points
-have been shuffled; either end sorts them so their time pattern shows. Positive
-$r_1$ gives runs above and below zero, negative $r_1$ gives alternation. A
-violation can be completely invisible until you know the order.
+Well-behaved and Violation draw the *same* kind of sample: a sequence with
+genuine time structure. Well-behaved shows it shuffled, where the pattern is
+invisible; Violation sorts the slider into *time order*, so the runs appear —
+the violation always comes from the slider, never from new data. Positive
+$r_1$ gives runs above and below zero; negative $r_1$ gives alternation.
 :::
 
 ## Normality — what shape do the errors have?
@@ -94,8 +95,9 @@ normalityLab({ Inputs, Plot })
 
 ::: {.ll-slide-note}
 A Q–Q point is an individual observation's residual — hover to see which.
-Small normal samples can look imperfect, so generate several samples
-before judging a departure.
+In free edit you can add a point in the Q–Q plot: the click sets the
+residual, and the point lands at its rank's quantile. Small normal samples
+can look imperfect, so generate several samples before judging a departure.
 :::
 
 ## Equal variance — does prediction uncertainty change with $x$?
@@ -107,6 +109,7 @@ equalVarianceLab({ Inputs, Plot })
 
 ::: {.ll-slide-note}
 The line still passes through the middle. What changes is how precisely
-we can predict individual outcomes. Try the bow-tie pattern too, and
-reveal the mean $\pm$ 2 SD band.
+we can predict individual outcomes. The SD dial rescales the spread around
+the same line — even for the constant pattern. Try the bow-tie pattern too,
+and show the mean $\pm$ 2 SD band.
 :::

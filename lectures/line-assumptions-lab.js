@@ -15,6 +15,14 @@ const STUDENT_FILL = "#D55E00";
 const HOVER_STROKE = "#0072B2";
 const QUAD_STROKE = "#0072B2";
 const SMOOTHER_STROKE = "#E69F00";
+// Diagnostic plots redraw the same observations in a different coordinate
+// space (residuals, quantiles, sequence positions). Each plot is tinted slightly
+// there — a step lighter for generated data, a step softer for student points —
+// so the reader can tell which canvas they are looking at without losing the
+// two-family colour story. The scatterplot keeps the full-strength colours, so
+// the hover ring (HOVER_STROKE) and selected outline still read against both.
+const DIAG_GENERATED_FILL = "#79848e";
+const DIAG_STUDENT_FILL = "#e08757";
 
 const X_DOMAIN = [0, 10];
 const Y_DOMAIN = [0, 24];
@@ -352,6 +360,76 @@ function originFill(d) {
   return d.origin === "student" ? STUDENT_FILL : GENERATED_FILL;
 }
 
+// Same split as originFill, in the diagnostic tints.
+function diagFill(d) {
+  return d.origin === "student" ? DIAG_STUDENT_FILL : DIAG_GENERATED_FILL;
+}
+
+/* Free edit lets a student add a point by clicking a diagnostic plot, where the
+ * axes are fitted values, residuals or quantiles — none of which are the (x, y)
+ * a scatterplot needs. The least-squares line refits the moment the new point
+ * joins, so the clicked position also moves. Each resolver below therefore
+ * iterates a few rounds against refits until the point as rendered lands on the
+ * position the student actually clicked. Pure functions, exported for tests. */
+
+// Settle one point against refits. `aim` receives the fit that includes the
+// candidate and returns the next candidate: a fixed point of "add the point,
+// refit, re-aim". The refit always pulls the fitted value towards the
+// candidate (by its leverage, strictly below 1), so the iteration contracts
+// geometrically and a couple of dozen rounds is far more than enough. The
+// widget clamps candidates to the plot axes, so clicks the fit cannot produce
+// (e.g. a fitted value beyond the line's range) settle onto the nearest edge.
+function settleDiagPoint(points, aim) {
+  const fit = fitLeastSquares(points, 1);
+  if (!fit) return null;
+  const first = aim(fit);
+  let x = clamp(first.x, X_DOMAIN);
+  let y = clamp(first.y, Y_DOMAIN);
+  for (let round = 0; round < 24; round += 1) {
+    const fitWith = fitLeastSquares([...points, { x, y }], 1);
+    if (!fitWith) return null;
+    const next = aim(fitWith);
+    const nextX = clamp(next.x, X_DOMAIN);
+    const nextY = clamp(next.y, Y_DOMAIN);
+    const settled = Math.abs(nextX - x) < 1e-7 && Math.abs(nextY - y) < 1e-7;
+    x = nextX;
+    y = nextY;
+    if (settled) break;
+  }
+  return { x, y };
+}
+
+// Click on the residuals-vs-fitted plot at (fitted, resid): solve for the
+// observation x whose fitted value (under successive refits) equals the clicked
+// fitted value, with y = fitted + resid. The y is anchored to the current
+// line's fitted value at the candidate x rather than to the clicked fitted
+// value, so when the click's fitted value is out of the line's reach the
+// residual the student asked for is still the one that renders.
+function resolveResidFittedPoint(points, fittedWanted, residWanted) {
+  return settleDiagPoint(points, (fit) => {
+    const b0 = fit.beta[0];
+    const b1 = fit.beta[1];
+    // x that makes the current fit pass through fittedWanted at that x; a flat
+    // line has no such x, so fall back to the clicked value as a position.
+    const x = Math.abs(b1) > 1e-9 ? (fittedWanted - b0) / b1 : fittedWanted;
+    return { x, y: fit.predict(x) + residWanted };
+  });
+}
+
+// Click on the Q–Q plot at residual e0. A Q–Q point's horizontal position is
+// its rank among the residuals, which the data cannot choose, so the new
+// observation's x is taken as the mean of the current xs (the centre of the
+// fit) and only the residual is placed as clicked.
+function resolveQQPoint(points, residWanted) {
+  const usable = points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  if (!usable.length) return null;
+  const meanX = usable.reduce((s, p) => s + p.x, 0) / usable.length;
+  return settleDiagPoint(points, (fit) => ({
+    x: meanX,
+    y: fit.predict(meanX) + residWanted,
+  }));
+}
+
 function nearest(items, x, y, tol) {
   let best = null;
   let bestD = tol;
@@ -371,15 +449,26 @@ function nearest(items, x, y, tol) {
 
 function generateLinearity(p, s) {
   const points = [];
+  // Signed curvature: negative curls one way (S-shaped), positive the other
+  // (U-shaped). The magnitude scales the departure; the sign picks the shape.
+  // A smooth blend of |t|^3 and t^2 keeps the curve continuous through zero,
+  // so small dial moves make small changes and 0 is a genuine straight line.
+  const curv = Number.isFinite(p.curvature) ? p.curvature : 0;
+  const w = clamp(Math.abs(curv) / 2, [0, 1]);
+  const shapeExponent = 3 - w; // 3 = S-like cubic, 2 = U-like quadratic
+  // The underlying line's slope is itself a dial: the diagnostic story must
+  // hold for rising, falling, and flat lines alike.
+  const slope = Number.isFinite(p.slope) ? p.slope : 1.5;
   for (let i = 0; i < p.n; i += 1) {
     const u = s.uniform();
     const z = s.normal();
     const x = X_DOMAIN[0] + (X_DOMAIN[1] - X_DOMAIN[0]) * (0.03 + 0.94 * u);
     const t = (x - 5) / 5;
-    const base = 12 + 1.9 * (x - 5);
-    const signal = p.curveShape === "u"
-      ? p.curvature * 2.2 * t * t
-      : p.curvature * 2.0 * t * t * t;
+    const base = 12 + slope * (x - 5);
+    const magnitude = Math.abs(curv) * 2.2;
+    const shapeTerm = (1 - w) * Math.sign(t) * Math.abs(t) ** shapeExponent
+      + w * t * t;
+    const signal = magnitude * (curv >= 0 ? shapeTerm : -shapeTerm);
     const noise = z * p.noise;
     points.push({ x, y: clamp(base + signal + noise, Y_DOMAIN), latent: noise });
   }
@@ -440,19 +529,66 @@ function generateIndependence(p, s) {
   });
 }
 
+// The severity sliders now reach 2. Past 1 the extra strength is compressed,
+// so the dial keeps moving the data without blowing the fixed residual axis:
+// linear to 1 (where the presets sit), then progressively gentler.
+function effectiveSeverity(sev) {
+  const v = Number.isFinite(sev) ? sev : 0;
+  return v <= 1 ? v : 1 + (v - 1) * 0.35;
+}
+
+// A fixed-point normaliser: given a departure family and its raw output, find
+// the scalar c that makes the mean |c·f(z)| land on the target scale. Applied
+// per sample, so every shape and dial position fills the same share of the
+// residual axis and severity changes shape rather than overall size.
+function calibrateScale(family, n, s) {
+  const draws = Array.from({ length: n }, () => family(s.normal()));
+  // Calibrate on RMS rather than mean |.|: the families reshape the tails, so
+  // mean |.| drifts with the dial while RMS (what the sample SD tracks) stays
+  // comparable across dial positions.
+  const meanSquare = draws.reduce((a, b) => a + b * b, 0) / n;
+  const rms = Math.sqrt(meanSquare);
+  return rms > 1e-9 ? 1 / rms : 1;
+}
+
 function generateNormality(p, s) {
   const xs = Array.from({ length: p.n }, () => 0.3 + 9.4 * s.uniform()).sort((a, b) => a - b);
+  // Shape picks the departure family; the severity dial scales the departure
+  // for the skewed and heavy-tailed families. For the normal shape severity
+  // has no meaning — the widget greys the dial out — and the family ignores
+  // it, so the Q–Q cannot drift into a shape that defeats the teaching point.
+  // Each family is calibrated so the sample fills a similar share of the
+  // residual axis whatever the dial does.
+  const shape = p.shape || "normal";
+  const sev = effectiveSeverity(Number.isFinite(p.severity) ? p.severity : 1);
+  const k = 0.5 * sev;
+  const families = {
+    normal: (z) => z,
+    skewed: (z) => {
+      // Lognormal-style stretch: negative draws are shrunk towards zero,
+      // positive ones stretched, giving genuine right skew. Soft-clipped
+      // (tanh) against the residual axis so even a worst-case n=80 sample
+      // stays on the plot.
+      const stretch = Math.exp(k * z - (k * k) / 2) * z;
+      return 7.4 * Math.tanh((0.1 * z + 0.9 * stretch) / 7.4);
+    },
+    heavy: (z) => {
+      // Symmetric heavy tails with a soft clip for the worst-case sample.
+      const tail = Math.sign(z) * Math.abs(z) ** (1 + 1.2 * sev);
+      const mixed = (1 - Math.min(1, sev)) * z + Math.min(1, sev) * tail;
+      return 7.4 * Math.tanh(mixed / 7.4);
+    },
+  };
+  const family = families[shape] || families.normal;
+  // The calibration stream is fixed per shape (severity does not feed it for
+  // the normal family), so the normal sample is bit-for-bit identical whatever
+  // the dial does — the dial is greyed out for that shape anyway.
+  const scale = calibrateScale(family, 60, makeStreams(shape === "normal"
+    ? "normscale,normal"
+    : `normscale,${shape},${sev.toFixed(3)}`));
   const raws = [];
   for (let i = 0; i < p.n; i += 1) {
-    const u = s.uniform();
-    const z = s.normal();
-    let r = z;
-    if (p.shape === "skewed") {
-      r = Math.sign(u - 0.5) * Math.abs(z) ** (1 + 2.0 * p.severity);
-    } else if (p.shape === "heavy") {
-      r = Math.sign(z) * Math.abs(z) ** (1 + 2.4 * p.severity);
-    }
-    raws.push(r);
+    raws.push(scale * family(s.normal()));
   }
   const sd = sampleSd(raws) || 1;
   return xs.map((x, i) => {
@@ -461,23 +597,33 @@ function generateNormality(p, s) {
   });
 }
 
-function equalVarianceSdAt(pattern, severity, x) {
+function equalVarianceSdAt(pattern, spreadDial, x) {
   const t = (x - X_DOMAIN[0]) / (X_DOMAIN[1] - X_DOMAIN[0]);
-  // The narrow end is kept small and the wide end close to the y-axis limit, so
-  // the funnel opens widely enough to be obvious at a glance. The ratio between
-  // the ends is what students read, so a bigger contrast beats a bigger spread.
-  if (pattern === "increasing") return 0.2 + 1.7 * severity * t;
-  if (pattern === "decreasing") return 0.2 + 1.7 * severity * (1 - t);
-  if (pattern === "bowtie") return 0.22 + 1.62 * severity * Math.abs(x - 5) / 5;
-  return 1.0;
+  // The dial is a 0–1 spread fraction; it maps to the funnel's wide-end SD.
+  // At 1 the wide end reaches 2.65 (its 2 SD band just inside the y-axis); the
+  // mapping is linear below so small dial moves make small changes. Constant
+  // spreads a smaller multiple of the same dial everywhere, which is what
+  // keeps a full-dial constant pattern on the plot. The funnel's thin end
+  // stays thin, so the wide end does most of the work and the pattern reads.
+  // The preset 0.45 sits where the funnel is unmistakable without crowding.
+  const spread = clamp(Number.isFinite(spreadDial) ? spreadDial : 0.75, [0, 1]);
+  const wideSd = 0.35 + 2.3 * spread;
+  const constantSd = 0.4 + 1.9 * spread;
+  if (pattern === "increasing") return wideSd * (0.12 + 0.88 * t);
+  if (pattern === "decreasing") return wideSd * (0.12 + 0.88 * (1 - t));
+  if (pattern === "bowtie") return wideSd * (0.15 + 0.85 * Math.abs(x - 5) / 5);
+  return constantSd;
 }
 
 function generateEqualVariance(p, s) {
   const xs = Array.from({ length: p.n }, () => 0.3 + 9.4 * s.uniform()).sort((a, b) => a - b);
   return xs.map((x) => {
     const z = s.normal();
-    const sd = equalVarianceSdAt(p.pattern, p.severity, x);
-    const e = z * sd;
+    const sd = equalVarianceSdAt(p.pattern, p.sd, x);
+    // The draw itself is soft-clipped: an outlier at the wide end of a
+    // full-dial funnel would otherwise land outside the y-axis. The clip
+    // keeps the extreme tail visible at the plot edge instead of off-plot.
+    const e = 6.9 * Math.tanh((z * sd) / 6.9);
     return {
       x,
       y: clamp(11 + 1.2 * (x - 5) + e, Y_DOMAIN),
@@ -504,8 +650,6 @@ function createLab(Inputs, Plot, opts) {
     idCounter: 1,
     selectedId: null,
     hoveredId: null,
-    showDiagnostic: false,
-    smoother: false,
     diagView: "primary",
     extras: {},
     cacheKey: null,
@@ -591,9 +735,9 @@ function createLab(Inputs, Plot, opts) {
     const input = document.createElement("input");
     input.type = "range";
     input.min = "12";
-    // Capped at 50: a larger sample pushes the most extreme residual towards the
-    // edge of the residual axis, so past this the plot would start to clip.
-    input.max = "50";
+    // 80 keeps the histogram counts readable (max bin about 30) and the plots
+    // uncluttered at lecture-hall resolution; 100 was too dense.
+    input.max = "80";
     input.step = "1";
     input.value = String(state.sampleSize);
     const readout = h("span", "ll-readout", String(state.sampleSize));
@@ -650,17 +794,6 @@ function createLab(Inputs, Plot, opts) {
   });
   controlsEl.append(guidedWrap);
 
-  /* Predict / reveal */
-  const revealSection = h("div", "ll-reveal");
-  const predictNote = h("div", "ll-predict-note",
-    "Predict the diagnostic before revealing it.");
-  const revealBtn = makeButton("Reveal diagnostic", "ll-reveal-btn", () => {
-    state.showDiagnostic = !state.showDiagnostic;
-    render();
-  });
-  revealSection.append(predictNote, revealBtn);
-  controlsEl.append(revealSection);
-
   /* Dynamic hosts */
   const optionsHost = h("div", "ll-options");
   const editHost = h("div", "ll-edits");
@@ -670,8 +803,15 @@ function createLab(Inputs, Plot, opts) {
   const legend = h("div", "ll-legend");
   const dotGen = h("span", "ll-keydot ll-keydot-generated");
   const dotStu = h("span", "ll-keydot ll-keydot-student");
+  const dotGenDiag = h("span", "ll-keydot ll-keydot-diag-generated");
+  const dotStuDiag = h("span", "ll-keydot ll-keydot-diag-student");
   legend.append(dotGen, document.createTextNode(" generated data  "),
     dotStu, document.createTextNode(" student-added"));
+  legend.append(
+    dotGenDiag, document.createTextNode(" generated, diagnostic"),
+    document.createTextNode("  "),
+    dotStuDiag, document.createTextNode(" student, diagnostic"),
+  );
   const instructions = h("div", "ll-instructions");
   instructions.innerHTML = opts.instructions;
   controlsEl.append(legend, instructions);
@@ -893,7 +1033,7 @@ function createLab(Inputs, Plot, opts) {
     const data = getActivePoints();
     const fit = fitLeastSquares(data, 1);
     const wantsQuad = opts.assumption === "linearity"
-      && state.extras.showQuad && state.showDiagnostic;
+      && state.extras.showQuad;
     const quadFit = wantsQuad ? fitLeastSquares(data, 2) : null;
     const withStats = data.map((p) => {
       const fitted = fit ? fit.predict(p.x) : NaN;
@@ -929,7 +1069,7 @@ function createLab(Inputs, Plot, opts) {
 
   const dotOpts = {
     r: 5,
-    fill: originFill,
+    fill: diagFill,
     stroke: "#fff",
     strokeWidth: 1,
   };
@@ -958,14 +1098,6 @@ function createLab(Inputs, Plot, opts) {
       }));
       return { title: opts.primaryDiagLabel, svg: finalizeSvg(Plot.plot({ ...plotDefaults("Fitted value ŷ", "Residual e", Y_DOMAIN, RESID_DOMAIN), marks })), items: [] };
     }
-    if (state.smoother && data.length >= 6) {
-      marks.push(Plot.line(runningMean(data), {
-        x: "fitted",
-        y: "resid",
-        stroke: SMOOTHER_STROKE,
-        strokeWidth: 2,
-      }));
-    }
     if (opts.diagOverlay) marks.push(...opts.diagOverlay(ctx, Plot, hoverRing));
     marks.push(Plot.dot(data, { x: "fitted", y: "resid", ...dotOpts }));
     if (hovered) marks.push(hoverRing(hovered.fitted, hovered.resid));
@@ -978,7 +1110,20 @@ function createLab(Inputs, Plot, opts) {
       px: pxDomain(d.fitted, Y_DOMAIN),
       py: pxY(d.resid, RESID_DOMAIN),
     }));
-    return { title: opts.primaryDiagLabel, svg, items };
+    return {
+      title: opts.primaryDiagLabel,
+      svg,
+      items,
+      // Blank-space clicks add a student point whose rendered (fitted, resid)
+      // equals the click position; see resolveResidFittedPoint.
+      addable: {
+        kind: "residFitted",
+        xDomain: Y_DOMAIN,
+        yDomain: RESID_DOMAIN,
+        invX: (px) => invDomain(px, Y_DOMAIN),
+        invY: (py) => invY(py, RESID_DOMAIN),
+      },
+    };
   }
 
   function orderView(ctx) {
@@ -1036,6 +1181,8 @@ function createLab(Inputs, Plot, opts) {
       items,
       invertY: (py) => invY(py, RESID_DOMAIN),
       draggable: true,
+      // No `addable` here: the order plot's click x is a sequence position, and
+      // the teaching story for this widget is drag + reorder, not add.
       stats: r1 == null ? [] : [{
         label: "Correlation with the previous residual",
         value: `r\u2081 = ${fmt(r1)}`,
@@ -1094,7 +1241,20 @@ function createLab(Inputs, Plot, opts) {
       px: pxDomain(d.theo, xDomain),
       py: pxY(d.resid, RESID_DOMAIN),
     }));
-    return { title: opts.primaryDiagLabel, svg, items };
+    return {
+      title: opts.primaryDiagLabel,
+      svg,
+      items,
+      // Blank-space clicks add a student point at the clicked residual; the
+      // horizontal spot is the point's rank quantile, so it may land away from
+      // the click. See resolveQQPoint.
+      addable: {
+        kind: "qq",
+        xDomain,
+        yDomain: RESID_DOMAIN,
+        invY: (py) => invY(py, RESID_DOMAIN),
+      },
+    };
   }
 
   function lagView(ctx) {
@@ -1142,7 +1302,7 @@ function createLab(Inputs, Plot, opts) {
       )),
     ];
     const svg = finalizeSvg(Plot.plot({
-      ...plotDefaults("Residual e", "Count", RESID_DOMAIN, undefined, { y: { label: "Count", grid: true, nice: true } }),
+      ...plotDefaults("Residual e", "Count", RESID_DOMAIN, [0, 30], { y: { label: "Count", grid: true, nice: true } }),
       marks,
     }));
     return { title: "Residual histogram", svg, items: [] };
@@ -1300,19 +1460,50 @@ function createLab(Inputs, Plot, opts) {
 
   function wireDiag(svg, built, ctx) {
     svg.addEventListener("pointerdown", (ev) => {
-      if (state.mode !== "free" || !built.draggable || !ctx.fit) return;
+      if (state.mode !== "free" || !ctx.fit) return;
       ev.preventDefault();
       const { px, py } = svgPoint(svg, ev, "diag");
       const hit = nearest(built.items, px, py, 12);
-      if (!hit) return;
-      state.selectedId = hit.id;
-      state.runtime.diagDrag = {
-        id: hit.id,
-        moved: false,
-        pointerId: ev.pointerId,
-        fitAtStart: ctx.fit,
+      if (hit && built.draggable) {
+        state.selectedId = hit.id;
+        state.runtime.diagDrag = {
+          id: hit.id,
+          moved: false,
+          pointerId: ev.pointerId,
+          fitAtStart: ctx.fit,
+        };
+        try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* noop */ }
+        render();
+        return;
+      }
+      if (hit || !built.addable) return;
+      // Blank space in an addable diagnostic: create the observation the click
+      // describes. The resolver turns (fitted, resid) — or a clicked residual
+      // in the Q–Q — into the (x, y) that renders there once the line refits.
+      const target = built.addable.kind === "qq"
+        ? { resid: built.addable.invY(py) }
+        : {
+          fitted: built.addable.invX(px),
+          resid: built.addable.invY(py),
+        };
+      const resolved = built.addable.kind === "qq"
+        ? resolveQQPoint(ctx.data, clamp(target.resid, RESID_DOMAIN))
+        : resolveResidFittedPoint(
+          ctx.data,
+          clamp(target.fitted, Y_DOMAIN),
+          clamp(target.resid, RESID_DOMAIN),
+        );
+      if (!resolved) return;
+      beginEdit();
+      const point = {
+        id: `u${state.idCounter += 1}`,
+        origin: "student",
+        order: nextOrder(state.edits.present),
+        x: resolved.x,
+        y: resolved.y,
       };
-      try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* noop */ }
+      state.edits.present = [...state.edits.present, point];
+      state.selectedId = point.id;
       render();
     });
 
@@ -1366,23 +1557,17 @@ function createLab(Inputs, Plot, opts) {
     presetSeg.el.querySelectorAll("button").forEach((el) => {
       el.disabled = free;
     });
+    // Controls whose meaning depends on another control (e.g. Severity is
+    // meaningless for the normal error shape) grey out when not applicable.
+    guidedFields.forEach((f) => {
+      if (f.kind !== "control" || !f.def.enabledWhen) return;
+      f.input.disabled = free || !f.def.enabledWhen(state);
+    });
 
-    predictNote.style.display = state.showDiagnostic ? "none" : "";
-    revealBtn.textContent = state.showDiagnostic ? "Hide diagnostic" : "Reveal diagnostic";
-
-    // reveal options
+    // display options (always shown)
     optionsHost.replaceChildren();
-    if (state.showDiagnostic) {
+    {
       const wrap = h("div", "ll-option-list");
-      if (opts.hasSmoother) {
-        const label = h("label", "ll-check");
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.checked = state.smoother;
-        cb.addEventListener("input", () => { state.smoother = cb.checked; render(); });
-        label.append(cb, document.createTextNode(" Running-mean smoother"));
-        wrap.append(label);
-      }
       (opts.extraOptionDefs || []).forEach((def) => {
         const label = h("label", "ll-check");
         const cb = document.createElement("input");
@@ -1521,13 +1706,6 @@ function createLab(Inputs, Plot, opts) {
     }
 
     // diagnostic
-    if (!state.showDiagnostic) {
-      const title = h("div", "ll-plot-title", "Diagnostic plot");
-      const placeholder = h("div", "ll-diag-hidden");
-      placeholder.innerHTML = "<div class=\"ll-diag-hidden-inner\">🤔 Predict first: what pattern do you expect here?<br>Then press “Reveal diagnostic”.</div>";
-      diagHost.replaceChildren(title, placeholder);
-      return;
-    }
     const built = buildDiagView(ctx);
     const title = h("div", "ll-plot-title", built.title);
     const body = h("div", "ll-plot-body");
@@ -1597,14 +1775,14 @@ function quadDiagOverlay(ctx, Plot, hoverRing) {
 }
 
 function equalVarianceBandMarks(ctx, Plot) {
-  const { pattern, severity } = ctx.state.controls;
+  const { pattern, sd } = ctx.state.controls;
   const band = LINE_X.map((x) => {
     const centre = 11 + 1.2 * (x - 5);
-    const sd = equalVarianceSdAt(pattern, severity, x);
+    const sdAt = equalVarianceSdAt(pattern, sd, x);
     return {
       x,
-      y1: clamp(centre - 2 * sd, Y_DOMAIN),
-      y2: clamp(centre + 2 * sd, Y_DOMAIN),
+      y1: clamp(centre - 2 * sdAt, Y_DOMAIN),
+      y2: clamp(centre + 2 * sdAt, Y_DOMAIN),
     };
   });
   return [
@@ -1626,36 +1804,44 @@ export function linearityLab({ Inputs, Plot }) {
   return createLab(Inputs, Plot, {
     assumption: "linearity",
     seedBase: "lin",
-    nDefault: 24,
+    nDefault: 40,
     diagKind: "resid-fitted",
     primaryDiagLabel: "Residuals vs fitted values",
-    hasSmoother: true,
     showRSquared: true,
     controlDefs: [
       {
-        key: "curveShape",
-        type: "select",
-        label: "Curve shape",
-        options: [["u", "U-shaped"], ["s", "S-shaped"]],
-        default: "u",
+        // One dial, two shapes: negative curls the curve one way (S-shaped),
+        // positive the other (U-shaped), zero is a genuine straight line. A
+        // separate shape select plus a strength slider left one of them dead.
+        key: "curvature", type: "range", label: "Curvature", min: -2, max: 2, step: 0.05, default: 0,
+        format: (v) => {
+          const a = Math.abs(v);
+          if (a < 0.025) return "straight line";
+          const level = a >= 0.99 ? fmt(a) : `gentle ${fmt(a)}`;
+          return v > 0 ? `U-shaped, curvature ${level}` : `S-shaped, curvature ${level}`;
+        },
       },
       {
-        key: "curvature", type: "range", label: "Curvature strength", min: 0, max: 2, step: 0.05, default: 0,
+        // The slope of the underlying line. Students should see that the
+        // diagnostic patterns mean the same thing whatever the line is doing,
+        // so negative slopes are one press away.
+        key: "slope", type: "range", label: "Line slope", min: -2, max: 2, step: 0.1, default: 1.5,
+        format: (v) => (Math.abs(v) < 0.05 ? "flat" : fmt(v)),
       },
       {
         key: "noise", type: "range", label: "Noise", min: 0.3, max: 1.8, step: 0.05, default: 1,
       },
     ],
     presets: {
-      well: { curveShape: "u", curvature: 0, noise: 1 },
-      violation: { curveShape: "u", curvature: 1.6, noise: 1 },
+      well: { curvature: 0, slope: 1.5, noise: 1 },
+      violation: { curvature: 1.6, slope: 1.5, noise: 1 },
     },
     extraOptionDefs: [
-      { key: "showQuad", label: "Reveal quadratic fit & its residuals" },
+      { key: "showQuad", label: "Show quadratic fit & its residuals" },
     ],
     diagOverlay: quadDiagOverlay,
     generate: generateLinearity,
-    instructions: "Free edit: click blank space in the scatterplot to add a point, drag to move, click to select, then Delete selected. Hover either plot to link points. A high R² can still hide a curve — try strong curvature.",
+    instructions: "Free edit: click blank space in either plot to add a point (in the diagnostic the click sets the residual and fitted value), drag to move, click to select, then Delete selected. Hover either plot to link points. A high R² can still hide a curve — try strong curvature, and flip the slope negative to see the same patterns.",
   });
 }
 
@@ -1666,7 +1852,6 @@ export function independenceLab({ Inputs, Plot }) {
     nDefault: 26,
     diagKind: "order",
     primaryDiagLabel: "Residuals vs observation order",
-    hasSmoother: false,
     // Only affects how the sample is displayed, never how it is generated.
     displayOnlyKeys: ["order"],
     controlDefs: [
@@ -1684,7 +1869,12 @@ export function independenceLab({ Inputs, Plot }) {
       },
     ],
     presets: {
-      well: { order: 0, strength: 0 },
+      // Both examples draw the SAME kind of sample: strength 1 = pure time
+      // pattern, 0 = pure noise. Well-behaved shows it shuffled (the pattern is
+      // invisible); Violation sorts it into time order — so the slider can
+      // always dial between a sample with no pattern and one with runs, and the
+      // violation genuinely comes from the slider, not from new data.
+      well: { order: 0, strength: 1 },
       violation: { order: 1, strength: 1 },
     },
     extraViews: [
@@ -1703,7 +1893,6 @@ export function normalityLab({ Inputs, Plot }) {
     hasNControl: true,
     diagKind: "qq",
     primaryDiagLabel: "Normal Q–Q plot of residuals",
-    hasSmoother: false,
     controlDefs: [
       {
         key: "shape",
@@ -1713,19 +1902,25 @@ export function normalityLab({ Inputs, Plot }) {
         default: "normal",
       },
       {
-        key: "severity", type: "range", label: "Severity", min: 0, max: 1, step: 0.05, default: 0.6,
+        // Severity scales the departure for the skewed and heavy-tailed
+        // shapes. For the normal shape it has no meaning — the dial is greyed
+        // out (see enabledWhen) — because an ever-more-extreme "normal" Q–Q
+        // would defeat the teaching point. 0–1 is enough now that the
+        // generators themselves are tuned.
+        key: "severity", type: "range", label: "Severity", min: 0, max: 1, step: 0.05, default: 1,
+        enabledWhen: (state) => state.controls.shape !== "normal",
       },
     ],
     presets: {
-      well: { shape: "normal", severity: 0.6 },
-      violation: { shape: "skewed", severity: 0.95 },
+      well: { shape: "normal", severity: 1 },
+      violation: { shape: "skewed", severity: 1 },
     },
     extraViews: [
       { key: "hist", label: "Residual histogram" },
       { key: "dist", label: "Generating error distribution" },
     ],
     generate: generateNormality,
-    instructions: "Hover a Q–Q point to see which observation it belongs to — its x position there is a theoretical quantile, not the original x. Add an unusual point in the scatterplot and find its residual in the Q–Q plot. Small normal samples can look imperfect.",
+    instructions: "Hover a Q–Q point to see which observation it belongs to — its x position there is a theoretical quantile, not the original x. Free edit: click blank space in either plot to add a point (in the Q–Q the click sets the residual; its horizontal spot is its rank). Small normal samples can look imperfect.",
   });
 }
 
@@ -1736,7 +1931,6 @@ export function equalVarianceLab({ Inputs, Plot }) {
     nDefault: 28,
     diagKind: "resid-fitted",
     primaryDiagLabel: "Residuals vs fitted values",
-    hasSmoother: true,
     controlDefs: [
       {
         key: "pattern",
@@ -1751,19 +1945,25 @@ export function equalVarianceLab({ Inputs, Plot }) {
         default: "constant",
       },
       {
-        key: "severity", type: "range", label: "Severity", min: 0, max: 1, step: 0.05, default: 0.6,
+        // Spread dial, 0–1. The displayed number is a fraction of the SD that
+        // fills a good share of the residual axis at the funnel's wide end;
+        // the mapping to the actual SD lives in equalVarianceSdAt. Above the
+        // old raw-SD 1.3 the soft-clipped funnel ends drew flat artefact
+        // lines into the ±2 SD band, so the dial stops where the plot stays
+        // honest. It still moves the data for the Constant pattern.
+        key: "sd", type: "range", label: "Spread", min: 0, max: 1, step: 0.01, default: 0.75,
       },
     ],
     presets: {
-      well: { pattern: "constant", severity: 0.6 },
-      violation: { pattern: "increasing", severity: 1 },
+      well: { pattern: "constant", sd: 0.75 },
+      violation: { pattern: "increasing", sd: 0.75 },
     },
     extraOptionDefs: [
-      { key: "band", label: "Reveal generating mean ± 2 SD band" },
+      { key: "band", label: "Show generating mean ± 2 SD band" },
     ],
     bandOverlay: equalVarianceBandMarks,
     generate: generateEqualVariance,
-    instructions: "The line still passes through the middle when spread changes — what changes is prediction precision. Free edit: spread points vertically at large x while keeping their local centre unchanged.",
+    instructions: "The line still passes through the middle when spread changes — what changes is prediction precision. The spread dial rescales the spread around the same line, for the constant pattern too. Free edit: click blank space in either plot to add a point (in the diagnostic the click sets the residual and fitted value), then spread points vertically at large x while keeping their local centre unchanged.",
   });
 }
 
@@ -1780,6 +1980,9 @@ export {
   generateEqualVariance,
   equalVarianceSdAt,
   fitLeastSquares,
+  sampleSd,
+  resolveResidFittedPoint,
+  resolveQQPoint,
   timePattern,
   randomPermutation,
   sequenceRank,

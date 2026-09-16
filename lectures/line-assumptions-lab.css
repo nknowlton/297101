@@ -158,30 +158,6 @@
   font-size: 10.5px;
 }
 
-.ll-reveal {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid #dde4ea;
-}
-
-.ll-predict-note {
-  font-size: 10px;
-  color: #8a6d1a;
-  margin-bottom: 3px;
-}
-
-.ll-reveal-btn {
-  width: 100%;
-  background: #24313a;
-  border-color: #24313a;
-  color: #fff;
-  font-weight: 600;
-}
-
-.ll-reveal-btn:hover:not(:disabled) {
-  background: #37485a;
-}
-
 .ll-option-list {
   display: flex;
   flex-direction: column;
@@ -233,6 +209,16 @@
 
 .ll-keydot-student {
   background: #d55e00;
+}
+
+/* The same two families as drawn in the diagnostic plots: a step lighter for
+ * generated data, a step softer for student points. */
+.ll-keydot-diag-generated {
+  background: #79848e;
+}
+
+.ll-keydot-diag-student {
+  background: #e08757;
 }
 
 .ll-instructions {
@@ -327,25 +313,6 @@
   color: #55656f;
 }
 
-.ll-diag-hidden {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  aspect-ratio: 1.2;
-  border: 2px dashed #b8c5cf;
-  border-radius: 6px;
-  background: rgba(246, 248, 250, 0.75);
-}
-
-.ll-diag-hidden-inner {
-  font-size: 12px;
-  color: #56656f;
-  text-align: center;
-  line-height: 1.5;
-  padding: 8px;
-}
-
 .ll-hover-info {
   position: absolute;
   z-index: 5;
@@ -401,7 +368,6 @@
 
   .ll-legend,
   .ll-instructions,
-  .ll-reveal,
   .ll-edit-buttons {
     grid-column: 1 / -1;
   }
