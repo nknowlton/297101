@@ -28,6 +28,12 @@ Both of these are detailed here:
 
 [06: Finding the Former MP for Wairarapa's Former Ute](https://www.massey.ac.nz/~jcmarsha/297101/labs/lab06_guide.html)
 
+[10: Vehicle relationships](Workshop_Week10_Relationships_guide.html)
+
+[11: Regression testing](Workshop_Week11_Testing_guide.html)
+
+[12: Regression assumptions](Workshop_Week12_Assumptions_guide.html)
+
 ## Screencasts
 
 A link will be placed below with a set of videos of Jonathan M working through each of the workshops.

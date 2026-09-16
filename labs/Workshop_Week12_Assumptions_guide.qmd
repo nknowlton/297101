@@ -1,0 +1,880 @@
+---
+title: "Workshop Week 12: Regression Assumptions"
+subtitle: "Answer guide — assumptions, diagnostics and model choice"
+author:
+  - name: "Nick Knowlton"
+  - name: "297.101 Statistical Data Science"
+date-meta: "Spring 2026"
+format:
+  html:
+    toc: true
+    code-tools: true
+    code-copy: true
+    code-block-bg: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor:
+  markdown:
+    wrap: 72
+resources:
+  - regression/cancer_data.csv.gz
+---
+
+Week 11 found county-level associations between poverty, median income and
+lung-cancer mortality. Those fitted lines were useful summaries, but they did
+not tell us whether a straight line represents the pattern well, whether its
+uncertainty calculations are dependable, or whether a few unusual counties
+strongly affect the result.
+
+The data come from a broader project that combined county socioeconomic and
+cancer information. Noah Rippner's
+[original data-preparation code](https://github.com/nrippner/can_clin_trails_prep_r/blob/master/extract_zips_10.py)
+shows how data from different sources were cleaned and joined by place. Those
+joins let us examine the same county's socioeconomic conditions and mortality,
+although the resulting associations do not establish causes or describe
+individual people.
+
+::: {.callout-note}
+## Today's question
+
+How well can we trust our models' estimates and predictions of county
+lung-cancer mortality?
+:::
+
+This guide shows how prediction bands, residual patterns and influential
+counties affect the Week 11 conclusions, then compares straight-line and
+log-predictor models. Each diagnostic answers a different question about the
+support for inference and prediction.
+
+## 1. What are we comparing?
+
+::: {.callout-important title="Question"}
+Are the poverty and income models fitted to the same counties and expressed in
+units that allow a fair comparison?
+:::
+
+::: {.callout-note title="What to look for"}
+Check that the three row counts agree. Both models must use the same counties
+and response for their fit and diagnostics to be comparable.
+:::
+
+We rebuild both Week 11 models and check their observation counts.
+
+```{r}
+#| label: setup
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(broom)
+
+cancer <- read_csv("regression/cancer_data.csv.gz", show_col_types = FALSE)
+cancer_clean <- cancer |>
+  select(Mortality_Rate_num, all_poverty, med_income, popestimate2015) |>
+  filter(if_all(everything(), is.finite), popestimate2015 > 0) |>
+  mutate(
+    pov_norm = all_poverty / popestimate2015 * 100000,
+    poverty_percent = pov_norm / 1000
+  )
+poverty_model <- lm(Mortality_Rate_num ~ pov_norm, data = cancer_clean)
+income_model <- lm(Mortality_Rate_num ~ med_income, data = cancer_clean)
+poverty_results <- augment(poverty_model)
+income_results <- augment(income_model)
+tibble(
+  rows_retained = nrow(cancer_clean),
+  poverty_model_rows = nobs(poverty_model),
+  income_model_rows = nobs(income_model)
+)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+All counts are 2,809. The poverty and income models therefore use identical
+counties, and both predict mortality in deaths per 100,000. Their predictor
+units differ: poverty is people per 100,000 and income is US dollars.
+:::
+
+## 2. How precise are predictions for another county?
+
+::: {.callout-important title="Question"}
+How closely can either model predict mortality for an individual additional
+county, and what does observed coverage tell us about future counties?
+:::
+
+A prediction band shows intervals for individual additional counties across a
+range of predictor values. Its width includes the county-to-county variation
+left around the fitted mean.
+
+### Poverty-rate prediction band
+
+::: {.callout-note title="What to look for"}
+The line estimates mean mortality at each poverty value. Look at the vertical
+scatter around it, then compare the band's width near the middle of the poverty
+range with its width at sparse extremes.
+:::
+
+```{r}
+#| label: poverty-prediction-band-data
+poverty_grid <- tibble(
+  pov_norm = seq(min(cancer_clean$pov_norm),
+                 max(cancer_clean$pov_norm), length.out = 200)
+)
+poverty_band <- bind_cols(
+  poverty_grid,
+  as_tibble(predict(
+    poverty_model, poverty_grid,
+    interval = "prediction", level = 0.95
+  ))
+)
+stopifnot(all(poverty_band$lwr <= poverty_band$fit))
+stopifnot(all(poverty_band$fit <= poverty_band$upr))
+```
+
+```{r}
+#| label: poverty-prediction-band
+#| fig-cap: "Fitted mortality and a 95% prediction band across the observed poverty range."
+#| fig-alt: "Poverty and mortality scatterplot with a fitted line and shaded prediction band."
+#| out-width: "100%"
+ggplot(cancer_clean, aes(x = pov_norm, y = Mortality_Rate_num)) +
+  geom_ribbon(
+    data = poverty_band, aes(x = pov_norm, ymin = lwr, ymax = upr),
+    inherit.aes = FALSE, alpha = 0.2
+  ) +
+  geom_line(data = poverty_band, aes(y = fit), linewidth = 1) +
+  geom_point(alpha = 0.25, size = 0.7) +
+  labs(x = "Poverty (people per 100,000)",
+       y = "Mortality (deaths per 100,000)",
+       title = "Individual county outcomes vary widely around the fitted line") +
+  theme_minimal(base_size = 13)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The fitted line estimates mean mortality for counties at each poverty rate.
+The band is much wider because it also includes remaining county-to-county
+variation. It is narrowest near the mean poverty value and widens toward the
+edges; the broad scatter shows that poverty alone does not predict an
+individual county precisely.
+:::
+
+::: {.callout-important title="Question"}
+What percentage of the fitting observations falls inside the nominal 95%
+prediction intervals, and why is that not validation on future counties?
+:::
+
+::: {.callout-note title="What to look for"}
+The coverage calculation counts observations that were used to fit the model.
+Compare the observed percentage with 95%, while remembering that this is an
+in-sample description rather than a test on new counties.
+:::
+
+```{r}
+#| label: poverty-observed-coverage
+poverty_observed_intervals <- bind_cols(
+  cancer_clean,
+  as_tibble(predict(poverty_model, interval = "prediction"))
+)
+poverty_observed_intervals |>
+  summarise(
+    observations_inside = sum(between(Mortality_Rate_num, lwr, upr)),
+    observations = n(),
+    observed_percentage = mean(between(Mortality_Rate_num, lwr, upr)) * 100
+  )
+```
+
+::: {.callout-tip title="Worked interpretation"}
+About 94.66% of the fitting observations lie inside their nominal 95%
+prediction intervals. The same data estimated the line and its spread, so this
+does not validate coverage for future counties. New-county coverage could be
+poorer if the model form, variance or independence assumptions are unsuitable.
+:::
+
+### Income prediction band
+
+::: {.callout-important title="Question"}
+Where is the income prediction band narrowest, and does its width suggest
+precise prediction for an individual county?
+:::
+
+::: {.callout-note title="What to look for"}
+Compare the width of the income band near typical incomes with its width at
+sparse extremes. Keep the fitted line's mean response distinct from an
+individual county prediction.
+:::
+
+```{r}
+#| label: income-prediction-band-data
+income_grid <- tibble(
+  med_income = seq(min(cancer_clean$med_income),
+                   max(cancer_clean$med_income), length.out = 200)
+)
+income_band <- bind_cols(
+  income_grid,
+  as_tibble(predict(
+    income_model, income_grid,
+    interval = "prediction", level = 0.95
+  ))
+)
+stopifnot(all(income_band$lwr <= income_band$fit))
+stopifnot(all(income_band$fit <= income_band$upr))
+```
+
+```{r}
+#| label: income-prediction-band
+#| fig-cap: "Fitted mortality and a 95% prediction band across the observed income range."
+#| fig-alt: "Income and mortality scatterplot with a fitted line and shaded prediction band."
+#| out-width: "100%"
+ggplot(cancer_clean, aes(x = med_income, y = Mortality_Rate_num)) +
+  geom_ribbon(
+    data = income_band, aes(x = med_income, ymin = lwr, ymax = upr),
+    inherit.aes = FALSE, alpha = 0.2
+  ) +
+  geom_line(data = income_band, aes(y = fit), linewidth = 1) +
+  geom_point(alpha = 0.25, size = 0.7) +
+  labs(x = "Median household income (US dollars)",
+       y = "Mortality (deaths per 100,000)",
+       title = "Prediction is most precise near typical incomes") +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: income-observed-coverage
+income_observed_intervals <- bind_cols(
+  cancer_clean,
+  as_tibble(predict(income_model, interval = "prediction"))
+)
+income_observed_intervals |>
+  summarise(
+    observations_inside = sum(between(Mortality_Rate_num, lwr, upr)),
+    observations = n(),
+    observed_percentage = mean(between(Mortality_Rate_num, lwr, upr)) * 100
+  )
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The income band is narrowest near mean income and widens towards sparse
+extremes, although the large individual-county variation makes the change in
+width visually subtle. Its in-sample coverage describes these fitted counties;
+it does not establish coverage for new ones.
+:::
+
+## 3. What patterns does the straight line miss?
+
+::: {.callout-important title="Question"}
+Do the residuals support a straight-line mean with independent, approximately
+normal errors and reasonably constant variance?
+:::
+
+Use this reference table while discussing each diagnostic. The plots provide
+evidence to weigh; none is a mechanical pass/fail certificate.
+
+| Assumption | What it means | Evidence to inspect | Why it matters |
+|:--|:--|:--|:--|
+| Linearity | The conditional mean is represented adequately by a straight line. | Residuals versus fitted and the smooth. | Curvature can bias fitted means and predictions. |
+| Independence | Errors across observations are independent; consider design and spatial dependence. | County sampling information and geographic residual patterns. | Dependence can make standard errors and intervals too optimistic. |
+| Normality | Conditional errors are approximately normal; residuals are an imperfect diagnostic. | Centre and both tails of the Q-Q plot. | Tail departures can affect small-sample inference and prediction intervals. |
+| Equal variance | Conditional error variance is reasonably constant. | Scale-location spread and smooth. | Changing spread makes interval precision vary across predictors. |
+
+### L — Linearity
+
+::: {.callout-important title="Question"}
+Does the fitted line leave a curved pattern in the residuals, and where would
+that cause the model to overpredict or underpredict mean mortality?
+:::
+
+Residuals versus fitted values should form a shapeless cloud around zero. A
+curved smooth suggests that a straight-line mean misses structure.
+
+#### Poverty-rate model
+
+::: {.callout-note title="What to look for"}
+Look for a cloud centred around zero and a roughly horizontal smooth. A bend or
+region where residuals share a sign indicates that the straight line misses
+part of the conditional mean.
+:::
+
+```{r}
+#| label: poverty-linearity
+ggplot(poverty_results, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.3, size = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(x = "Fitted mortality", y = "Residual",
+       title = "Does the poverty model leave a curved pattern?") +
+  theme_minimal(base_size = 13)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The smooth is slightly below zero at low fitted values, rises through the
+middle and falls below zero at the high end. This curvature means the line does
+not represent mean mortality equally well across the range. The sparse high
+end makes its departure less certain, but it remains a pattern to investigate.
+:::
+
+#### Income model
+
+::: {.callout-important title="Question"}
+Is the income model's curvature similar to the poverty model's, and what would
+it imply about using a straight-line mean?
+:::
+
+::: {.callout-note title="What to look for"}
+Compare the smooth's direction and its position relative to zero with the
+poverty model.
+:::
+
+```{r}
+#| label: income-linearity
+ggplot(income_results, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.3, size = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(x = "Fitted mortality", y = "Residual",
+       title = "Does the income model leave a curved pattern?") +
+  theme_minimal(base_size = 13)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The income residual smooth also departs systematically from zero: it is above
+zero at low fitted mortality and below zero through part of the middle. The
+straight-line income model therefore misses some structure in mean mortality,
+even though its overall association remains clear.
+:::
+
+### E — Equal variance
+
+::: {.callout-important title="Question"}
+Does residual variation stay reasonably constant across fitted mortality, or
+does prediction precision change across the range?
+:::
+
+#### Poverty-rate model
+
+::: {.callout-note title="What to look for"}
+The scale-location plot shows residual magnitude without its sign. Look for a
+level band and flat smooth; the smooth need not be at zero.
+:::
+
+```{r}
+#| label: poverty-equal-variance
+poverty_results |>
+  mutate(root_abs_standardized_residual = sqrt(abs(.std.resid))) |>
+  ggplot(aes(x = .fitted, y = root_abs_standardized_residual)) +
+  geom_point(alpha = 0.3, size = 0.7) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(x = "Fitted mortality", y = "Sqrt(|standardized residual|)",
+       title = "Is residual spread stable for the poverty model?") +
+  theme_minimal(base_size = 13)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The poverty-model scale-location smooth rises with fitted mortality and the
+points spread more at the high end. This suggests increasing conditional error
+variation, so prediction intervals are likely to be less precise for counties
+with high fitted mortality.
+:::
+
+#### Income model
+
+::: {.callout-important title="Question"}
+Does income residual magnitude rise, fall or form a U-shape, and where would
+prediction intervals be least precise?
+:::
+
+::: {.callout-note title="What to look for"}
+Use residual magnitude without its sign. A non-horizontal smooth indicates
+that prediction precision changes across fitted mortality.
+:::
+
+```{r}
+#| label: income-equal-variance
+income_results |>
+  mutate(root_abs_standardized_residual = sqrt(abs(.std.resid))) |>
+  ggplot(aes(x = .fitted, y = root_abs_standardized_residual)) +
+  geom_point(alpha = 0.3, size = 0.7) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(x = "Fitted mortality", y = "Sqrt(|standardized residual|)",
+       title = "Is residual spread stable for the income model?") +
+  theme_minimal(base_size = 13)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The income-model spread changes across fitted values rather than remaining
+level. Its smooth shows a U-shaped pattern with a rise at the high end, so a
+single constant-variance description does not capture prediction precision
+equally well throughout the range.
+:::
+
+### N — Normality
+
+::: {.callout-important title="Question"}
+How closely do the standardised residuals follow a normal distribution,
+especially in the tails?
+:::
+
+#### Poverty-rate model
+
+::: {.callout-note title="What to look for"}
+Compare theoretical normal quantiles with the ordered standardised residuals.
+Inspect the centre and the lower and upper tails separately.
+:::
+
+```{r}
+#| label: poverty-normality
+ggplot(poverty_results, aes(sample = .std.resid)) +
+  geom_qq(alpha = 0.35, size = 0.8) +
+  geom_qq_line() +
+  labs(x = "Theoretical normal quantiles",
+       y = "Standardized residual quantiles",
+       title = "Poverty-model residuals") +
+  theme_minimal(base_size = 13)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The centre is fairly close to the reference line, while both tails depart,
+especially the upper tail. Central residuals are roughly compatible with
+normality, but unusually large residuals occur more often than the normal-error
+model predicts, which matters particularly for individual prediction.
+:::
+
+#### Income model
+
+::: {.callout-important title="Question"}
+How close is the income model's centre to the reference line, and how does each
+tail depart?
+:::
+
+::: {.callout-note title="What to look for"}
+Describe the centre and both tails separately, then connect any departures to
+coefficient inference and individual-county prediction.
+:::
+
+```{r}
+#| label: income-normality
+ggplot(income_results, aes(sample = .std.resid)) +
+  geom_qq(alpha = 0.35, size = 0.8) +
+  geom_qq_line() +
+  labs(x = "Theoretical normal quantiles",
+       y = "Standardized residual quantiles",
+       title = "Income-model residuals") +
+  theme_minimal(base_size = 13)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The income-model centre follows the reference line more closely than its tails.
+Both tails depart, so the normal-error approximation remains imperfect. This
+does not mean that income or mortality itself must be normally distributed;
+the plot concerns conditional errors around the fitted line.
+:::
+
+### I — Independence
+
+::: {.callout-important title="Question"}
+Could nearby counties have related errors, and can these data investigate that
+possibility?
+:::
+
+#### Poverty-rate model
+
+::: {.callout-note title="What to look for"}
+Independence depends on the study design and spatial relationships rather than
+the ordinary row order. Look for county identifiers, locations or adjacency
+information that would let us compare neighbouring residuals.
+:::
+
+Nearby counties can share air quality, smoking patterns, health services,
+policy and population composition. Assessing this needs county identifiers and
+spatial adjacency or coordinates.
+
+::: {.callout-tip title="Worked interpretation"}
+The data supplied here cannot establish independence. Neighbouring counties may
+share unmeasured conditions and therefore related errors, while CSV row order
+does not encode geographic distance. Without spatial information, standard
+errors and intervals should be interpreted cautiously.
+:::
+
+#### Income model
+
+Changing the predictor does not change how county observations were sampled
+or their geography. Possible spatial dependence therefore remains.
+
+## 4. Do a few counties strongly affect the fitted line?
+
+::: {.callout-important title="Question"}
+Do a small number of counties have enough influence to change the fitted
+association appreciably?
+:::
+
+Influence is separate from independence. Cook's distance measures how strongly
+one observation affects the fitted coefficients through its predictor value
+and residual.
+
+### Poverty-rate model
+
+::: {.callout-note title="What to look for"}
+Cook's distance combines an unusual predictor position with a large residual.
+The screening guide used in the plot is
+
+$$
+\frac{4}{n}.
+$$
+
+Values above it prompt investigation rather than automatic deletion.
+:::
+
+```{r}
+#| label: poverty-influence
+poverty_influence <- poverty_results |> mutate(observation = row_number())
+ggplot(poverty_influence, aes(x = observation, y = .cooksd)) +
+  geom_col() +
+  geom_hline(yintercept = 4 / nrow(poverty_influence),
+             linetype = "dashed") +
+  labs(x = "Observation", y = "Cook's distance",
+       title = "Which counties most influence the poverty-rate model?",
+       subtitle = "The dashed 4/n line is a screening guide") +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: poverty-most-influential
+poverty_influence |>
+  arrange(desc(.cooksd)) |>
+  select(observation, pov_norm, Mortality_Rate_num, .fitted, .resid, .cooksd) |>
+  slice_head(n = 5)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The largest poverty-model Cook's distances are around 0.043, with a small
+number of clear spikes. Inspect those county records, check their data quality
+and refit the model as a sensitivity check before considering any removal.
+:::
+
+### Income model
+
+::: {.callout-important title="Question"}
+Which income observations have the largest Cook's distances, and do their
+values reflect unusual income, large residuals or both?
+:::
+
+::: {.callout-note title="What to look for"}
+Compare the largest income values with the counties highlighted by the poverty
+model, then consider a sensitivity refit before drawing a conclusion.
+:::
+
+```{r}
+#| label: income-influence
+income_influence <- income_results |> mutate(observation = row_number())
+ggplot(income_influence, aes(x = observation, y = .cooksd)) +
+  geom_col() +
+  geom_hline(yintercept = 4 / nrow(income_influence),
+             linetype = "dashed") +
+  labs(x = "Observation", y = "Cook's distance",
+       title = "Which counties most influence the income model?",
+       subtitle = "The dashed 4/n line is a screening guide") +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: income-most-influential
+income_influence |>
+  arrange(desc(.cooksd)) |>
+  select(observation, med_income, Mortality_Rate_num,
+         .fitted, .resid, .cooksd) |>
+  slice_head(n = 5)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+The income model also has a few Cook's-distance spikes worth checking. The
+counties need not be the same as those flagged by poverty because leverage
+depends on the predictor. The screening threshold does not direct us to delete
+any observation; it identifies cases for contextual and sensitivity checks.
+:::
+
+## 5. Does logging the predictor improve the model?
+
+::: {.callout-important title="Question"}
+Does logging poverty or income reduce the diagnostic problems enough to make a
+more useful model?
+:::
+
+Logging a predictor can straighten a curved relationship while leaving the
+response on its original mortality scale. In the model
+
+$$
+y=a+b\log(x),
+$$
+
+a 1% increase in the predictor is associated approximately with
+
+$$
+0.01b
+$$
+
+units of the response.
+
+### Log-poverty model
+
+::: {.callout-note title="What to look for"}
+Compare the linear and log-predictor models on the same counties. Inspect
+curvature, residual magnitude, tail behaviour and influential observations
+before choosing on the basis of R-squared alone.
+:::
+
+```{r}
+#| label: fit-log-poverty
+poverty_comparison_data <- cancer_clean |> filter(pov_norm > 0)
+poverty_linear_same_rows <- lm(
+  Mortality_Rate_num ~ pov_norm, poverty_comparison_data
+)
+poverty_log_model <- lm(
+  Mortality_Rate_num ~ log(pov_norm), poverty_comparison_data
+)
+stopifnot(nobs(poverty_linear_same_rows) == nobs(poverty_log_model))
+tibble(
+  model = c("Linear predictor", "Log predictor"),
+  observations = c(nobs(poverty_linear_same_rows), nobs(poverty_log_model)),
+  r_squared = c(glance(poverty_linear_same_rows)$r.squared,
+                glance(poverty_log_model)$r.squared),
+  residual_sd = c(glance(poverty_linear_same_rows)$sigma,
+                  glance(poverty_log_model)$sigma)
+)
+```
+
+```{r}
+#| label: log-poverty-interpretation
+log_poverty_slope <- coef(poverty_log_model)[["log(pov_norm)"]]
+tibble(
+  approximate_change_for_one_percent_more_poverty =
+    0.01 * log_poverty_slope
+)
+```
+
+```{r}
+#| label: log-poverty-diagnostics
+augment(poverty_log_model) |>
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.3, size = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(x = "Fitted mortality", y = "Residual (deaths per 100,000)",
+       title = "Residual pattern after logging poverty") +
+  theme_minimal(base_size = 13)
+```
+
+::: {.callout-tip title="Worked interpretation"}
+Logging poverty raises R-squared modestly, from about 0.158 to 0.171, and makes
+the residual smooth somewhat closer to zero over the central range. Changing
+spread, tail departures and influential observations remain. In
+
+$$
+y=a+b\log(x),
+$$
+
+multiplying poverty by 1.01 changes fitted mortality by exactly
+
+$$
+b\log(1.01),
+$$
+
+which is approximately
+
+$$
+0.01b
+$$
+
+deaths per 100,000. Spatial dependence and performance on new counties remain
+unresolved.
+:::
+
+### Log-income model
+
+::: {.callout-important title="Question"}
+Does the log-income model improve the residual pattern and fit on the same
+counties, and how would we interpret a 1% relative income increase?
+:::
+
+::: {.callout-note title="What to look for"}
+Check that both models use identical observations. Compare curvature, changing
+spread, Q-Q tails, Cook's-distance spikes and overall fit rather than relying
+on one diagnostic.
+:::
+
+```{r}
+#| label: fit-log-income
+income_comparison_data <- cancer_clean |> filter(med_income > 0)
+income_linear_same_rows <- lm(
+  Mortality_Rate_num ~ med_income, income_comparison_data
+)
+income_log_model <- lm(
+  Mortality_Rate_num ~ log(med_income), income_comparison_data
+)
+stopifnot(nobs(income_linear_same_rows) == nobs(income_log_model))
+tibble(
+  model = c("Linear predictor", "Log predictor"),
+  observations = c(nobs(income_linear_same_rows), nobs(income_log_model)),
+  r_squared = c(glance(income_linear_same_rows)$r.squared,
+                glance(income_log_model)$r.squared),
+  residual_sd = c(glance(income_linear_same_rows)$sigma,
+                  glance(income_log_model)$sigma)
+)
+```
+
+```{r}
+#| label: log-income-interpretation
+log_income_slope <- coef(income_log_model)[["log(med_income)"]]
+tibble(
+  approximate_change_for_one_percent_more_income =
+    0.01 * log_income_slope
+)
+```
+
+```{r}
+#| label: log-income-diagnostics
+augment(income_log_model) |>
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.3, size = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(x = "Fitted mortality", y = "Residual (deaths per 100,000)",
+       title = "Residual pattern after logging income") +
+  theme_minimal(base_size = 13)
+```
+
+The comparison uses the same positive-income counties in both models. The
+ordered model label keeps the four diagnostic figures directly comparable.
+
+```{r}
+#| label: log-income-comparison-prep
+income_comparison_results <- bind_rows(
+  augment(income_linear_same_rows) |> mutate(model = "Linear predictor"),
+  augment(income_log_model) |> mutate(model = "Log predictor")
+) |>
+  mutate(
+    model = factor(model, levels = c("Linear predictor", "Log predictor")),
+    observation = rep(seq_len(nrow(income_comparison_data)), 2)
+  )
+```
+
+```{r}
+#| label: log-income-diagnostics-comparison
+#| fig-cap: "Residuals versus fitted values for the linear and log-income models."
+#| fig-alt: "Two faceted residual plots comparing linear and log income predictors."
+#| fig-width: 9
+#| fig-height: 4.5
+#| out-width: "100%"
+ggplot(income_comparison_results, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.2, size = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~ model, nrow = 1) +
+  labs(x = "Fitted mortality", y = "Residual (deaths per 100,000)") +
+  theme_minimal(base_size = 12)
+```
+
+```{r}
+#| label: log-income-scale-location
+#| fig-cap: "Scale-location diagnostics for the two income models."
+#| fig-alt: "Faceted scale-location plots showing residual magnitude against fitted mortality."
+#| fig-width: 9
+#| fig-height: 4.5
+#| out-width: "100%"
+ggplot(income_comparison_results,
+       aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point(alpha = 0.2, size = 0.5) +
+  geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~ model, nrow = 1) +
+  labs(x = "Fitted mortality", y = "Square root of absolute standardized residual") +
+  theme_minimal(base_size = 12)
+```
+
+```{r}
+#| label: log-income-qq
+#| fig-cap: "Normal Q-Q diagnostics for the two income models."
+#| fig-alt: "Faceted Q-Q plots comparing theoretical normal quantiles with standardized residuals."
+#| fig-width: 9
+#| fig-height: 4.5
+#| out-width: "100%"
+ggplot(income_comparison_results, aes(sample = .std.resid)) +
+  stat_qq(alpha = 0.2, size = 0.6) +
+  stat_qq_line() +
+  facet_wrap(~ model, nrow = 1) +
+  labs(x = "Theoretical normal quantiles", y = "Ordered standardized residuals") +
+  theme_minimal(base_size = 12)
+```
+
+```{r}
+#| label: log-income-influence
+#| fig-cap: "Cook's distances for the two income models."
+#| fig-alt: "Faceted Cook's-distance plots with a 4 over n screening line."
+#| fig-width: 9
+#| fig-height: 4.5
+#| out-width: "100%"
+ggplot(income_comparison_results, aes(x = observation, y = .cooksd)) +
+  geom_col(width = 1, alpha = 0.55) +
+  geom_hline(yintercept = 4 / nrow(income_comparison_data),
+             linetype = "dashed") +
+  facet_wrap(~ model, nrow = 1) +
+  labs(x = "Observation index (same counties in both panels)",
+       y = "Cook's distance") +
+  theme_minimal(base_size = 12)
+```
+
+| Evidence | Linear predictor | Log predictor | Interpretation |
+|:--|:--|:--|:--|
+| Residual curvature | Smooth above zero at low fitted values and below in the middle | Closer to zero over much of the range | Logging reduces, but does not eliminate, curvature. |
+| Changing residual magnitude | Spread changes across fitted values | U-shape and high-end rise remain | Interval precision still varies. |
+| Q-Q tail departures | Both tails depart | Both tails depart | Normal-error approximation remains imperfect. |
+| Influential observations | A few Cook's-distance spikes | A few spikes remain | Inspect records and sensitivity before deletion. |
+| R-squared and residual SD | 0.200; larger SD | 0.217; smaller SD | Log model improves fit modestly on identical rows. |
+
+::: {.callout-tip title="Worked interpretation"}
+The log-income model raises R-squared from about 0.200 to 0.217 and reduces the
+residual standard deviation. Its residual smooth is closer to zero across much
+of the range, although changing spread, tail departures and Cook's-distance
+spikes remain. A 1% income increase is associated approximately with
+-0.263 deaths per 100,000; that is a change in
+mortality units rather than a percentage change in mortality.
+:::
+
+## 6. Which model would we use, and with what limitations?
+
+::: {.callout-important title="Question"}
+Which income model would we use, and what limitations must accompany that
+recommendation?
+:::
+
+::: {.callout-note title="What to look for"}
+Weigh linearity, equal variance, normality, influence and relative fit on the
+same counties. Include the unresolved independence concern and the lack of
+out-of-sample validation.
+:::
+
+::: {.callout-tip title="Worked interpretation"}
+The log-income model is a reasonable recommendation: its R-squared improves from
+about 0.200 to 0.217 and its residual smooth is closer to zero over much of the
+observed range. The scale-location plot still shows changing spread, both Q-Q
+tails depart from the reference line, and Cook's-distance spikes deserve
+investigation. Possible spatial dependence and the lack of validation on new
+counties remain unresolved. The simpler linear model could also be defended if
+those modest improvements do not outweigh its more direct interpretation.
+:::
+
+## Conclusion
+
+The Week 11 associations remain informative, but the diagnostics qualify how
+confidently the models support inference and prediction. Neither model gives a
+mechanical pass or fail: the evidence points to modest curvature, changing
+spread, non-normal tails, influential counties and possible spatial dependence.
+Logging a predictor improves some features without resolving them all.
+
+::: {.callout-tip title="Optional question"}
+If a transformation improves the diagnostics on these counties, does that
+guarantee better predictions for new counties?
+
+No. Better in-sample diagnostics show that the transformed model represents
+these counties more suitably in some respects. Prediction for new counties
+must be assessed using counties that did not determine the fitted model, and it
+can still be weakened by population differences, changing relationships or
+unresolved spatial dependence.
+:::

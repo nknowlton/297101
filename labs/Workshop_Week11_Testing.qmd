@@ -1,0 +1,574 @@
+---
+title: "Workshop Week 11: Regression Testing"
+subtitle: "Testing associations and making predictions"
+author:
+  - name: "Nick Knowlton"
+  - name: "297.101 Statistical Data Science"
+date-meta: "Spring 2026"
+format:
+  html:
+    toc: true
+    code-tools: true
+    code-copy: true
+    code-block-bg: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor:
+  markdown:
+    wrap: 72
+resources:
+  - regression/cancer_data.csv.gz
+---
+
+::: {.callout-note}
+## Today's question
+
+What can county data tell us about the association between poverty, median
+income and lung-cancer mortality?
+
+For each new method, first work through the **Demonstration** using poverty
+rate. Then complete **Your turn** using median income. The instructor leads
+the Demonstration; run that code and discuss it before starting Your turn.
+
+Discuss each demonstration before opening its worked interpretation. Then
+complete Your turn using the demonstration as your template.
+:::
+
+## Learning objectives
+
+By the end of this workshop you should be able to:
+
+- interpret coefficients, confidence intervals and p-values;
+- connect residual variance with \(R^2\);
+- make predictions with confidence and prediction intervals; and
+- identify extrapolation and limits of an observational model.
+
+## 1. Prepare and explore the data (20 minutes)
+
+```{r}
+#| label: setup
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(purrr)
+library(broom)
+library(GGally)
+
+cancer <- read_csv("regression/cancer_data.csv.gz", show_col_types = FALSE)
+
+cancer_clean <- cancer |>
+  select(Mortality_Rate_num, all_poverty, med_income, popestimate2015) |>
+  filter(if_all(everything(), is.finite), popestimate2015 > 0) |>
+  mutate(
+    pov_norm = all_poverty / popestimate2015 * 100000,
+    poverty_percent = pov_norm / 1000
+  )
+
+tibble(rows_in_source = nrow(cancer), rows_retained = nrow(cancer_clean))
+```
+
+Each row represents one US county with complete values for today's variables.
+The source combines lung-cancer incidence and mortality information from the
+National Cancer Institute's SEER programme with socioeconomic measures from
+the US Census Bureau's American Community Survey. The data were preprocessed
+following [Nick Rippner's cancer-analysis tutorial](https://data.world/nrippner/cancer-analysis-hackathon-challenge).
+You can [download the supplied data file](regression/cancer_data.csv.gz).
+These are observational county-level data, so a fitted association does not
+show that changing poverty or income would cause mortality to change.
+
+| Variable | Meaning | Units |
+|:--|:--|:--|
+| `Mortality_Rate_num` | Lung-cancer mortality rate | deaths per 100,000 people |
+| `all_poverty` | Residents below the poverty threshold | people |
+| `pov_norm` | Population-adjusted poverty count | people per 100,000 |
+| `poverty_percent` | Population-adjusted poverty rate | percent |
+| `med_income` | Median household income | US dollars |
+
+### Demonstration: why adjust the poverty count?
+
+A count of 10,000 people in poverty means something different in a county of
+50,000 people than in a county of one million people:
+
+```{r}
+#| label: count-rate-example
+tibble(
+  county = c("County A", "County B"),
+  all_poverty = c(10000, 10000),
+  population = c(50000, 1000000)
+) |>
+  mutate(
+    poverty_per_100000 = all_poverty / population * 100000,
+    poverty_percent = poverty_per_100000 / 1000
+  )
+```
+
+::: {.callout-important title="Discuss"}
+The two counties have the same poverty count. How different are their poverty
+percentages? What does population adjustment change about the predictor?
+:::
+
+::: {#wk11-answer-poverty-counts .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+The same count represents 20% poverty in County A but only 1% in County B.
+Dividing by population changes the predictor from a mixture of county size and
+poverty into a comparable rate. A predictor and response do not need matching
+units for regression: the units determine how we interpret the slope.
+:::
+
+The response and predictor need not share units. Adjustment matters because it
+changes the predictor from county size mixed with poverty into the proportion
+of residents in poverty.
+
+### Demonstration: read a draftsman plot
+
+The diagonal shows distributions, the lower panels show scatterplots, and the
+upper panels show correlations.
+
+```{r}
+#| label: draftsman-plot
+#| fig-cap: "Distributions and pairwise relationships among poverty rate, median income and lung-cancer mortality."
+#| fig-alt: "A three by three matrix with distributions on the diagonal, scatterplots below and correlations above."
+#| fig-width: 9
+#| fig-height: 9
+#| out-width: "100%"
+draftsman_data <- cancer_clean |>
+  transmute(
+    `Poverty (%)` = poverty_percent,
+    `Median income ($)` = med_income,
+    `Mortality (deaths per 100,000)` = Mortality_Rate_num
+  )
+
+draftsman_plot <- ggpairs(
+  draftsman_data,
+  progress = FALSE,
+  diag = list(continuous = wrap("densityDiag", alpha = 0.5)),
+  lower = list(continuous = wrap("points", alpha = 0.25, size = 0.55)),
+  upper = list(continuous = wrap("cor", size = 4, stars = FALSE))
+) + theme_minimal(base_size = 11)
+
+print(draftsman_plot)
+```
+
+::: {.callout-note title="What to look for"}
+The diagonal panels show distributions, the lower panels show scatterplots and
+the upper panels show correlations. In the lower-left panel, mortality is the
+vertical axis and poverty percentage is the horizontal axis.
+:::
+
+::: {.callout-important title="Discuss"}
+What direction and strength do you see in the poverty–mortality panel? Does the
+cloud look tight enough for poverty alone to predict mortality precisely?
+:::
+
+::: {#wk11-answer-draftsman .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+The lower-left panel plots mortality against poverty percentage. It shows a
+moderate positive association: counties with higher poverty tend to have higher
+mortality, but the cloud is broad. The upper panel reports approximately
+\(r=0.398\), confirming positive but not strong linear association. The
+correlation summarises direction and linear strength; the plot shows spread,
+possible curvature and unusual observations that a single number hides.
+:::
+
+Describe the direction, form and strength of the poverty–mortality
+relationship. What does its correlation add to the scatterplot?
+
+### Your turn: explore median income
+
+Describe the income–mortality relationship from the matrix. Then make a
+full-size scatterplot with a LOESS smooth and calculate its correlation.
+
+```{r}
+#| label: income-exploration
+#| fig-cap: "Lung-cancer mortality and median household income."
+#| fig-alt: "Scatterplot of income and mortality with a smooth curve."
+#| out-width: "100%"
+# Use med_income and Mortality_Rate_num.
+# Add points, a LOESS smooth, labels with units and theme_minimal().
+# Your code here
+```
+
+```{r}
+#| label: income-correlation
+# Calculate the correlation between med_income and Mortality_Rate_num.
+# Your code here
+```
+
+How does the full-size plot change or strengthen your description?
+
+## 2. Fit and interpret the models (20 minutes)
+
+### Demonstration: poverty-rate model
+
+The coefficient table has one row for the intercept and one for the predictor.
+Estimate is the fitted change in mortality per one predictor unit (or the
+fitted value when the predictor is zero); Std. Error measures the sampling
+uncertainty of that estimate. The t statistic and p-value use these columns.
+
+The slope is tiny per one unit of `pov_norm`, so interpret a change of 10,000
+per 100,000: **10 percentage points**.
+
+```{r}
+#| label: fit-poverty-model
+poverty_model <- lm(Mortality_Rate_num ~ pov_norm, data = cancer_clean)
+tidy(poverty_model)
+```
+
+```{r}
+#| label: interpret-poverty-slope
+poverty_slope <- coef(poverty_model)[["pov_norm"]]
+tibble(
+  change_in_poverty_percentage_points = 10,
+  fitted_change_in_mortality = poverty_slope * 10000
+)
+```
+
+::: {.callout-note title="What to look for"}
+Interpret the slope using a meaningful 10-percentage-point change, not one
+person per 100,000. Check whether zero poverty is represented before using the
+intercept practically.
+:::
+
+::: {.callout-important title="Discuss"}
+What mortality difference does the slope imply for 10 percentage points? Is the
+intercept a realistic county comparison? Does this show causation?
+:::
+
+::: {#wk11-answer-poverty-coefficients .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+The poverty slope implies about 9.13 more deaths per 100,000 for a 10
+percentage-point higher poverty rate. Zero poverty is outside the observed
+range, so the intercept is mainly a mathematical anchor. Because these are
+observational county data, the fitted association can reflect confounding and
+does not show that changing poverty would cause mortality to change.
+:::
+
+Interpret the sign and size in context. Why is this an association rather
+than a causal effect? Is the intercept useful for counties in these data?
+
+### Your turn: income model
+
+Fit `Mortality_Rate_num ~ med_income` as `income_model`, show its coefficient
+table, and calculate the fitted mortality difference for $10,000 of income.
+
+```{r}
+#| label: fit-income-model
+# Use fit-poverty-model as your template.
+# Your code here
+```
+
+```{r}
+#| label: interpret-income-slope
+# Extract the med_income slope and multiply it by 10000.
+# Your code here
+```
+
+Interpret the result in deaths per 100,000. Why would comparing the two raw
+slope coefficients be misleading?
+
+## 3. Confidence intervals and hypothesis tests (30 minutes)
+
+### Demonstration: poverty-rate slope
+
+A 95% confidence interval uses the slope, its standard error and a t critical
+value. Every value below comes from the fitted model. The calculation is
+
+\[
+\widehat\beta_1 \pm t_{0.975,n-2}\operatorname{SE}(\widehat\beta_1).
+\]
+
+Here \(\widehat\beta_1\) is the estimated slope, SE is its standard error,
+the critical value \(t_{0.975,n-2}\) leaves 2.5% in each tail, and
+df.residual() supplies \(n-2\) because the intercept and slope are estimated.
+
+```{r}
+#| label: poverty-manual-confidence-interval
+poverty_slope_row <- tidy(poverty_model) |> filter(term == "pov_norm")
+critical_t <- qt(0.975, df = df.residual(poverty_model))
+
+poverty_ci_manual <- poverty_slope_row |>
+  transmute(
+    lower = estimate - critical_t * std.error,
+    estimate,
+    upper = estimate + critical_t * std.error
+  )
+
+poverty_ci_manual
+confint(poverty_model, "pov_norm", level = 0.95)
+```
+
+::: {.callout-note title="What to look for"}
+The interval is estimate ± a t critical value times its standard error. Use
+`df.residual()` because the fitted intercept and slope consume two degrees of
+freedom.
+:::
+
+::: {.callout-important title="Discuss"}
+Does the interval include zero? What range does it give for a 10-percentage-point
+difference? What does 95% refer to over repeated samples?
+:::
+
+::: {#wk11-answer-poverty-confidence-interval .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+The slope interval is approximately 0.000835 to 0.000991 per poverty unit.
+Multiplying by 10,000 gives 8.35 to 9.91 deaths per 100,000 for a
+10-percentage-point difference. Zero is not in the interval. In repeated samples
+from the same process, approximately 95% of intervals constructed this way
+would contain the population slope; this is not a 95% probability that this
+particular fixed slope lies inside the interval.
+:::
+
+Multiply all three values by 10,000 to interpret them for a
+10-percentage-point difference. Does the interval include zero?
+
+```{r}
+#| label: poverty-manual-p-value
+poverty_t <- poverty_slope_row$estimate / poverty_slope_row$std.error
+poverty_p_manual <- 2 * pt(
+  -abs(poverty_t),
+  df = df.residual(poverty_model)
+)
+tibble(
+  t_statistic = poverty_t,
+  manual_p_value = poverty_p_manual,
+  tidy_p_value = poverty_slope_row$p.value
+)
+```
+
+::: {.callout-important title="Discuss"}
+What null hypothesis produces this t statistic? What does the two-sided
+p-value measure, and what does it not establish?
+:::
+
+::: {#wk11-answer-poverty-p-value .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+The test is \(H_0:\beta_1=0\). The t statistic compares the estimated slope with
+its standard error, and the two-sided p-value is the probability, under the
+null and model assumptions, of a result at least this far from zero in either
+direction. Its extremely small value is strong evidence against a zero slope
+under the model. It does not establish causation, practical importance or that
+the model assumptions are correct.
+:::
+
+The p-value tests \(H_0: \beta_1=0\). State what it says about evidence
+against a zero slope. It does not measure effect size or practical importance.
+
+### Your turn: income slope
+
+Construct the 95% confidence interval and two-sided p-value for the income
+slope. Check the results against `confint()` and `tidy()`.
+
+```{r}
+#| label: income-manual-confidence-interval
+# Extract the med_income row and calculate estimate +/- critical_t * SE.
+# Your code here
+```
+
+```{r}
+#| label: income-manual-p-value
+# Calculate the t statistic and its two-sided p-value.
+# Your code here
+```
+
+Interpret the interval for a $10,000 income difference. What does the p-value
+establish, and what does it leave unanswered?
+
+## 4. Connect residual variance and R-squared (15 minutes)
+
+### Demonstration: poverty-rate model
+
+With an intercept, the fraction of sample variation explained is
+\(1-\operatorname{Var}(e)/\operatorname{Var}(y)\).
+
+```{r}
+#| label: poverty-r-squared
+poverty_results <- augment(poverty_model)
+poverty_results |>
+  summarise(
+    response_variance = var(Mortality_Rate_num),
+    residual_variance = var(.resid),
+    variance_explained = 1 - residual_variance / response_variance
+  ) |>
+  mutate(model_r_squared = glance(poverty_model)$r.squared)
+```
+
+::: {.callout-important title="Discuss"}
+How do residual variance and response variance combine to form R-squared? What
+percentage remains unexplained?
+:::
+
+::: {#wk11-answer-poverty-r-squared .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+The ratio \(1-\operatorname{Var}(e)/\operatorname{Var}(y)\) agrees with the
+reported \(R^2\) because least squares decomposes response variation into fitted
+and residual parts. Here the poverty model explains about 15.8% of sample
+mortality variation, leaving about 84.2% associated with other measured or
+unmeasured differences and random variation. Explained variation is descriptive,
+not a causal percentage.
+:::
+
+Why do the two versions agree apart from rounding? What remains unexplained?
+
+### Your turn: compare the models
+
+Repeat the calculation for `income_model`. Both models use the same response
+and the same retained counties.
+
+```{r}
+#| label: income-r-squared
+# Augment income_model and calculate both versions of R-squared.
+# Your code here
+```
+
+Which model accounts for more observed variation? Does that identify a cause?
+
+## 5. Prediction and uncertainty (25 minutes)
+
+Before predicting, inspect the predictor support so you can distinguish
+interpolation from extrapolation.
+
+```{r}
+#| label: observed-ranges
+cancer_clean |>
+  summarise(
+    minimum_poverty_percent = min(poverty_percent),
+    maximum_poverty_percent = max(poverty_percent),
+    minimum_income = min(med_income),
+    maximum_income = max(med_income)
+  )
+```
+
+### Demonstration: predict at 20% poverty
+
+Twenty percent poverty equals 20,000 people per 100,000.
+
+```{r}
+#| label: poverty-point-prediction
+poverty_20 <- tibble(pov_norm = 20000)
+poverty_coef <- coef(poverty_model)
+manual_prediction <- poverty_coef[["(Intercept)"]] +
+  poverty_coef[["pov_norm"]] * poverty_20$pov_norm
+
+tibble(manual_prediction)
+predict(poverty_model, newdata = poverty_20)
+```
+
+::: {.callout-important title="Discuss"}
+Why is 20% represented by 20,000 in this model? What quantity is predicted?
+:::
+
+::: {#wk11-answer-poverty-point-prediction .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+Twenty percent of 100,000 is 20,000 people per 100,000, matching the units of
+`pov_norm`. The manual fitted equation and `predict()` agree at about 56.61
+deaths per 100,000. This is a predicted county mortality rate, not a prediction
+about one individual person.
+:::
+
+A confidence interval estimates mean mortality among counties at this
+predictor value. A prediction interval is for one additional county and also
+includes county-to-county variation, so it is wider.
+
+```{r}
+#| label: poverty-intervals
+predict(poverty_model, poverty_20, interval = "confidence", level = 0.95)
+predict(poverty_model, poverty_20, interval = "prediction", level = 0.95)
+```
+
+```{r}
+#| label: poverty-confidence-levels
+map_dfr(c(0.90, 0.95, 0.99), \(confidence_level) {
+  as_tibble(predict(
+    poverty_model, poverty_20,
+    interval = "prediction", level = confidence_level
+  )) |>
+    mutate(level = confidence_level, .before = 1)
+})
+```
+
+::: {.callout-important title="Discuss"}
+Which interval estimates the mean mortality and which covers one additional
+county? Which is wider? How does width change from 90% to 99%?
+:::
+
+::: {#wk11-answer-poverty-intervals .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+The confidence interval describes the mean mortality for counties at 20%
+poverty. The prediction interval describes one additional county and includes
+individual county variation, so it is wider. Raising confidence from 90% to
+95% to 99% increases the critical value and therefore widens both kinds of
+interval. Wider intervals provide more coverage at the cost of precision.
+:::
+
+What happens to interval width as confidence increases?
+
+### Your turn: predict at $50,000 income
+
+Calculate the point prediction manually and with `predict()`. Then obtain 95%
+confidence and prediction intervals and 90%, 95% and 99% prediction intervals.
+
+```{r}
+#| label: income-point-prediction
+# Create income_50000, calculate manually, and check with predict().
+# Your code here
+```
+
+```{r}
+#| label: income-intervals
+# Calculate 95% confidence and prediction intervals.
+# Your code here
+```
+
+```{r}
+#| label: income-confidence-levels
+# Use poverty-confidence-levels as your template.
+# Your code here
+```
+
+Explain which 95% interval is wider and why.
+
+### Demonstration: check extrapolation
+
+```{r}
+#| label: poverty-extrapolation
+predict(
+  poverty_model,
+  newdata = tibble(pov_norm = c(0, 75000)),
+  interval = "prediction"
+)
+```
+
+::: {.callout-important title="Discuss"}
+Compare 0% and 75% with the observed poverty range. Why can R return a number
+without that number being well supported by the data?
+:::
+
+::: {#wk11-answer-poverty-extrapolation .callout-tip collapse="true" title="Worked interpretation — open after discussion"}
+Observed poverty ranges from about 2.60% to 46.49%. Both 0% and 75% are outside
+that range, so these are extrapolations. R applies the fitted equation beyond
+the observed data, but the straight-line relationship and its uncertainty have
+not been checked there. Such predictions should be treated as model scenarios,
+not evidence-based estimates for actual counties.
+:::
+
+Both 0% and 75% poverty lie outside the observed range. R calculates results,
+but the fitted relationship has not been checked there. Why should these
+predictions be treated cautiously?
+
+## 6. Independent interpretation (10 minutes)
+
+Write a short conclusion about the income model including:
+
+1. the association per $10,000 and its 95% confidence interval;
+2. the p-value and what it means;
+3. the prediction and 95% prediction interval at $50,000;
+4. the model's \(R^2\); and
+5. one limitation of these observational county data.
+
+Avoid causal language and distinguish statistical evidence from practical
+importance.
+
+## Key takeaways
+
+- Population adjustment turns a poverty count into a comparable county rate.
+- Prediction intervals include individual variation and are wider than
+  confidence intervals for the mean.
+- A p-value addresses evidence against a zero slope; \(R^2\) describes
+  explained sample variation.
+- Predictions outside the observed range rely on unchecked assumptions.

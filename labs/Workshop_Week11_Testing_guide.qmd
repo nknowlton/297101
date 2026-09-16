@@ -1,0 +1,647 @@
+---
+title: "Workshop Week 11: Regression Testing"
+subtitle: "Answer guide — testing associations and making predictions"
+author:
+  - name: "Nick Knowlton"
+  - name: "297.101 Statistical Data Science"
+date-meta: "Spring 2026"
+format:
+  html:
+    toc: true
+    code-tools: true
+    code-copy: true
+    code-block-bg: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor:
+  markdown:
+    wrap: 72
+resources:
+  - regression/cancer_data.csv.gz
+---
+
+Cancer mortality is not evenly distributed across places. Comparing US
+counties lets us ask whether counties with greater poverty or lower median
+income also tend to have higher lung-cancer mortality. We might find a clear
+trend, substantial differences between counties with similar socioeconomic
+conditions, or a relationship that a straight line summarises poorly.
+
+The broader project assembled open data on socioeconomic conditions, cancer
+incidence, mortality and clinical trials by county. Noah Rippner's
+[original data-preparation code](https://github.com/nrippner/can_clin_trails_prep_r/blob/master/extract_zips_10.py)
+shows how records from different sources were cleaned and joined through county
+identifiers. Those joins make this investigation possible: mortality and
+socioeconomic measurements must refer to the same place before their
+relationship can be studied.
+
+::: {.callout-note}
+## Today's question
+
+What can county data tell us about the association between poverty, median
+income and lung-cancer mortality?
+
+:::
+
+This analysis develops two related ideas. A fitted line estimates an average
+association across counties; a prediction for another county must also allow
+for the large differences that remain between counties. The results therefore
+move from visible patterns to effect sizes, uncertainty, variation explained
+and prediction. Because the data are observational and county-level, they
+describe associations between places rather than causes or outcomes for
+individual people.
+
+## 1. What patterns appear across counties?
+
+::: {.callout-important title="Question"}
+What does each row represent, and are the variables on scales that allow
+meaningful comparisons between counties?
+:::
+
+::: {.callout-note title="What to look for"}
+Check how many rows are retained and keep track of the units. A raw poverty
+count still contains information about county population; a rate supports a
+fairer comparison between counties of different sizes.
+:::
+
+```{r}
+#| label: setup
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(purrr)
+library(broom)
+library(GGally)
+
+cancer <- read_csv("regression/cancer_data.csv.gz", show_col_types = FALSE)
+cancer_clean <- cancer |>
+  select(Mortality_Rate_num, all_poverty, med_income, popestimate2015) |>
+  filter(if_all(everything(), is.finite), popestimate2015 > 0) |>
+  mutate(
+    pov_norm = all_poverty / popestimate2015 * 100000,
+    poverty_percent = pov_norm / 1000
+  )
+tibble(rows_in_source = nrow(cancer), rows_retained = nrow(cancer_clean))
+```
+
+| Variable | Meaning | Units |
+|:--|:--|:--|
+| `Mortality_Rate_num` | Lung-cancer mortality rate | deaths per 100,000 people |
+| `all_poverty` | Residents below the poverty threshold | people |
+| `pov_norm` | Population-adjusted poverty count | people per 100,000 |
+| `poverty_percent` | Population-adjusted poverty rate | percent |
+| `med_income` | Median household income | US dollars |
+
+#### Result
+
+All 2,809 rows are retained. Each row represents a US county with complete
+values for these variables. The supplied [data file](regression/cancer_data.csv.gz)
+combines lung-cancer information with US Census Bureau socioeconomic measures.
+
+### Why use a poverty rate?
+
+::: {.callout-important title="Question"}
+If two counties each have 10,000 residents in poverty, do they have the same
+level of poverty?
+:::
+
+::: {.callout-note title="What to look for"}
+Compare the percentages after dividing by population. The predictor and
+response do not need matching units; the units determine how the slope will be
+interpreted.
+:::
+
+```{r}
+#| label: count-rate-example
+tibble(
+  county = c("County A", "County B"),
+  all_poverty = c(10000, 10000),
+  population = c(50000, 1000000)
+) |>
+  mutate(
+    poverty_per_100000 = all_poverty / population * 100000,
+    poverty_percent = poverty_per_100000 / 1000
+  )
+```
+
+#### Result
+
+The same count represents 20% poverty in County A and 1% in County B. Dividing
+by population changes the predictor from a mixture of county size and poverty
+into a comparable rate.
+
+### Poverty, income and mortality together
+
+::: {.callout-important title="Question"}
+Which pairs of variables appear related, and how much spread remains around
+each trend?
+:::
+
+::: {.callout-note title="What to look for"}
+Read distributions on the diagonal, scatterplots below and correlations above.
+In each scatterplot, look for direction, form, strength and unusual points;
+the correlation only summarises linear direction and strength.
+:::
+
+```{r}
+#| label: draftsman-plot
+#| fig-cap: "Distributions and pairwise relationships among poverty rate, median income and lung-cancer mortality."
+#| fig-alt: "A three by three matrix with distributions on the diagonal, scatterplots below and correlations above."
+#| fig-width: 9
+#| fig-height: 9
+#| out-width: "100%"
+draftsman_data <- cancer_clean |>
+  transmute(
+    `Poverty (%)` = poverty_percent,
+    `Median income ($)` = med_income,
+    `Mortality (deaths per 100,000)` = Mortality_Rate_num
+  )
+draftsman_plot <- ggpairs(
+  draftsman_data,
+  progress = FALSE,
+  diag = list(continuous = wrap("densityDiag", alpha = 0.5)),
+  lower = list(continuous = wrap("points", alpha = 0.25, size = 0.55)),
+  upper = list(continuous = wrap("cor", size = 4, stars = FALSE))
+) + theme_minimal(base_size = 11)
+print(draftsman_plot)
+```
+
+#### Result
+
+Poverty and mortality have a moderate positive association
+(\(r=0.398\)). The cloud is broad: counties at a similar poverty rate can have
+quite different mortality rates, so poverty alone will not predict county
+mortality closely.
+
+### A closer look at median income
+
+::: {.callout-important title="Question"}
+Do counties with higher median income tend to have lower lung-cancer mortality?
+:::
+
+::: {.callout-note title="What to look for"}
+Use the full-sized plot to judge the downward trend, spread and possible
+curvature. Then compare that visual evidence with the correlation.
+:::
+
+```{r}
+#| label: income-exploration
+#| fig-cap: "Lung-cancer mortality and median household income."
+#| fig-alt: "Scatterplot of income and mortality with a generally decreasing smooth curve."
+#| out-width: "100%"
+ggplot(cancer_clean, aes(x = med_income, y = Mortality_Rate_num)) +
+  geom_point(alpha = 0.3, size = 0.8) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    x = "Median household income (US dollars)",
+    y = "Lung-cancer mortality (deaths per 100,000)",
+    title = "Do counties with higher median income have lower mortality?"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+```{r}
+#| label: income-correlation
+cancer_clean |>
+  summarise(income_mortality_correlation =
+              cor(med_income, Mortality_Rate_num))
+```
+
+#### Result
+
+The association is moderately negative (\(r=-0.447\)): counties with higher
+median income tend to have lower mortality. The considerable vertical spread
+shows that income alone does not determine a county's mortality rate.
+
+## 2. How large are the associations?
+
+### Poverty and mortality
+
+::: {.callout-important title="Question"}
+What difference in fitted mortality corresponds to a 10-percentage-point
+difference in poverty rate?
+:::
+
+The `tidy()` output reports an `Estimate` and `Std. Error` for each term. The
+estimate is the fitted coefficient in the units of the model; its standard
+error describes sampling uncertainty. These columns supply the quantities
+used for the t statistic, confidence interval and p-value.
+
+::: {.callout-note title="What to look for"}
+The model uses people in poverty per 100,000, so 10 percentage points is a
+change of 10,000 in `pov_norm`. Check whether the intercept describes a
+realistic county.
+:::
+
+```{r}
+#| label: fit-poverty-model
+poverty_model <- lm(Mortality_Rate_num ~ pov_norm, data = cancer_clean)
+tidy(poverty_model)
+```
+
+```{r}
+#| label: interpret-poverty-slope
+poverty_slope <- coef(poverty_model)[["pov_norm"]]
+tibble(
+  change_in_poverty_percentage_points = 10,
+  fitted_change_in_mortality = poverty_slope * 10000
+)
+```
+
+#### Result
+
+A 10-percentage-point higher poverty rate is associated with about 9.13 more
+deaths per 100,000. Zero poverty is outside the observed range, so the
+intercept is mainly mathematical. This slope describes an association between
+counties; it is not the effect of changing a county's poverty rate.
+
+### Income and mortality
+
+::: {.callout-important title="Question"}
+What difference in fitted mortality corresponds to a $10,000 difference in
+median household income?
+:::
+
+::: {.callout-note title="What to look for"}
+Rescale the small per-dollar coefficient before interpreting it. Raw poverty
+and income slopes cannot be compared as effect sizes because their predictor
+units differ.
+:::
+
+```{r}
+#| label: fit-income-model
+income_model <- lm(Mortality_Rate_num ~ med_income, data = cancer_clean)
+tidy(income_model)
+```
+
+```{r}
+#| label: interpret-income-slope
+income_slope <- coef(income_model)[["med_income"]]
+tibble(
+  change_in_income = 10000,
+  fitted_change_in_mortality = income_slope * 10000
+)
+```
+
+#### Result
+
+A $10,000 higher median income is associated with about 5.05 fewer deaths per
+100,000. This is an average difference between counties with different median
+incomes, not evidence that raising income would cause mortality to fall.
+
+## 3. How uncertain are those estimates?
+
+### Uncertainty in the poverty association
+
+::: {.callout-important title="Question"}
+What range of population slopes is compatible with the poverty estimate, and
+how strong is the evidence against no linear association?
+:::
+
+::: {.callout-note title="What to look for"}
+Compare the manual t interval with `confint()`, then check its units and whether
+it contains zero. The p-value is calculated under a zero-slope null and the
+model assumptions.
+:::
+
+```{r}
+#| label: poverty-manual-confidence-interval
+poverty_slope_row <- tidy(poverty_model) |> filter(term == "pov_norm")
+critical_t <- qt(0.975, df = df.residual(poverty_model))
+poverty_ci_manual <- poverty_slope_row |>
+  transmute(
+    lower = estimate - critical_t * std.error,
+    estimate,
+    upper = estimate + critical_t * std.error
+  )
+poverty_ci_manual
+confint(poverty_model, "pov_norm", level = 0.95)
+```
+
+For a fitted slope, the 95% confidence interval is
+
+$$
+\widehat{\beta}_1 \;\pm\; t^* \times
+\operatorname{SE}\!\left(\widehat{\beta}_1\right).
+$$
+
+Here \(\widehat{\beta}_1\) is the estimated slope and
+\(\operatorname{SE}(\widehat{\beta}_1)\) is its standard error. The critical
+value \(t^*\) leaves 2.5% in each tail of a t distribution with \(n-2\)
+degrees of freedom. The model has \(n-2\) residual degrees of freedom because
+it estimates two coefficients: the intercept and slope.
+
+```{r}
+#| label: poverty-manual-p-value
+poverty_t <- poverty_slope_row$estimate / poverty_slope_row$std.error
+poverty_p_manual <- 2 * pt(-abs(poverty_t), df.residual(poverty_model))
+tibble(
+  t_statistic = poverty_t,
+  manual_p_value = poverty_p_manual,
+  tidy_p_value = poverty_slope_row$p.value
+)
+```
+
+#### Result
+
+For 10 percentage points, the estimated mortality difference is 9.13 deaths
+per 100,000, with a 95% confidence interval from 8.35 to 9.91. The interval
+excludes zero and the p-value gives very strong evidence against a zero
+population slope under the model assumptions. In repeated sampling, about 95%
+of intervals constructed this way would contain the fixed population slope.
+Neither result establishes causation or practical importance.
+
+### Uncertainty in the income association
+
+::: {.callout-important title="Question"}
+Does the interval for the income slope include zero, and does the manual
+calculation agree with the model output?
+:::
+
+::: {.callout-note title="What to look for"}
+Check the signs of both interval endpoints and interpret the final interval per
+$10,000. Relate the p-value to a zero population slope rather than to the size
+or importance of the association.
+:::
+
+```{r}
+#| label: income-manual-confidence-interval
+income_slope_row <- tidy(income_model) |> filter(term == "med_income")
+income_critical_t <- qt(0.975, df = df.residual(income_model))
+income_ci_manual <- income_slope_row |>
+  transmute(
+    lower = estimate - income_critical_t * std.error,
+    estimate,
+    upper = estimate + income_critical_t * std.error
+  )
+income_ci_manual
+confint(income_model, "med_income", level = 0.95)
+```
+
+```{r}
+#| label: income-manual-p-value
+income_t <- income_slope_row$estimate / income_slope_row$std.error
+income_p_manual <- 2 * pt(-abs(income_t), df.residual(income_model))
+tibble(
+  t_statistic = income_t,
+  manual_p_value = income_p_manual,
+  tidy_p_value = income_slope_row$p.value
+)
+```
+
+#### Result
+
+For $10,000, the estimated difference is -5.05 deaths per 100,000, with a 95%
+confidence interval from -5.43 to -4.68. The manual and model calculations
+agree, the interval excludes zero, and the small p-value is strong evidence
+against a zero slope, subject to the model assumptions.
+
+## 4. How much variation remains?
+
+### Variation after fitting poverty
+
+::: {.callout-important title="Question"}
+How much of the observed variation in mortality does the poverty model account
+for, and how much remains between counties?
+:::
+
+::: {.callout-note title="What to look for"}
+Connect response variance, residual variance and the resulting proportion
+explained. A model can have a clearly nonzero slope while still leaving most
+county-to-county variation unexplained.
+:::
+
+```{r}
+#| label: poverty-r-squared
+poverty_results <- augment(poverty_model)
+poverty_results |>
+  summarise(
+    response_variance = var(Mortality_Rate_num),
+    residual_variance = var(.resid),
+    variance_explained = 1 - residual_variance / response_variance
+  ) |>
+  mutate(model_r_squared = glance(poverty_model)$r.squared)
+```
+
+#### Result
+
+The residual-variance calculation agrees with the reported \(R^2\). Poverty
+accounts for 15.8% of sample mortality variation, so 84.2% remains associated
+with other differences, unmeasured factors and random variation. This is a
+descriptive decomposition, not a causal claim.
+
+### Comparing poverty and income
+
+::: {.callout-important title="Question"}
+Which of the two single-predictor models accounts for more variation in these
+counties?
+:::
+
+::: {.callout-note title="What to look for"}
+Both models use the same response and the same counties, so their \(R^2\)
+values are directly comparable. Also consider whether either value suggests
+close prediction for an individual county.
+:::
+
+```{r}
+#| label: income-r-squared
+income_results <- augment(income_model)
+income_fit_summary <- income_results |>
+  summarise(
+    response_variance = var(Mortality_Rate_num),
+    residual_variance = var(.resid),
+    variance_explained = 1 - residual_variance / response_variance
+  ) |>
+  mutate(model_r_squared = glance(income_model)$r.squared)
+income_fit_summary
+```
+
+#### Result
+
+Income accounts for 20.0% of sample mortality variation, compared with 15.8%
+for poverty. Income is the stronger of these two single predictors by this
+measure, but about four-fifths of the variation remains unexplained. The
+comparison does not identify a cause.
+
+## 5. What can we predict for another county?
+
+### Staying within the observed data
+
+::: {.callout-important title="Question"}
+Which poverty rates and median incomes are supported by the observed counties?
+:::
+
+::: {.callout-note title="What to look for"}
+Check the predictor ranges before calculating a prediction. Values inside the
+range are interpolations; values outside it require the fitted line to continue
+where there are no supporting observations.
+:::
+
+```{r}
+#| label: observed-ranges
+cancer_clean |>
+  summarise(
+    minimum_poverty_percent = min(poverty_percent),
+    maximum_poverty_percent = max(poverty_percent),
+    minimum_income = min(med_income),
+    maximum_income = max(med_income)
+  )
+```
+
+#### Result
+
+Observed poverty ranges from 2.60% to 46.49%. The predictions at 20% poverty
+and $50,000 income below are within the corresponding observed ranges.
+
+### Mortality at 20% poverty
+
+::: {.callout-important title="Question"}
+What mortality rate does the poverty model predict at 20%, and why are there
+two different kinds of interval?
+:::
+
+::: {.callout-note title="What to look for"}
+Convert 20% to 20,000 people per 100,000 and compare manual substitution with
+`predict()`. A confidence interval describes mean mortality at this poverty
+rate; a prediction interval allows for another county's deviation from that
+mean. Both widen as the confidence level increases.
+:::
+
+```{r}
+#| label: poverty-point-prediction
+poverty_20 <- tibble(pov_norm = 20000)
+poverty_coef <- coef(poverty_model)
+manual_prediction <- poverty_coef[["(Intercept)"]] +
+  poverty_coef[["pov_norm"]] * poverty_20$pov_norm
+tibble(manual_prediction)
+predict(poverty_model, poverty_20)
+```
+
+```{r}
+#| label: poverty-intervals
+predict(poverty_model, poverty_20, interval = "confidence", level = 0.95)
+predict(poverty_model, poverty_20, interval = "prediction", level = 0.95)
+```
+
+```{r}
+#| label: poverty-confidence-levels
+map_dfr(c(0.90, 0.95, 0.99), \(confidence_level) {
+  as_tibble(predict(
+    poverty_model, poverty_20,
+    interval = "prediction", level = confidence_level
+  )) |> mutate(level = confidence_level, .before = 1)
+})
+```
+
+#### Result
+
+Manual substitution and `predict()` agree at 56.61 deaths per 100,000. The
+confidence interval for mean county mortality is narrower than the prediction
+interval for one additional county because the latter also includes
+county-to-county variation. Both intervals widen from 90% to 95% to 99%. This
+is a prediction of a county mortality rate, not an individual person's outcome.
+
+### Mortality at $50,000 median income
+
+::: {.callout-important title="Question"}
+How precisely can the model estimate average mortality at $50,000, and how
+precisely can it predict mortality for one county with that median income?
+:::
+
+::: {.callout-note title="What to look for"}
+Compare the point prediction with the two 95% intervals. The difference in
+their widths reveals the distinction between estimating a mean relationship
+and predicting one county.
+:::
+
+```{r}
+#| label: income-point-prediction
+income_50000 <- tibble(med_income = 50000)
+income_coef <- coef(income_model)
+income_manual_prediction <- income_coef[["(Intercept)"]] +
+  income_coef[["med_income"]] * income_50000$med_income
+tibble(income_manual_prediction)
+predict(income_model, income_50000)
+```
+
+```{r}
+#| label: income-intervals
+predict(income_model, income_50000, interval = "confidence", level = 0.95)
+predict(income_model, income_50000, interval = "prediction", level = 0.95)
+```
+
+```{r}
+#| label: income-confidence-levels
+map_dfr(c(0.90, 0.95, 0.99), \(confidence_level) {
+  as_tibble(predict(
+    income_model, income_50000,
+    interval = "prediction", level = confidence_level
+  )) |> mutate(level = confidence_level, .before = 1)
+})
+```
+
+#### Result
+
+At $50,000, fitted mortality is 51.58 deaths per 100,000. The 95% confidence
+interval for mean mortality is 51.10–52.06, while the 95% prediction interval
+for one county is 26.94–76.21. The average trend is estimated quite precisely,
+but income alone gives a much less precise prediction for another county.
+
+### What happens beyond the observed range?
+
+::: {.callout-important title="Question"}
+Can predictions at 0% and 75% poverty be trusted simply because R can calculate
+them?
+:::
+
+::: {.callout-note title="What to look for"}
+Compare both requested values with the observed range of 2.60% to 46.49%.
+Numerical output does not supply data where none were observed.
+:::
+
+```{r}
+#| label: poverty-extrapolation
+predict(
+  poverty_model,
+  newdata = tibble(pov_norm = c(0, 75000)),
+  interval = "prediction"
+)
+```
+
+#### Result
+
+Both values are extrapolations. R evaluates the fitted equation, but the data
+cannot show whether the line or its uncertainty behaves similarly beyond the
+observed poverty range.
+
+## Putting the results together
+
+Counties with $10,000 higher median income have an estimated 5.05 fewer
+lung-cancer deaths per 100,000, with a 95% confidence interval from -5.43 to
+-4.68 and strong evidence against a zero slope under the model. Yet income
+explains only 20.0% of sample mortality variation. At $50,000, the fitted mean
+is 51.58 and is estimated precisely, while the interval for another county is
+far wider at 26.94–76.21. A clear average association can therefore coexist
+with substantial uncertainty about an individual county.
+
+These patterns could reflect access to healthcare, smoking, age distributions,
+environmental exposure or other differences between counties. The models do
+not separate those explanations, and the observational data cannot show that
+changing poverty or income would itself change mortality.
+
+::: {.callout-tip title="Optional question"}
+If poverty and income are related, would including both necessarily improve
+predictions for new counties?
+
+Not necessarily. The two predictors may contain overlapping information, so a
+model fitted to the current data can become more complicated without gaining
+much new predictive information. Improvement should be judged using predictions
+for data that were not used to fit the model, while also checking whether the
+model's assumptions are reasonable.
+:::
+
+Next week we examine regression assumptions and use diagnostic plots to assess
+how well these models support inference and prediction.
