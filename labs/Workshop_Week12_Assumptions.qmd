@@ -1,6 +1,6 @@
 ---
 title: "Workshop Week 12: Inference and Assumptions"
-subtitle: "Student workbook — uncertainty, intervals and diagnostics"
+subtitle: "Student workbook: uncertainty, intervals and diagnostics"
 author:
   - name: "Nick Knowlton"
   - name: "297.101 Statistical Data Science"
@@ -20,12 +20,15 @@ editor:
     wrap: 72
 ---
 
-Weeks 10 and 11 used fitted lines and adjusted coefficients to study
-county-level associations between socioeconomic conditions and lung-cancer
-mortality. Those fitted models were useful summaries, but they did not tell us
-whether a straight line represents the pattern well, whether the uncertainty
-calculations are dependable, or whether a few unusual counties strongly affect
-the result.
+In Weeks 10 and 11 we used vehicle data to build simple and multiple regression
+models, interpret coefficients, standard errors, p-values and $R^2$, and make
+fitted predictions. This week we apply the same ideas to a new dataset and ask
+a harder question: how much can we trust the model's estimates and predictions?
+
+We will use county-level lung-cancer mortality data to introduce confidence
+intervals, prediction intervals and regression diagnostics. We use a new
+dataset this week so you can apply the same regression workflow in a different
+setting.
 
 The data come from a broader project that combined county socioeconomic and
 cancer information. Noah Rippner's
@@ -36,9 +39,7 @@ although the resulting associations do not establish causes or describe
 individual people.
 
 This workshop asks how uncertain the model estimates are and whether the
-model's assumptions are reasonable. We use one cancer model throughout the
-main demonstrations so that each new inferential idea answers another part of
-the same practical problem.
+model's assumptions are reasonable.
 
 ## Today's question
 
@@ -49,7 +50,7 @@ lung-cancer mortality?
 
 By the end of this workshop you should be able to:
 
-- distinguish estimates from their standard errors;
+- use standard errors to interpret uncertainty in regression coefficients;
 - interpret confidence intervals and hypothesis tests;
 - distinguish confidence intervals for an average from prediction intervals for
   an individual county;
@@ -58,6 +59,11 @@ By the end of this workshop you should be able to:
 - evaluate one transformed alternative without relying on R-squared alone.
 
 ## 1. Fit and understand one primary cancer model
+
+**What to do:** Fit the multiple regression model and identify the response and
+predictors. Interpret each slope while holding the other predictor constant.
+Check that you can distinguish the coefficient estimate from its standard error
+and residual variation.
 
 ```{r}
 library(readr)
@@ -109,19 +115,38 @@ holding poverty constant. These are associations, not causal effects.
 
 ### Your turn: identify what the coefficients mean
 
-Use the model and its coefficient table to write down:
+**Your turn:** Identify the response variable and both predictors. Interpret each
+slope in the units of the problem, remembering to hold the other predictor
+constant. Which coefficient appears to be estimated more precisely relative to
+its size?
 
-1. the response variable and its units;
-2. the units of each predictor;
-3. a context sentence for the poverty slope;
-4. a context sentence for the incidence slope; and
-5. which slope is estimated more precisely relative to its size.
+### A quick return to $R^2$ and adjusted $R^2$
 
-Explain why a standard error describes uncertainty in a coefficient estimate,
-whereas the residual standard deviation describes county-to-county scatter
-around the fitted model.
+**What to do:** Compare ordinary $R^2$ and adjusted $R^2$ for the fitted
+model. Recall that ordinary $R^2$ cannot decrease when predictors are added,
+even if the new predictor contributes little. Adjusted $R^2$ applies a
+penalty for additional model terms, so it can decrease when extra complexity
+is not justified by improved fit.
+
+```{r}
+glance(cancer_model) |>
+  select(r.squared, adj.r.squared)
+```
+
+**Your turn:** Why can ordinary $R^2$ increase when a useless predictor is
+added, while adjusted $R^2$ can decrease? What would it suggest if $R^2$
+increased but adjusted $R^2$ decreased?
 
 ## 2. Confidence intervals and coefficient p-values
+
+**What to do:** Use the coefficient table to interpret the 95% confidence
+interval and p-value for each coefficient. State the null hypothesis being
+tested, decide whether the data provide evidence against a zero coefficient,
+and keep statistical evidence separate from effect size and causality.
+
+Last week we used standard errors and p-values to describe uncertainty and
+evidence for adjusted coefficients. We can now extend that idea by attaching a
+confidence interval to each coefficient.
 
 ```{r}
 tidy(cancer_model, conf.int = TRUE)
@@ -136,9 +161,9 @@ to these null hypotheses:
 | poverty_percent | $H_0:\beta_{\mathrm{poverty}}=0$ | poverty has no adjusted linear association at fixed incidence |
 | incidence_rate | $H_0:\beta_{\mathrm{incidence}}=0$ | incidence has no adjusted linear association at fixed poverty |
 
-A two-sided p-value is the probability, assuming the stated null and model,
-of seeing a t statistic at least as far from zero as the observed one. It is
-not the probability that the null is true.
+A p-value is calculated under the stated null and model. It is not the
+probability that the null is true. Use reject or fail to reject; never say that
+a large p-value proves a null.
 
 ### Demonstration: test the poverty slope
 
@@ -157,23 +182,17 @@ or practical importance.
 
 ### Your turn: test the incidence slope and the intercept
 
-Use the table to answer both sets of questions:
-
-1. For incidence_rate, state $H_0$ and $H_A$, interpret the 95% confidence
-   interval, and decide whether the evidence supports a zero slope.
-2. For (Intercept), state what $H_0:\beta_0=0$ means and decide whether the
-   p-value provides evidence against it.
-3. Explain why the intercept conclusion is usually not substantively useful:
-   zero poverty and zero incidence are outside the observed predictor ranges.
-4. Use “reject” or “fail to reject”; do not say “accept the null.”
-5. Explain why a confidence interval excluding zero agrees with rejection of a
-   two-sided 5% zero-coefficient test.
-
-Do not describe a large p-value as proof that a coefficient is exactly zero.
+**Your turn:** Interpret the incidence coefficient, its 95% confidence interval
+and p-value. State the null hypothesis and your conclusion. Then do the same
+for the intercept. Is the intercept test statistically significant, and is it
+substantively useful?
 
 ## 3. Confidence versus prediction intervals
 
-Use exactly the same hypothetical county for both calculations:
+**What to do:** Make a prediction for the specified county characteristics
+using both a confidence interval and a prediction interval. Compare their
+widths and explain why the prediction interval for one county is wider than the
+confidence interval for the average response.
 
 ```{r}
 new_county <- tibble(
@@ -199,25 +218,26 @@ counties with these predictor values.
 
 ### Your turn: prediction interval for one county
 
-Calculate the prediction interval for the same new_county:
+**Your turn:** Calculate a prediction interval for one county with these same
+predictor values. Compare it with the confidence interval above. Which is
+wider, and why?
 
 ```{r}
 # Your code here
 ```
 
-Explain why the fitted value is the same as in the confidence interval but the
-prediction interval is wider. State whether either interval would be trustworthy
-for a county far outside the observed poverty or incidence ranges.
-
 ## 4. Interpret the LINE diagnostics
 
-The plots in this section are supplied and executable. Your task is to read the
-pattern and explain its consequence; do not recreate the plots from scratch.
+**What to do:** Work through the LINE assumptions one at a time. For each
+assumption, state what it means, identify what evidence the supplied diagnostic
+provides, and decide whether there is a meaningful concern. Remember that
+violations of assumptions happen in degrees; they are not an automatic
+pass/fail rule.
 
-### Demonstration: L — what linearity asks
+### Demonstration: L: what linearity asks
 
-The `performance` linearity plot shows the model residual pattern against fitted
-values. A roughly horizontal reference line supports a straight-line mean
+The linearity plot shows the model residual pattern against fitted values. A
+roughly horizontal reference line supports a straight-line mean
 structure; a visible curve suggests that the conditional mean is not adequately
 represented by straight-line terms.
 
@@ -227,28 +247,24 @@ check_model(cancer_model, check = "linearity")
 
 ### Your turn: interpret the linearity plot
 
-Is the reference line strongly curved or broadly near zero? Explain whether
-linearity appears to be a major concern and what a visible curve would imply
-for the fitted mean.
+**Your turn:** Does the reference line show clear curvature, or is a
+straight-line mean structure reasonably supported?
 
-### Demonstration: I — what independence asks
+### Demonstration: I: what independence asks
 
-No plot in this data file can establish independence. County observations may
-share geography, services, environmental exposures or smoking patterns. Row
-order is not a spatial ordering.
+There is no valid row-order plot for independence. Counties may share
+geography, services, environmental exposures or regional smoking patterns. So
+this one is handled by study design and knowing your data and its source.
 
 ### Your turn: assess independence from study design
 
-Explain why independence remains an unresolved limitation here. What additional
-sampling or spatial information would make an independence assessment more
-credible?
+**Your turn:** Can independence be assessed from these diagnostic plots alone?
+What features of the study design could make counties non-independent?
 
-### Demonstration: N — what normality asks
+### Demonstration: N: what normality asks
 
-`check_normality()` reports a Shapiro–Wilk test and its plot shows the residual
-Q-Q diagnostic. With a large sample, the formal test can be highly sensitive to
-small departures, so visual inspection of the centre and tails remains the
-primary diagnostic.
+`check_normality()` creates what is needed for a residual Q-Q diagnostic. With
+a large sample the curve can diverge at the tails.
 
 ```{r}
 normality_check <- check_normality(cancer_model)
@@ -258,40 +274,38 @@ plot(normality_check, type = "qq")
 
 ### Your turn: interpret the normality plot
 
-Describe the centre and both tails. In particular, note whether the extreme
-negative residuals and the upper tail follow the reference line. Explain which
-parts of small-sample inference or individual prediction are most sensitive to
-tail departures.
+**Your turn:** How closely do the residuals follow the reference line? Pay
+particular attention to the centre and tails.
 
-### Demonstration: E — what equal variance asks
+### Demonstration: E: what equal variance asks
 
-`check_heteroscedasticity()` reports a formal test for non-constant variance and
-its plot shows the residual spread across fitted values. Interpret the test
-alongside the plot rather than treating either as an automatic pass/fail rule.
+`check_heteroscedasticity()` is the same plot as linearity, that is fitted
+values versus residuals.
 
 ```{r}
 heteroscedasticity_check <- check_heteroscedasticity(cancer_model)
-heteroscedasticity_check
 plot(heteroscedasticity_check)
 ```
 
 ### Your turn: interpret the equal-variance plot
 
-Describe how the vertical spread changes as fitted mortality increases. If the
-spread grows, explain why conventional standard errors and prediction intervals
-need caution.
+**Your turn:** Does the residual spread stay approximately constant as the
+fitted values increase, or does it change systematically?
 
 ## 5. Influence and one transformation
 
-### Demonstration: screen for influential observations
+**What to do:** Identify observations that may have unusual influence on the
+fitted model, then compare the original model with one transformed alternative.
+Do not delete observations automatically or choose a transformation using
+$R^2$ alone. Consider the residual pattern, influence, interpretability and
+purpose of the model.
 
-Cook's distance is a screening tool, not an automatic deletion rule.
+### Demonstration: screen for influential observations
 
 ```{r}
 influence_check <- check_outliers(
   cancer_model,
-  method = "cook",
-  threshold = list(cook = 4 / nobs(cancer_model))
+  method = "cook"
 )
 
 influence_check
@@ -307,9 +321,9 @@ influence_data |>
 
 ### Your turn: investigate influence
 
-Identify the largest Cook's-distance observations. List what you would check
-in the source records before a sensitivity refit. Explain why exceeding the
-informal $4/n$ line does not justify deleting a county automatically.
+**Your turn:** Identify the counties with the largest Cook's distances. Which
+observations would you investigate further, and what would you check before
+deciding whether any observation should be excluded?
 
 ### Demonstration: compare a log-incidence alternative
 
@@ -342,19 +356,29 @@ plot(check_heteroscedasticity(cancer_log_model))
 
 ### Your turn: decide about the transformation
 
-Use the fit table and the performance diagnostic plots to decide whether logging
-incidence is worth retaining. Discuss fit, residual shape, spread, and
-interpretability. If you interpret the logged coefficient, remember that a 1%
-increase in incidence changes the fitted response by approximately 0.01 times
-that coefficient, in mortality units.
+**Your turn:** Compare the original and log-incidence models. Look at $R^2$,
+residual SD, residual curvature and spread. Does the transformation improve the
+model enough to justify making the coefficient harder to interpret?
 
 ## 6. Independent workflow: income and insurance
 
-Use the same cancer dataset but a fresh pair of predictors. Complete the model
-and interpretation steps below. Diagnostic plotting code is supplied; interpret
-those plots rather than writing plotting code yourself.
+**Your turn: complete the full workflow using income and insurance.**
+
+1. Prepare the analysis variables and fit the multiple regression model.
+2. Interpret both adjusted coefficients in their original units.
+3. Examine the standard errors, 95% confidence intervals and p-values.
+4. Interpret $R^2$ and adjusted $R^2$.
+5. Predict mortality for the specified predictor values using both confidence
+   and prediction intervals.
+6. Interpret the LINE diagnostics.
+7. Identify any influential observations and explain what you would investigate.
+8. Fit the transformed alternative and decide whether it materially improves the model.
+9. Justify your decision using diagnostics, interpretability and model fit rather than $R^2$ alone.
 
 ### Your turn: prepare and fit the independent model
+
+Fit the model and interpret both adjusted slopes, confidence intervals and
+p-values.
 
 Create income_data with complete rows for area_name, Mortality_Rate_num,
 med_income, all_without_insur and popestimate2015. Derive:
@@ -379,17 +403,18 @@ Use tidy(income_model, conf.int = TRUE) and answer:
 
 ### Your turn: predict with uncertainty
 
-For a county with income_thousands = 50 and uninsured_percent = 10, calculate
-both a confidence interval for the average and a prediction interval for one
-county:
+Calculate both intervals and explain why they differ in width. Use a county with
+income_thousands = 50 and uninsured_percent = 10, and calculate both a
+confidence interval for the average and a prediction interval for one county:
 
 ```{r}
 # Your code here
 ```
 
-Explain the difference in target and width.
-
 ### Your turn: interpret the independent diagnostics
+
+Work through LINE and influence just as you did for the primary model. Which
+assumptions cause the most concern?
 
 After fitting income_model, run this supplied code:
 
@@ -397,11 +422,9 @@ After fitting income_model, run this supplied code:
 check_model(income_model, check = "linearity")
 
 income_normality_check <- check_normality(income_model)
-income_normality_check
 plot(income_normality_check, type = "qq")
 
 income_heteroscedasticity_check <- check_heteroscedasticity(income_model)
-income_heteroscedasticity_check
 plot(income_heteroscedasticity_check)
 
 income_influence_check <- check_outliers(
@@ -425,6 +448,9 @@ Write one paragraph covering L, I, N and E, and identify any influential
 observations that require checking. Do not claim that a plot proves independence.
 
 ### Your turn: compare a transformed independent model
+
+Compare the original and log-income models. Decide whether the transformation
+produces a worthwhile improvement in fit or diagnostics.
 
 Fit a second model with log(income_thousands) in place of
 income_thousands. Compare R-squared, residual standard deviation and the

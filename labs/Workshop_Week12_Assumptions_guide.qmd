@@ -1,6 +1,6 @@
 ---
 title: "Workshop Week 12: Inference and Assumptions"
-subtitle: "Answer guide — uncertainty, intervals and diagnostics"
+subtitle: "Answer guide: uncertainty, intervals and diagnostics"
 author:
   - name: "Nick Knowlton"
   - name: "297.101 Statistical Data Science"
@@ -29,9 +29,9 @@ fitted predictions. This week we apply the same ideas to a new dataset and ask
 a harder question: how much can we trust the model's estimates and predictions?
 
 We will use county-level lung-cancer mortality data to introduce confidence
-intervals, prediction intervals and regression diagnostics. The change in
-dataset is deliberate: the aim is to apply the same regression workflow in a
-new context rather than rely on one familiar example.
+intervals, prediction intervals and regression diagnostics. We use a new
+dataset this week so you can apply the same regression workflow in a different
+setting.
 
 The data come from a broader project that combined county socioeconomic and
 cancer information. Noah Rippner's
@@ -106,7 +106,10 @@ incidence cases per 100,000.
 ### Demonstration: fit the primary model
 
 ```{r}
-cancer_model <- lm( Mortality_Rate_num ~ poverty_percent + incidence_rate,  data = cancer_model_data)
+cancer_model <- lm(
+  Mortality_Rate_num ~ poverty_percent + incidence_rate,
+  data = cancer_model_data
+)
 
 cancer_model
 tidy(cancer_model)
@@ -287,15 +290,12 @@ poverty or incidence ranges.
 
 **What to do:** Work through the LINE assumptions one at a time. For each
 assumption, state what it means, identify what evidence the supplied diagnostic
-provides, and decide whether there is a meaningful concern. Do not treat any
-diagnostic plot as an automatic pass/fail test.
+provides, and decide whether there is a meaningful concern. Remember that
+violations of assumptions happen in degrees; they are not an automatic
+pass/fail rule.
+### Demonstration: L: what linearity asks
 
-The plots are supplied and executable. Students interpret them; they do not
-recreate them.
-
-### Demonstration: L — what linearity asks
-
-The `performance` linearity plot shows the model residual pattern against fitted
+The linearity plot shows the model residual pattern against fitted
 values. A roughly horizontal reference line supports a straight-line mean
 structure; a visible curve suggests that the conditional mean is not adequately
 represented by straight-line terms.
@@ -310,14 +310,14 @@ check_model(cancer_model, check = "linearity")
 straight-line mean structure reasonably supported?
 
 The reference line is broadly near zero with only a modest bend. Linearity is
-not the dominant concern for this primary model, although no diagnostic is an
-automatic pass/fail test. A persistent curve would mean that straight-line
-terms miss part of the conditional mean.
+not the dominant concern for this primary model. A persistent curve would mean
+that straight-line terms miss part of the conditional mean.
 
-### Demonstration: I — what independence asks
+### Demonstration: I: what independence asks
 
 There is no valid row-order plot for independence. Counties may share
-geography, services, environmental exposures or regional smoking patterns.
+geography, services, environmental exposures or regional smoking patterns. So
+this one is handled by study design and knowing your data and its source.
 
 ### Your turn: assess independence from study design
 
@@ -329,12 +329,10 @@ sampling-design information. Additional spatial data, clustered sampling
 information or a design that samples independent units would be needed to assess
 or model dependence. A plot cannot prove independence.
 
-### Demonstration: N — what normality asks
+### Demonstration: N: what normality asks
 
-`check_normality()` reports a Shapiro–Wilk test and its plot shows the residual
-Q-Q diagnostic. With a large sample, the formal test can be highly sensitive to
-small departures, so visual inspection of the centre and tails remains the
-primary diagnostic.
+`check_normality()` creates what is needed for a residual Q-Q diagnostic. With
+a large sample the curve can diverge at the tails.
 
 ```{r}
 normality_check <- check_normality(cancer_model)
@@ -351,18 +349,15 @@ The centre is closer to the reference line than the tails. Both tails depart,
 with particularly extreme negative residuals and a heavy upper tail. Tail
 departures matter most for small-sample model-based inference and individual
 prediction; they are less damaging to a rough description of the centre in this
-large sample. The Shapiro–Wilk result should not be treated as a mechanical
-pass/fail decision in a sample this large.
+large sample.
 
-### Demonstration: E — what equal variance asks
+### Demonstration: E: what equal variance asks
 
-`check_heteroscedasticity()` reports a formal test for non-constant variance and
-its plot shows the residual spread across fitted values. Interpret the test
-alongside the plot rather than treating either as an automatic pass/fail rule.
+`check_heteroscedasticity()` is the same plot as linearity, that is fitted
+values versus residuals.
 
 ```{r}
 heteroscedasticity_check <- check_heteroscedasticity(cancer_model)
-heteroscedasticity_check
 plot(heteroscedasticity_check)
 ```
 
@@ -371,9 +366,9 @@ plot(heteroscedasticity_check)
 **Your turn:** Does the residual spread stay approximately constant as the
 fitted values increase, or does it change systematically?
 
-The vertical spread and smooth increase toward larger fitted mortality. This is
-evidence of non-constant variance. Conventional standard errors and prediction
-intervals therefore need caution, even though the sample is large.
+The vertical spread shows a smooth increase toward larger fitted mortality. This
+is evidence of non-constant variance. Conventional standard errors and
+prediction intervals therefore need caution, even though the sample is large.
 
 ## 5. Influence and one transformation
 
@@ -388,8 +383,7 @@ purpose of the model.
 ```{r}
 influence_check <- check_outliers(
   cancer_model,
-  method = "cook",
-  threshold = list(cook = 4 / nobs(cancer_model))
+  method = "cook"
 )
 
 influence_check
@@ -420,8 +414,8 @@ The largest Cook's distances are approximately:
 
 Check the source records, units, missing-value handling, predictor leverage and
 data-entry plausibility. Then refit as a sensitivity analysis. Crossing the
-informal 4/n line is a prompt for inspection, not a reason to delete a county
-automatically.
+informal 4/n line (dotted in the plot) is a prompt for inspection, not a reason
+to delete a county automatically.
 
 ### Demonstration: compare a log-incidence alternative
 
@@ -478,7 +472,8 @@ approximately 0.01 times the logged-incidence coefficient, in mortality units.
 2. Interpret both adjusted coefficients in their original units.
 3. Examine the standard errors, 95% confidence intervals and p-values.
 4. Interpret $R^2$ and adjusted $R^2$.
-5. Predict mortality for the specified predictor values using both confidence and prediction intervals.
+5. Predict mortality for the specified predictor values using both confidence
+   and prediction intervals.
 6. Interpret the LINE diagnostics.
 7. Identify any influential observations and explain what you would investigate.
 8. Fit the transformed alternative and decide whether it materially improves the model.

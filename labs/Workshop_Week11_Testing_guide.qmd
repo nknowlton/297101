@@ -1,6 +1,6 @@
 ---
-title: "Workshop Week 11: Regression Testing"
-subtitle: "Answer guide — testing associations and making predictions"
+title: "Workshop Week 11: Multiple Regression and Factors"
+subtitle: "Answer guide: adjusted coefficients and body type"
 author:
   - name: "Nick Knowlton"
   - name: "297.101 Statistical Data Science"
@@ -10,7 +10,6 @@ format:
     toc: true
     code-tools: true
     code-copy: true
-    code-block-bg: true
     embed-resources: true
 execute:
   echo: true
@@ -19,629 +18,513 @@ execute:
 editor:
   markdown:
     wrap: 72
-resources:
-  - regression/cancer_data.csv.gz
 ---
 
-Cancer mortality is not evenly distributed across places. Comparing US
-counties lets us ask whether counties with greater poverty or lower median
-income also tend to have higher lung-cancer mortality. We might find a clear
-trend, substantial differences between counties with similar socioeconomic
-conditions, or a relationship that a straight line summarises poorly.
+This guide follows Workshop_Week11_Testing.qmd.
 
-The broader project assembled open data on socioeconomic conditions, cancer
-incidence, mortality and clinical trials by county. Noah Rippner's
-[original data-preparation code](https://github.com/nrippner/can_clin_trails_prep_r/blob/master/extract_zips_10.py)
-shows how records from different sources were cleaned and joined through county
-identifiers. Those joins make this investigation possible: mortality and
-socioeconomic measurements must refer to the same place before their
-relationship can be studied.
+Last week we used one numerical vehicle specification at a time. Today we return
+to fuel use and add a categorical predictor, `body_type`, represented in R as a
+factor. This lets us compare body types while accounting for a numerical vehicle
+characteristic at the same time. The key idea is that a comparison between body
+types after accounting for another variable is not necessarily the same as
+comparing their raw averages.
 
-::: {.callout-note}
 ## Today's question
 
-What can county data tell us about the association between poverty, median
-income and lung-cancer mortality?
+What changes when we add body type to a model of vehicle characteristics and fuel use?
 
-:::
+## Learning objectives
 
-This analysis develops two related ideas. A fitted line estimates an average
-association across counties; a prediction for another county must also allow
-for the large differences that remain between counties. The results therefore
-move from visible patterns to effect sizes, uncertainty, variation explained
-and prediction. Because the data are observational and county-level, they
-describe associations between places rather than causes or outcomes for
-individual people.
+By the end of this workshop you should be able to:
 
-## 1. What patterns appear across counties?
+- fit a multiple linear regression (MLR) model with numerical and categorical predictors;
+- interpret an adjusted coefficient using “holding the other variables constant”;
+- identify the reference category and interpret coefficients for categorical predictors;
+- interpret a factor with more than two levels; and
+- make predictions for specified combinations of predictors.
 
-::: {.callout-important title="Question"}
-What does each row represent, and are the variables on scales that allow
-meaningful comparisons between counties?
-:::
+## 1. Revisit a simple model
 
-::: {.callout-note title="What to look for"}
-Check how many rows are retained and keep track of the units. A raw poverty
-count still contains information about county population; a rate supports a
-fairer comparison between counties of different sizes.
-:::
+**What to do:** Start by refitting the simple engine-size and power models from
+last week. Check that you can still interpret the slope, intercept, standard
+error, p-value and $R^2$. These give us the baseline models that we will compare
+with once body type is added.
 
 ```{r}
-#| label: setup
 library(readr)
 library(dplyr)
 library(ggplot2)
 library(tibble)
-library(purrr)
 library(broom)
-library(GGally)
 
-cancer <- read_csv("regression/cancer_data.csv.gz", show_col_types = FALSE)
-cancer_clean <- cancer |>
-  select(Mortality_Rate_num, all_poverty, med_income, popestimate2015) |>
-  filter(if_all(everything(), is.finite), popestimate2015 > 0) |>
+vehicles <- read_csv("nz_vehicles_2025.csv", show_col_types = FALSE) |>
   mutate(
-    pov_norm = all_poverty / popestimate2015 * 100000,
-    poverty_percent = pov_norm / 1000
+    # SALOON is the raw CSV value; display it as Sedan for us.
+    station_wagon = factor(
+      if_else(body_type == "STATION WAGON", "Station wagon", "Other"),
+      levels = c("Station wagon", "Other")
+    ),
+    body_type = factor(
+      body_type,
+      levels = c("STATION WAGON", "HATCHBACK", "SALOON", "SPORTS CAR", "CONVERTIBLE"),
+      labels = c("Station wagon", "Hatchback", "Sedan", "Sports car", "Convertible")
+    )
   )
-tibble(rows_in_source = nrow(cancer), rows_retained = nrow(cancer_clean))
+
+glimpse(vehicles)
+count(vehicles, body_type)
 ```
 
-| Variable | Meaning | Units |
-|:--|:--|:--|
-| `Mortality_Rate_num` | Lung-cancer mortality rate | deaths per 100,000 people |
-| `all_poverty` | Residents below the poverty threshold | people |
-| `pov_norm` | Population-adjusted poverty count | people per 100,000 |
-| `poverty_percent` | Population-adjusted poverty rate | percent |
-| `med_income` | Median household income | US dollars |
-
-#### Result
-
-All 2,809 rows are retained. Each row represents a US county with complete
-values for these variables. The supplied [data file](regression/cancer_data.csv.gz)
-combines lung-cancer information with US Census Bureau socioeconomic measures.
-
-### Why use a poverty rate?
-
-::: {.callout-important title="Question"}
-If two counties each have 10,000 residents in poverty, do they have the same
-level of poverty?
-:::
-
-::: {.callout-note title="What to look for"}
-Compare the percentages after dividing by population. The predictor and
-response do not need matching units; the units determine how the slope will be
-interpreted.
-:::
+### Demonstration: engine-size baseline
 
 ```{r}
-#| label: count-rate-example
-tibble(
-  county = c("County A", "County B"),
-  all_poverty = c(10000, 10000),
-  population = c(50000, 1000000)
-) |>
-  mutate(
-    poverty_per_100000 = all_poverty / population * 100000,
-    poverty_percent = poverty_per_100000 / 1000
-  )
+engine_model <- vehicles |>
+  lm(fuel_use_l_per_100km ~ engine_l, data = _)
+
+# or
+engine_model <- lm(fuel_use_l_per_100km ~ engine_l, data = vehicles)
+
+
+engine_model
+tidy(engine_model)
 ```
 
-#### Result
-
-The same count represents 20% poverty in County A and 1% in County B. Dividing
-by population changes the predictor from a mixture of county size and poverty
-into a comparable rate.
-
-### Poverty, income and mortality together
-
-::: {.callout-important title="Question"}
-Which pairs of variables appear related, and how much spread remains around
-each trend?
-:::
-
-::: {.callout-note title="What to look for"}
-Read distributions on the diagonal, scatterplots below and correlations above.
-In each scatterplot, look for direction, form, strength and unusual points;
-the correlation only summarises linear direction and strength.
-:::
-
 ```{r}
-#| label: draftsman-plot
-#| fig-cap: "Distributions and pairwise relationships among poverty rate, median income and lung-cancer mortality."
-#| fig-alt: "A three by three matrix with distributions on the diagonal, scatterplots below and correlations above."
-#| fig-width: 9
-#| fig-height: 9
-#| out-width: "100%"
-draftsman_data <- cancer_clean |>
-  transmute(
-    `Poverty (%)` = poverty_percent,
-    `Median income ($)` = med_income,
-    `Mortality (deaths per 100,000)` = Mortality_Rate_num
-  )
-draftsman_plot <- ggpairs(
-  draftsman_data,
-  progress = FALSE,
-  diag = list(continuous = wrap("densityDiag", alpha = 0.5)),
-  lower = list(continuous = wrap("points", alpha = 0.25, size = 0.55)),
-  upper = list(continuous = wrap("cor", size = 4, stars = FALSE))
-) + theme_minimal(base_size = 11)
-print(draftsman_plot)
-```
-
-#### Result
-
-Poverty and mortality have a moderate positive association
-(\(r=0.398\)). The cloud is broad: counties at a similar poverty rate can have
-quite different mortality rates, so poverty alone will not predict county
-mortality closely.
-
-### A closer look at median income
-
-::: {.callout-important title="Question"}
-Do counties with higher median income tend to have lower lung-cancer mortality?
-:::
-
-::: {.callout-note title="What to look for"}
-Use the full-sized plot to judge the downward trend, spread and possible
-curvature. Then compare that visual evidence with the correlation.
-:::
-
-```{r}
-#| label: income-exploration
-#| fig-cap: "Lung-cancer mortality and median household income."
-#| fig-alt: "Scatterplot of income and mortality with a generally decreasing smooth curve."
-#| out-width: "100%"
-ggplot(cancer_clean, aes(x = med_income, y = Mortality_Rate_num)) +
-  geom_point(alpha = 0.3, size = 0.8) +
-  geom_smooth(method = "loess", se = FALSE) +
+ggplot(vehicles, aes(engine_l, fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.45) +
+  geom_smooth(method = "lm", se = FALSE) +
   labs(
-    x = "Median household income (US dollars)",
-    y = "Lung-cancer mortality (deaths per 100,000)",
-    title = "Do counties with higher median income have lower mortality?"
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)",
+    title = "Simple engine-size model"
   ) +
   theme_minimal(base_size = 13)
 ```
 
-```{r}
-#| label: income-correlation
-cancer_clean |>
-  summarise(income_mortality_correlation =
-              cor(med_income, Mortality_Rate_num))
-```
+The engine-size slope is the average change in L/100 km for a one-litre engine
+difference. The intercept is the fitted value at zero litres. Since the data
+contain positive engine sizes, the intercept is a *mathematical anchor* rather
+than a realistic vehicle comparison.
 
-#### Result
+### Your turn: power baseline
 
-The association is moderately negative (\(r=-0.447\)): counties with higher
-median income tend to have lower mortality. The considerable vertical spread
-shows that income alone does not determine a county's mortality rate.
-
-## 2. How large are the associations?
-
-### Poverty and mortality
-
-::: {.callout-important title="Question"}
-What difference in fitted mortality corresponds to a 10-percentage-point
-difference in poverty rate?
-:::
-
-The `tidy()` output reports an `Estimate` and `Std. Error` for each term. The
-estimate is the fitted coefficient in the units of the model; its standard
-error describes sampling uncertainty. These columns supply the quantities
-used for the t statistic, confidence interval and p-value.
-
-::: {.callout-note title="What to look for"}
-The model uses people in poverty per 100,000, so 10 percentage points is a
-change of 10,000 in `pov_norm`. Check whether the intercept describes a
-realistic county.
-:::
+Refit the power model yourself and interpret the slope in useful units. Before
+moving on, make sure you can explain what the coefficient tells us about the
+overall association between power and fuel use.
 
 ```{r}
-#| label: fit-poverty-model
-poverty_model <- lm(Mortality_Rate_num ~ pov_norm, data = cancer_clean)
-tidy(poverty_model)
-```
-
-```{r}
-#| label: interpret-poverty-slope
-poverty_slope <- coef(poverty_model)[["pov_norm"]]
-tibble(
-  change_in_poverty_percentage_points = 10,
-  fitted_change_in_mortality = poverty_slope * 10000
+power_model <- lm(
+  fuel_use_l_per_100km ~ power_kw,
+  data = vehicles
 )
-```
 
-#### Result
-
-A 10-percentage-point higher poverty rate is associated with about 9.13 more
-deaths per 100,000. Zero poverty is outside the observed range, so the
-intercept is mainly mathematical. This slope describes an association between
-counties; it is not the effect of changing a county's poverty rate.
-
-### Income and mortality
-
-::: {.callout-important title="Question"}
-What difference in fitted mortality corresponds to a $10,000 difference in
-median household income?
-:::
-
-::: {.callout-note title="What to look for"}
-Rescale the small per-dollar coefficient before interpreting it. Raw poverty
-and income slopes cannot be compared as effect sizes because their predictor
-units differ.
-:::
-
-```{r}
-#| label: fit-income-model
-income_model <- lm(Mortality_Rate_num ~ med_income, data = cancer_clean)
-tidy(income_model)
+power_model
+tidy(power_model)
 ```
 
 ```{r}
-#| label: interpret-income-slope
-income_slope <- coef(income_model)[["med_income"]]
-tibble(
-  change_in_income = 10000,
-  fitted_change_in_mortality = income_slope * 10000
-)
+ggplot(vehicles, aes(power_kw, fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.45) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Engine power (kW)",
+    y = "Combined fuel use (L/100 km)",
+    title = "Simple power model"
+  ) +
+  theme_minimal(base_size = 13)
 ```
 
-#### Result
+The power slope is interpreted per kW; multiplying it by 10 gives the fitted
+change for a 10 kW difference. Zero kW is outside the observed vehicle range,
+so the intercept is not a practical zero-power prediction.
 
-A $10,000 higher median income is associated with about 5.05 fewer deaths per
-100,000. This is an average difference between counties with different median
-incomes, not evidence that raising income would cause mortality to fall.
-
-## 3. How uncertain are those estimates?
-
-### Uncertainty in the poverty association
-
-::: {.callout-important title="Question"}
-What range of population slopes is compatible with the poverty estimate, and
-how strong is the evidence against no linear association?
-:::
-
-::: {.callout-note title="What to look for"}
-Compare the manual t interval with `confint()`, then check its units and whether
-it contains zero. The p-value is calculated under a zero-slope null and the
-model assumptions.
-:::
-
-```{r}
-#| label: poverty-manual-confidence-interval
-poverty_slope_row <- tidy(poverty_model) |> filter(term == "pov_norm")
-critical_t <- qt(0.975, df = df.residual(poverty_model))
-poverty_ci_manual <- poverty_slope_row |>
-  transmute(
-    lower = estimate - critical_t * std.error,
-    estimate,
-    upper = estimate + critical_t * std.error
-  )
-poverty_ci_manual
-confint(poverty_model, "pov_norm", level = 0.95)
-```
-
-For a fitted slope, the 95% confidence interval is
+The fitted equation is approximately
 
 $$
-\widehat{\beta}_1 \;\pm\; t^* \times
-\operatorname{SE}\!\left(\widehat{\beta}_1\right).
+\widehat{\text{fuel use}} = 4.705 + 0.0186(\text{power}) .
 $$
 
-Here \(\widehat{\beta}_1\) is the estimated slope and
-\(\operatorname{SE}(\widehat{\beta}_1)\) is its standard error. The critical
-value \(t^*\) leaves 2.5% in each tail of a t distribution with \(n-2\)
-degrees of freedom. The model has \(n-2\) residual degrees of freedom because
-it estimates two coefficients: the intercept and slope.
+Thus a 10 kW increase is associated with about 0.186 L/100 km higher average
+fuel use. The intercept is the mathematical line value at zero power, not a
+realistic vehicle comparison because zero power is outside the observed range.
+
+## 2. Add a two-level factor
+
+**What to do:** Add the two-level `station_wagon` factor to the engine-size
+model. Identify the reference category, then interpret the intercept, engine-size
+coefficient and `station_wagonOther` coefficient.
+
+Ask yourself: which coefficient is shared by both groups, and which coefficient
+represents the difference between the groups?
+
+### Demonstration: engine size plus Station wagon/Other
 
 ```{r}
-#| label: poverty-manual-p-value
-poverty_t <- poverty_slope_row$estimate / poverty_slope_row$std.error
-poverty_p_manual <- 2 * pt(-abs(poverty_t), df.residual(poverty_model))
-tibble(
-  t_statistic = poverty_t,
-  manual_p_value = poverty_p_manual,
-  tidy_p_value = poverty_slope_row$p.value
+binary_model <- lm(
+  fuel_use_l_per_100km ~ engine_l + station_wagon,
+  data = vehicles
 )
+
+tidy(binary_model)
+
+# Pull out the values used in fitting the model to see how the
+# station_wagon variable is treated.
+model.matrix(binary_model) |> head()
 ```
 
-#### Result
+The first factor level, Station wagon, is the reference. The intercept
+corresponds to Station wagons, while the engine-size slope is shared by both
+groups. `station_wagonOther` is 0 for Station wagons and 1 for Other vehicles,
+so its coefficient is the fitted `Other-minus-Station wagon` difference at the
+same engine size. Allowing the engine-size slope to differ between groups would
+require an interaction term, which is outside the scope of this course.
 
-For 10 percentage points, the estimated mortality difference is 9.13 deaths
-per 100,000, with a 95% confidence interval from 8.35 to 9.91. The interval
-excludes zero and the p-value gives very strong evidence against a zero
-population slope under the model assumptions. In repeated sampling, about 95%
-of intervals constructed this way would contain the fixed population slope.
-Neither result establishes causation or practical importance.
+The columns in `tidy()` have the same interpretation as last week: `estimate`
+gives the fitted coefficient, `std.error` describes its uncertainty, and the
+p-value tests a null hypothesis that the corresponding population coefficient
+is zero. The important difference is that these are now adjusted coefficients:
+each one is interpreted conditional on the other variables in the model.
 
-### Uncertainty in the income association
+### Your turn: power plus Station wagon/Other
 
-::: {.callout-important title="Question"}
-Does the interval for the income slope include zero, and does the manual
-calculation agree with the model output?
-:::
+Fit the same model using engine power instead of engine size. Compare the power
+coefficient with the simple power model from Section 1. Has the coefficient
+changed? What question does the adjusted coefficient answer that the simple
+coefficient did not?
 
-::: {.callout-note title="What to look for"}
-Check the signs of both interval endpoints and interpret the final interval per
-$10,000. Relate the p-value to a zero population slope rather than to the size
-or importance of the association.
-:::
+Also interpret the `station_wagonOther` coefficient and its p-value at a common
+value of engine power. Show the first rows of the design matrix and explain its
+columns.
 
 ```{r}
-#| label: income-manual-confidence-interval
-income_slope_row <- tidy(income_model) |> filter(term == "med_income")
-income_critical_t <- qt(0.975, df = df.residual(income_model))
-income_ci_manual <- income_slope_row |>
-  transmute(
-    lower = estimate - income_critical_t * std.error,
-    estimate,
-    upper = estimate + income_critical_t * std.error
+power_binary_model <- lm(
+  fuel_use_l_per_100km ~ power_kw + station_wagon,
+  data = vehicles
+)
+
+tidy(power_binary_model)
+
+model.matrix(power_binary_model) |> head()
+```
+
+The simple power slope is about 0.0186 L/100 km per kW, while the adjusted
+power slope is about 0.0192 L/100 km per kW, or 0.192 L/100 km per 10 kW. The
+coefficient changes because the adjusted model compares vehicles at the same
+Station wagon/Other group rather than averaging across all vehicles. The
+`station_wagonOther` estimate is about -0.577 L/100 km: at the same power, the
+model predicts Other vehicles to use about 0.577 L/100 km less than Station
+wagons. Its p-value is about 1.76e-6, providing strong evidence against a zero
+adjusted difference under the model. In the design matrix, the intercept column
+is 1, `power_kw` contains the numerical predictor, and
+`station_wagonOther` is 0 for Station wagons and 1 for Other vehicles.
+
+Without body type, the power slope summarises the overall association across
+all vehicles. Once body type is included, the power coefficient compares
+vehicles at the same body type, under the assumption of a common slope.
+
+## 3. Use all five body types
+
+**What to do:** Replace the two-level factor with the full five-level
+`body_type` factor. Identify the reference category and count how many body-type
+coefficients are fitted. Interpret each body-type coefficient as a comparison
+with the reference category while holding engine size constant.
+
+Pay particular attention to the direction and magnitude of the coefficients.
+Do the adjusted comparisons make sense given what you know about the vehicles?
+
+### Demonstration: engine size plus body type
+
+```{r}
+body_model <- lm(
+  fuel_use_l_per_100km ~ engine_l + body_type,
+  data = vehicles
+)
+
+tidy(body_model)
+```
+
+There is one engine-size slope and four body-type coefficients. Each coefficient
+is a comparison with Station wagon at the same engine size. In particular,
+`body_typeSedan` is the fitted `Sedan-minus-Station wagon` difference, not the
+difference between their unadjusted mean fuel uses. Looking at the fitted
+coefficients, Sports cars are estimated to use slightly more fuel than Station
+wagons at the same engine size, while Hatchbacks are estimated to use less.
+For `body_typeHatchback`, the coefficient is the estimated difference from
+Station wagons at the same engine size. Its p-value tests whether that adjusted
+population difference is zero. Does this make sense? After fitting a model,
+always sense-check the direction and magnitude of the estimates against what
+you know about the problem. If something looks surprising, work out why rather
+than simply assuming the model is wrong.
+
+### Your turn: power plus body type
+
+Repeat the model using engine power. Interpret the power coefficient per 10 kW
+while holding body type constant. Interpret the Sedan coefficient relative to
+Station wagon at the same power, and interpret one other body-type coefficient.
+Compare these results with the engine-size model.
+
+Do the conclusions about body type change when you hold engine power constant
+instead of engine size? If they do, think about why these models are answering
+different questions. Do the negative body-type estimates make sense at the same
+engine power?
+
+```{r}
+power_body_model <- lm(
+  fuel_use_l_per_100km ~ power_kw + body_type,
+  data = vehicles
+)
+
+tidy(power_body_model)
+```
+
+The power slope is about 0.0183 L/100 km per kW, or about 0.183 L/100 km per
+10 kW, among vehicles of the same body type. `body_typeSedan` is about -0.705
+L/100 km: at equal power, the model predicts Sedans to use about 0.705 L/100 km
+less than Station wagons. For another example, `body_typeHatchback` is about
+-0.907 L/100 km at equal power. All four fitted body-type coefficients are
+negative, meaning that at the same engine power the model predicts lower fuel
+use than for Station wagons. This is a conditional comparison, so it need not
+match the raw group means.
+
+## 4. Make comparable predictions
+
+**What to do:** Use the fitted model to predict fuel use for every body type
+while holding engine size at 2.0 L. Because engine size is fixed, differences
+between these fitted values come directly from the body-type coefficients.
+
+Identify which body type has the highest and lowest fitted mean fuel use.
+Remember that these are model-based average predictions for specified
+combinations of predictors, not guarantees for individual vehicles.
+
+### Demonstration: every body type at 2.0 L
+
+```{r}
+new_body_vehicles <- tibble(
+  engine_l = 2,
+  body_type = factor(
+    levels(vehicles$body_type),
+    levels = levels(vehicles$body_type)
   )
-income_ci_manual
-confint(income_model, "med_income", level = 0.95)
-```
-
-```{r}
-#| label: income-manual-p-value
-income_t <- income_slope_row$estimate / income_slope_row$std.error
-income_p_manual <- 2 * pt(-abs(income_t), df.residual(income_model))
-tibble(
-  t_statistic = income_t,
-  manual_p_value = income_p_manual,
-  tidy_p_value = income_slope_row$p.value
 )
+
+new_body_vehicles |>
+  mutate(predicted_fuel_use = predict(body_model, newdata = new_body_vehicles))
 ```
 
-#### Result
+Holding engine size at 2.0 L makes each fitted value a comparable body-type
+prediction. The largest value, Sports car, is the body type with the largest
+adjusted prediction in the output. These are average predictions for the
+specified combinations, not causal effects or guarantees for individual cars.
 
-For $10,000, the estimated difference is -5.05 deaths per 100,000, with a 95%
-confidence interval from -5.43 to -4.68. The manual and model calculations
-agree, the interval excludes zero, and the small p-value is strong evidence
-against a zero slope, subject to the model assumptions.
+What if we only wanted to predict a Sports car?
+```{r sports_car}
 
-## 4. How much variation remains?
+sports_car_new <- tibble(
+  engine_l = 2,
+  body_type = "Sports car" # Match the factor level exactly.
+)
 
-### Variation after fitting poverty
+sports_car_new |>
+  mutate(predicted_fuel_use = predict(body_model, newdata = sports_car_new))
 
-::: {.callout-important title="Question"}
-How much of the observed variation in mortality does the poverty model account
-for, and how much remains between counties?
-:::
-
-::: {.callout-note title="What to look for"}
-Connect response variance, residual variance and the resulting proportion
-explained. A model can have a clearly nonzero slope while still leaving most
-county-to-county variation unexplained.
-:::
-
-```{r}
-#| label: poverty-r-squared
-poverty_results <- augment(poverty_model)
-poverty_results |>
-  summarise(
-    response_variance = var(Mortality_Rate_num),
-    residual_variance = var(.resid),
-    variance_explained = 1 - residual_variance / response_variance
-  ) |>
-  mutate(model_r_squared = glance(poverty_model)$r.squared)
 ```
+This illustrates how you can predict for a specified body type and engine-size
+combination. As always, predictions far outside the combinations observed in
+the data are extrapolations.
 
-#### Result
+### Your turn: every body type at 150 kW
 
-The residual-variance calculation agrees with the reported \(R^2\). Poverty
-accounts for 15.8% of sample mortality variation, so 84.2% remains associated
-with other differences, unmeasured factors and random variation. This is a
-descriptive decomposition, not a causal claim.
+Repeat the prediction exercise with engine power fixed at 150 kW. Compare the
+ordering of the predicted values with the 2.0 L predictions.
 
-### Comparing poverty and income
+Does changing the variable that we hold constant change the comparison between
+body types? Also check whether changing the order of rows in `newdata` changes
+the predictions, and distinguish this from changing the factor reference level.
 
-::: {.callout-important title="Question"}
-Which of the two single-predictor models accounts for more variation in these
-counties?
-:::
-
-::: {.callout-note title="What to look for"}
-Both models use the same response and the same counties, so their \(R^2\)
-values are directly comparable. Also consider whether either value suggests
-close prediction for an individual county.
-:::
+Pay attention to the order of body_type. Does it change from the model above?
+Does it matter?
 
 ```{r}
-#| label: income-r-squared
-income_results <- augment(income_model)
-income_fit_summary <- income_results |>
-  summarise(
-    response_variance = var(Mortality_Rate_num),
-    residual_variance = var(.resid),
-    variance_explained = 1 - residual_variance / response_variance
-  ) |>
-  mutate(model_r_squared = glance(income_model)$r.squared)
-income_fit_summary
-```
-
-#### Result
-
-Income accounts for 20.0% of sample mortality variation, compared with 15.8%
-for poverty. Income is the stronger of these two single predictors by this
-measure, but about four-fifths of the variation remains unexplained. The
-comparison does not identify a cause.
-
-## 5. What can we predict for another county?
-
-### Staying within the observed data
-
-::: {.callout-important title="Question"}
-Which poverty rates and median incomes are supported by the observed counties?
-:::
-
-::: {.callout-note title="What to look for"}
-Check the predictor ranges before calculating a prediction. Values inside the
-range are interpolations; values outside it require the fitted line to continue
-where there are no supporting observations.
-:::
-
-```{r}
-#| label: observed-ranges
-cancer_clean |>
-  summarise(
-    minimum_poverty_percent = min(poverty_percent),
-    maximum_poverty_percent = max(poverty_percent),
-    minimum_income = min(med_income),
-    maximum_income = max(med_income)
+new_power_vehicles <- tibble(
+  power_kw = 150,
+  body_type = factor(
+    levels(vehicles$body_type),
+    levels = levels(vehicles$body_type)
   )
-```
-
-#### Result
-
-Observed poverty ranges from 2.60% to 46.49%. The predictions at 20% poverty
-and $50,000 income below are within the corresponding observed ranges.
-
-### Mortality at 20% poverty
-
-::: {.callout-important title="Question"}
-What mortality rate does the poverty model predict at 20%, and why are there
-two different kinds of interval?
-:::
-
-::: {.callout-note title="What to look for"}
-Convert 20% to 20,000 people per 100,000 and compare manual substitution with
-`predict()`. A confidence interval describes mean mortality at this poverty
-rate; a prediction interval allows for another county's deviation from that
-mean. Both widen as the confidence level increases.
-:::
-
-```{r}
-#| label: poverty-point-prediction
-poverty_20 <- tibble(pov_norm = 20000)
-poverty_coef <- coef(poverty_model)
-manual_prediction <- poverty_coef[["(Intercept)"]] +
-  poverty_coef[["pov_norm"]] * poverty_20$pov_norm
-tibble(manual_prediction)
-predict(poverty_model, poverty_20)
-```
-
-```{r}
-#| label: poverty-intervals
-predict(poverty_model, poverty_20, interval = "confidence", level = 0.95)
-predict(poverty_model, poverty_20, interval = "prediction", level = 0.95)
-```
-
-```{r}
-#| label: poverty-confidence-levels
-map_dfr(c(0.90, 0.95, 0.99), \(confidence_level) {
-  as_tibble(predict(
-    poverty_model, poverty_20,
-    interval = "prediction", level = confidence_level
-  )) |> mutate(level = confidence_level, .before = 1)
-})
-```
-
-#### Result
-
-Manual substitution and `predict()` agree at 56.61 deaths per 100,000. The
-confidence interval for mean county mortality is narrower than the prediction
-interval for one additional county because the latter also includes
-county-to-county variation. Both intervals widen from 90% to 95% to 99%. This
-is a prediction of a county mortality rate, not an individual person's outcome.
-
-### Mortality at $50,000 median income
-
-::: {.callout-important title="Question"}
-How precisely can the model estimate average mortality at $50,000, and how
-precisely can it predict mortality for one county with that median income?
-:::
-
-::: {.callout-note title="What to look for"}
-Compare the point prediction with the two 95% intervals. The difference in
-their widths reveals the distinction between estimating a mean relationship
-and predicting one county.
-:::
-
-```{r}
-#| label: income-point-prediction
-income_50000 <- tibble(med_income = 50000)
-income_coef <- coef(income_model)
-income_manual_prediction <- income_coef[["(Intercept)"]] +
-  income_coef[["med_income"]] * income_50000$med_income
-tibble(income_manual_prediction)
-predict(income_model, income_50000)
-```
-
-```{r}
-#| label: income-intervals
-predict(income_model, income_50000, interval = "confidence", level = 0.95)
-predict(income_model, income_50000, interval = "prediction", level = 0.95)
-```
-
-```{r}
-#| label: income-confidence-levels
-map_dfr(c(0.90, 0.95, 0.99), \(confidence_level) {
-  as_tibble(predict(
-    income_model, income_50000,
-    interval = "prediction", level = confidence_level
-  )) |> mutate(level = confidence_level, .before = 1)
-})
-```
-
-#### Result
-
-At $50,000, fitted mortality is 51.58 deaths per 100,000. The 95% confidence
-interval for mean mortality is 51.10–52.06, while the 95% prediction interval
-for one county is 26.94–76.21. The average trend is estimated quite precisely,
-but income alone gives a much less precise prediction for another county.
-
-### What happens beyond the observed range?
-
-::: {.callout-important title="Question"}
-Can predictions at 0% and 75% poverty be trusted simply because R can calculate
-them?
-:::
-
-::: {.callout-note title="What to look for"}
-Compare both requested values with the observed range of 2.60% to 46.49%.
-Numerical output does not supply data where none were observed.
-:::
-
-```{r}
-#| label: poverty-extrapolation
-predict(
-  poverty_model,
-  newdata = tibble(pov_norm = c(0, 75000)),
-  interval = "prediction"
 )
+
+new_power_vehicles |>
+  mutate(predicted_fuel_use = predict(power_body_model, newdata = new_power_vehicles))
 ```
 
-#### Result
+As we saw with the coefficients, the `Station wagon` has the largest fitted
+fuel use at 150 kW in this model (about 7.73 L/100 km, compared with about
+6.82 for Hatchbacks, 7.03 for Sedans, 7.65 for Sports cars and 7.38 for
+Convertibles). This does not make the model incorrect. The engine-size model
+and power model hold different numerical specifications constant, so they are
+answering different conditional questions about fuel use.
 
-Both values are extrapolations. R evaluates the fitted equation, but the data
-cannot show whether the line or its uncertainty behaves similarly beyond the
-observed poverty range.
+The factor-level order matters when fitting the model because it determines the
+reference category. The order of rows in `newdata` does not change the
+predictions.
 
-## Putting the results together
+## 5. Independent workflow: gross vehicle mass and body type
 
-Counties with $10,000 higher median income have an estimated 5.05 fewer
-lung-cancer deaths per 100,000, with a 95% confidence interval from -5.43 to
--4.68 and strong evidence against a zero slope under the model. Yet income
-explains only 20.0% of sample mortality variation. At $50,000, the fitted mean
-is 51.58 and is estimated precisely, while the interval for another county is
-far wider at 26.94–76.21. A clear average association can therefore coexist
-with substantial uncertainty about an individual county.
+**Your turn: complete the full workflow using gross vehicle mass.**
 
-These patterns could reflect access to healthcare, smoking, age distributions,
-environmental exposure or other differences between counties. The models do
-not separate those explanations, and the observational data cannot show that
-changing poverty or income would itself change mortality.
+1. Fit the simple gross-mass model from last week.
+2. Add the two-level Station wagon/Other factor and interpret the adjusted mass
+   and factor coefficients.
+3. Replace the two-level factor with the full five-level `body_type` factor.
+4. Identify the reference category and interpret the body-type coefficients
+   relative to it.
+5. Examine the standard errors and p-values for the adjusted coefficients.
+6. Compare the gross-mass slope before and after adjusting for body type. Report
+   the slope per 1000 kg so the effect size is easier to interpret.
+7. Explain why the simple and adjusted mass coefficients answer different
+   questions.
+8. Predict fitted fuel use for every body type at a gross mass of 2000 kg.
+9. Compare $R^2$ and adjusted $R^2$ across the simple, two-level-factor and
+   full-factor models.
+10. Decide which additional model terms materially improve the in-sample fit,
+    while remembering that ordinary $R^2$ cannot decrease simply because more
+    predictors are added.
 
-::: {.callout-tip title="Optional question"}
-If poverty and income are related, would including both necessarily improve
-predictions for new counties?
+### Fit and interpret the mass models
 
-Not necessarily. The two predictors may contain overlapping information, so a
-model fitted to the current data can become more complicated without gaining
-much new predictive information. Improvement should be judged using predictions
-for data that were not used to fit the model, while also checking whether the
-model's assumptions are reasonable.
-:::
+Now model both the binary and five-level body-type factors with
+`gross_mass_kg`. Interpret the mass slope per 1000 kg and discuss whether the
+simple-model intercept is meaningful. After adjusting for gross mass, compare
+the fitted Sedan and Station wagon values. Do these results reveal any new
+relationships?
 
-Next week we examine regression assumptions and use diagnostic plots to assess
-how well these models support inference and prediction.
+```{r}
+mass_model <- lm(
+  fuel_use_l_per_100km ~ gross_mass_kg,
+  data = vehicles
+)
+
+mass_binary_model <- lm(
+  fuel_use_l_per_100km ~ gross_mass_kg + station_wagon,
+  data = vehicles
+)
+
+mass_body_model <- lm(
+  fuel_use_l_per_100km ~ gross_mass_kg + body_type,
+  data = vehicles
+)
+
+tidy(mass_model)
+tidy(mass_binary_model)
+tidy(mass_body_model)
+```
+
+After adjusting for gross mass, the estimated Sedan-Station wagon difference is
+small relative to its standard error, and the data provide little evidence
+against a zero adjusted difference. In the full body-type model, the Sedan
+coefficient is about 0.248 L/100 km, so at 2000 kg the fitted Sedan value is
+about 7.43 L/100 km versus about 7.18 L/100 km for a Station wagon. The simple
+mass-model intercept is about 1.67 L/100 km at zero kilograms; because zero is
+outside the observed vehicle range, it is a mathematical anchor rather than a
+practical prediction.
+
+### Compare the slopes and predictions
+
+Compare the slopes from the simple linear model and the factor model. Report
+the effect for 1000 kg to make its size easier to interpret. What do you see?
+Explain why the adjusted slope answers a different question rather than
+necessarily being more accurate, and whether the change suggests that body type
+and mass carry overlapping information. Then predict fuel use for every body
+type at 2000 kg, identify the largest fitted value, and explain what the
+adjustment adds.
+```{r}
+mass_slope_comparison <- tibble(
+  model = c("Simple mass", "Mass adjusted for body type"),
+  mass_slope_per_kg = c(
+    coef(mass_model)[["gross_mass_kg"]],
+    coef(mass_body_model)[["gross_mass_kg"]]
+  ),
+  mass_slope_per_1000kg = 1000 * mass_slope_per_kg
+)
+mass_slope_comparison
+```
+
+The mass slope changes from 3.29 to 4.17 L/100 km per 1000 kg after
+accounting for body type. These coefficients answer different questions: the
+simple model describes the overall association between mass and fuel use, while
+the adjusted model describes the association between mass and fuel use among
+vehicles of the same body type. The difference tells us that body type and mass
+are carrying some overlapping information.
+
+```{r}
+new_mass_vehicles <- tibble(
+  gross_mass_kg = 2000,
+  body_type = factor(
+    levels(vehicles$body_type),
+    levels = levels(vehicles$body_type)
+  )
+)
+
+mass_predictions <- new_mass_vehicles |>
+  mutate(predicted_fuel_use = predict(mass_body_model, newdata = new_mass_vehicles))
+mass_predictions
+```
+
+The mass slope in the simple model is the average association without body-type
+adjustment. In `mass_body_model`, it is the expected difference for 1000 kg
+among vehicles with the same body type. `body_typeSedan` is the fitted Sedan
+difference from Station wagon at 2000 kg (and at every other mass under this
+additive model). The largest prediction is for Sports cars, at about 11.5
+L/100 km. These are observational associations and conditional model
+predictions; they do not show that changing mass or body type would cause fuel
+use to change.
+
+
+### Compare model fit
+
+Thinking back to last week, what are the $R^2$ and adjusted $R^2$ values for
+these models, and which explains the most variation? Use `glance()` to inspect
+both measures. What happens to ordinary $R^2$ when terms are added, and why
+does adjusted $R^2$ provide a useful penalty?
+
+```{r comparing_models}
+
+bind_rows(
+  Mass = glance(mass_model),
+  `Mass + Station wagon` = glance(mass_binary_model),
+  `Mass + Body type` = glance(mass_body_model),
+  .id = "model"
+) |>
+  select(model, r.squared, adj.r.squared)
+```
+The output is approximately: simple mass, R-squared 0.331 and adjusted
+R-squared 0.330; mass plus Station wagon/Other, 0.476 and 0.474; and mass plus
+all body types, 0.691 and 0.688. Ordinary R-squared increases when terms are
+added because the fitted model has more freedom. Adjusted R-squared applies a
+penalty for extra terms, so it increases only when the added terms improve the
+fit enough to justify their complexity. The full body-type model explains the
+most in-sample variation here.
+
+
+## Conclusion
+
+Summarise how adding body type changed the interpretation of a numerical slope,
+how the Station wagon reference category works, and what you learned from the
+gross-mass workflow. Explain why model complexity can change fitted slopes and
+why ordinary $R^2$ and adjusted $R^2$ respond differently to added terms.
+Explain why the "best" body type can depend on the numerical specification used
+for the comparison. Distinguish these observational associations and
+conditional predictions from causal effects.
+
+The factor coefficients are always comparisons with the *chosen reference
+category* at a common numerical value. Adding body type changes a numerical
+coefficient because the model no longer attributes all between-group variation
+to the numerical predictor. Ordinary $R^2$ cannot decrease when terms are added
+to the same in-sample OLS fit, although adjusted $R^2$ can decrease and
+out-of-sample performance can get worse. We also saw that the "best" body type
+depends on the question asked of the data.
+
+## Looking ahead
+
+Next week we will study diagnostic plots and the assumptions behind linear-model
+inference, building on the coefficient uncertainty introduced this week.
