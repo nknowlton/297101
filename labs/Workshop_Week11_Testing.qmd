@@ -354,3 +354,5 @@ predictions from causal effects.
 
 Next week we will study uncertainty in estimates and predictions and interpret
 diagnostic plots for the assumptions behind linear-model inference.
+
+[View the worked solutions online](https://knowlton.co.nz/297101/labs/Workshop_Week11_Testing_guide.html).
