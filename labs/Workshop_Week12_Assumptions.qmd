@@ -419,6 +419,7 @@ assumptions cause the most concern?
 After fitting income_model, run this supplied code:
 
 ```{r}
+#| eval: false
 check_model(income_model, check = "linearity")
 
 income_normality_check <- check_normality(income_model)
