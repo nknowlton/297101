@@ -36,7 +36,6 @@ library(knitr)
 library(ggplot2); theme_set(theme_bw(base_size=15))
 library(patchwork)
 library(fontawesome)
-library(visreg)
 ```
 
 
@@ -526,8 +525,18 @@ Let's plot the models...
 
 ```{r, echo=FALSE, fig.align="center", fig.dim=c(10,4), out.width="100%"}
 
-g1 <- visreg(mod,partial=TRUE,gg=TRUE) + ggtitle('lm(Bodywt ~ Heartgirth)') + theme(plot.title    = element_text(family = "mono", size = 14))
-g2 <- visreg(mod2,trans=exp,partial=TRUE,gg=TRUE) + ggtitle('lm(log(Bodywt) ~ log(Heartgirth))') + theme(plot.title = element_text(family = "mono", size = 14)) + ylab("Bodywt")
+plotdata <- donkey |> arrange(Heartgirth)
+plotdata$fit_raw <- predict(mod, newdata=plotdata)
+plotdata$fit_power <- exp(predict(mod2, newdata=plotdata))
+
+g1 <- ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) +
+  geom_point() +
+  geom_line(data=plotdata, aes(y=fit_raw), colour="dodgerblue") +
+  labs(title="lm(Bodywt ~ Heartgirth)")
+g2 <- ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) +
+  geom_point() +
+  geom_line(data=plotdata, aes(y=fit_power), colour="dodgerblue") +
+  labs(title="lm(log(Bodywt) ~ log(Heartgirth))")
 
 ```
 ::: {.fragment}

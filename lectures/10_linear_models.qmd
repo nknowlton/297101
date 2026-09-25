@@ -726,7 +726,7 @@ is 1 unit larger than that of donkey B, we expect donkey A to be
 :::
 
 
-## Let's make a plot
+## Add a regression line with `geom_abline()`
 
 It is a good idea to look at the regression line on a scatter plot to
 see how well it fits the data. Just feed the coefficients to the
@@ -740,7 +740,7 @@ ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) + geom_point() +
 
 
 
-## Let's make a plot
+## Add a regression line with `geom_smooth()`
 
 There are a other ways to show a regression line, such as with the
 `geom_smooth()` function specifying `method="lm"`.
@@ -748,18 +748,6 @@ There are a other ways to show a regression line, such as with the
 ```{r,echo=TRUE, fig.dim=c(6,3), message=FALSE}
 ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) + geom_point() +
   geom_smooth(method="lm")
-```
-
-
-
-## Let's make a plot
-
-Or you can use the function `visreg()` from the package `visreg` (see
-Lab C1).
-
-```{r, echo=TRUE, fig.dim=c(6,3)}
-library(visreg)
-visreg(mod, gg=TRUE)
 ```
 
 
@@ -795,4 +783,3 @@ the results via `summary()` and `coef()`.
 ![](./graphics/donkey_fes.jpg){fig-align="center" width="82%"}
 :::
 :::
-
