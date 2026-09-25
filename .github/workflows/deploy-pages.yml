@@ -118,9 +118,6 @@ jobs:
           grep -q 'View the worked solutions online' _site/labs/Workshop_Week11_Testing.html
           grep -q 'View the worked solutions online' _site/labs/Workshop_Week12_Assumptions.html
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
-
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
@@ -132,5 +129,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
       - id: deployment
         uses: actions/deploy-pages@v5
