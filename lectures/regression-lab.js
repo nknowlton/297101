@@ -28,6 +28,32 @@ const INNER_H = PLOT_H - MT - MB;
 
 const fmt = (value, digits = 2) => Number.isFinite(value) ? value.toFixed(digits) : "—";
 const clamp = (value, lo, hi) => Math.min(hi, Math.max(lo, value));
+
+function quantile(values, probability) {
+  const sorted = values.filter(Number.isFinite).slice().sort((a, b) => a - b);
+  if (!sorted.length) return NaN;
+  const index = clamp((sorted.length - 1) * probability, 0, sorted.length - 1);
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+}
+
+function scaleMseGrid(grid, minimumMse) {
+  const values = grid.map((cell) => ({
+    ...cell,
+    excessMse: Math.max(0, cell.mse - minimumMse),
+  }));
+  const ceiling = quantile(values.map((cell) => cell.excessMse), 0.9);
+  const safeCeiling = Number.isFinite(ceiling) && ceiling > 0 ? ceiling : 1;
+  return {
+    cells: values.map((cell) => ({
+      ...cell,
+      displayExcessMse: Math.min(cell.excessMse, safeCeiling),
+    })),
+    ceiling: safeCeiling,
+  };
+}
+
 const html = (tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -293,23 +319,31 @@ export function regressionLab({ Inputs, Plot }) {
   };
   const X = [0, 10];
   const Y = [-2, 12];
-  let data = generateRegressionData(state.preset, state.seed);
+  let data = null;
+  /* The MSE landscape (loss surface) depends only on the data sample, so the
+   * grid is cached per sample; every new draw must invalidate it. */
+  let gridCache = null;
+  const regenerate = (presetKey, seed) => {
+    data = generateRegressionData(presetKey, seed);
+    gridCache = null;
+  };
+  regenerate(state.preset, state.seed);
   const preset = segmented([
     ["clear", "Clear trend"], ["noisy", "Noisy trend"], ["influential", "Influential point"],
   ], state.preset, (key) => {
     state.preset = key; state.seed = 0; state.showBest = false;
-    data = generateRegressionData(state.preset, state.seed); render();
+    regenerate(state.preset, state.seed); render();
   });
   controls.append(html("div", "rl-section-label", "Example"), preset.wrap);
   controls.append(button("Generate another sample", "rl-new-sample", () => {
     state.seed += 1; state.showBest = false;
-    data = generateRegressionData(state.preset, state.seed); render();
+    regenerate(state.preset, state.seed); render();
   }));
   const intercept = rangeField("Proposed intercept", -2, 12, 0.01, state.intercept, (v) => { state.intercept = v; render(); });
   const slope = rangeField("Proposed slope", -1.5, 1.5, 0.01, state.slope, (v) => { state.slope = v; render(); });
   controls.append(intercept.field, slope.field);
   const reveal = button("Show best fit", "rl-reveal-btn", () => { state.showBest = !state.showBest; render(); });
-  controls.append(html("div", "rl-reveal-note", "Adjust your line, then reveal the least-squares solution."), reveal);
+  controls.append(html("div", "rl-reveal-note", "Adjust your line or click/drag the MSE grid, then reveal the least-squares solution."), reveal);
   const residualCheck = checkbox("Show residuals", false, (v) => { state.showResiduals = v; render(); });
   controls.append(residualCheck.node);
   const snapWrap = html("div", "rl-option-list");
@@ -317,6 +351,77 @@ export function regressionLab({ Inputs, Plot }) {
   const snapIntercept = button("Snap intercept to least squares", "", () => { const fit = leastSquares(data); if (fit) { state.intercept = fit.intercept; intercept.input.value = String(fit.intercept); intercept.readout.textContent = fmt(fit.intercept); render(); } });
   snapWrap.append(snapSlope, snapIntercept);
   controls.append(snapWrap);
+
+  const GX = [-2, 12];
+  const GY = [-1.5, 1.5];
+  const NX = 31;
+  const NY = 31;
+  const gridData = () => {
+    if (!gridCache) {
+      gridCache = [];
+      for (let j = 0; j < NY; j += 1) for (let i = 0; i < NX; i += 1) {
+        const b0 = GX[0] + (i / (NX - 1)) * (GX[1] - GX[0]);
+        const b1 = GY[0] + (j / (NY - 1)) * (GY[1] - GY[0]);
+        gridCache.push({ x1: b0 - (GX[1] - GX[0]) / (NX - 1) / 2, x2: b0 + (GX[1] - GX[0]) / (NX - 1) / 2, y1: b1 - (GY[1] - GY[0]) / (NY - 1) / 2, y2: b1 + (GY[1] - GY[0]) / (NY - 1) / 2, b0, b1, mse: meanSquaredError(data, b0, b1) });
+      }
+    }
+    return gridCache;
+  };
+
+  /* Click or drag on the MSE grid to set the proposed line, and hover to read
+   * the (α, β, MSE) of any grid point. Listeners live on the persistent visual
+   * container because render() replaces the SVG nodes mid-drag. */
+  let heatDrag = false;
+  const heatAt = (svg, event) => {
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const px = ((event.clientX - rect.left) / rect.width) * PLOT_W;
+    const py = ((event.clientY - rect.top) / rect.height) * PLOT_H;
+    return {
+      b0: clamp(GX[0] + ((px - ML) / INNER_W) * (GX[1] - GX[0]), GX[0], GX[1]),
+      b1: clamp(GY[0] + ((MT + INNER_H - py) / INNER_H) * (GY[1] - GY[0]), GY[0], GY[1]),
+    };
+  };
+  const setLineFromHeat = (svg, event) => {
+    const p = heatAt(svg, event);
+    if (!p) return;
+    state.intercept = Number(fmt(p.b0));
+    state.slope = Number(fmt(p.b1));
+    intercept.input.value = String(state.intercept);
+    intercept.readout.textContent = fmt(state.intercept);
+    slope.input.value = String(state.slope);
+    slope.readout.textContent = fmt(state.slope);
+    render();
+  };
+  const showHeatHover = (svg, event) => {
+    const p = heatAt(svg, event);
+    const infoEl = root.querySelector(".rl-hover-info");
+    if (!p || !infoEl) return;
+    infoEl.innerHTML = `<strong>Line at this grid point</strong><br>α = ${fmt(p.b0)} · β = ${fmt(p.b1)} · MSE = ${fmt(meanSquaredError(data, p.b0, p.b1), 3)}`;
+  };
+  const clearHeatHover = () => {
+    const infoEl = root.querySelector(".rl-hover-info");
+    if (infoEl) infoEl.textContent = "Hover the grid to read a line's MSE, or a point for its residual.";
+  };
+  visual.addEventListener("pointerdown", (event) => {
+    const svg = event.target.closest ? event.target.closest("svg[data-mse-grid]") : null;
+    if (!svg) return;
+    heatDrag = true;
+    visual.setPointerCapture?.(event.pointerId);
+    setLineFromHeat(svg, event);
+  });
+  visual.addEventListener("pointermove", (event) => {
+    if (heatDrag) {
+      const svg = root.querySelector("svg[data-mse-grid]");
+      if (svg) setLineFromHeat(svg, event);
+      return;
+    }
+    const svg = event.target.closest ? event.target.closest("svg[data-mse-grid]") : null;
+    if (svg) showHeatHover(svg, event);
+  });
+  visual.addEventListener("pointerup", () => { heatDrag = false; });
+  visual.addEventListener("pointercancel", () => { heatDrag = false; });
+  visual.addEventListener("pointerleave", () => { if (!heatDrag) clearHeatHover(); });
 
   function render() {
     preset.update(state.preset);
@@ -344,27 +449,35 @@ export function regressionLab({ Inputs, Plot }) {
     const proposedMse = meanSquaredError(data, state.intercept, state.slope);
     const stats = `ŷ = ${fmt(state.intercept)} ${state.slope < 0 ? "−" : "+"} ${fmt(Math.abs(state.slope))}x · proposed MSE = ${fmt(proposedMse, 3)}${fit ? ` · least-squares MSE = ${fmt(meanSquaredError(data, fit.intercept, fit.slope), 3)}` : ""}`;
     const left = panel("Observed data and proposed line", scatter, stats);
-    const grid = [];
-    const nx = 31; const ny = 31;
-    const b0Min = -2; const b0Max = 12; const b1Min = -1.5; const b1Max = 1.5;
-    for (let j = 0; j < ny; j += 1) for (let i = 0; i < nx; i += 1) {
-      const b0 = b0Min + (i / (nx - 1)) * (b0Max - b0Min);
-      const b1 = b1Min + (j / (ny - 1)) * (b1Max - b1Min);
-      grid.push({ x1: b0 - (b0Max - b0Min) / (nx - 1) / 2, x2: b0 + (b0Max - b0Min) / (nx - 1) / 2, y1: b1 - (b1Max - b1Min) / (ny - 1) / 2, y2: b1 + (b1Max - b1Min) / (ny - 1) / 2, b0, b1, mse: meanSquaredError(data, b0, b1) });
-    }
-    const minMse = Math.min(...grid.map((d) => d.mse));
+    const grid = gridData();
+    const gridMinMse = Math.min(...grid.map((d) => d.mse));
+    const bestMse = fit ? meanSquaredError(data, fit.intercept, fit.slope) : NaN;
+    const minimumMse = Number.isFinite(bestMse) ? bestMse : gridMinMse;
+    const scaledGrid = scaleMseGrid(grid, minimumMse);
+    /* Colour the surface by excess MSE above the analytic minimum rather than
+     * by the raw corner-to-corner range. The upper tail is capped per sample,
+     * and sqrt spacing makes the low-loss basin easier to see. */
     const heat = svgPlot(Plot, {
       marginLeft: ML, marginRight: MR, marginTop: MT, marginBottom: MB,
-      x: { domain: [b0Min, b0Max], label: "intercept", grid: true, nice: false },
-      y: { domain: [b1Min, b1Max], label: "slope", grid: true, nice: false },
-      color: { scheme: "Blues", reverse: true, label: "MSE" },
+      x: { domain: GX, label: "intercept", grid: true, nice: false },
+      y: { domain: GY, label: "slope", grid: true, nice: false },
+      color: {
+        scheme: "Blues", reverse: true, type: "sqrt",
+        domain: [0, scaledGrid.ceiling], label: "excess MSE above minimum",
+      },
       marks: [
-        Plot.rect(grid, { x1: "x1", x2: "x2", y1: "y1", y2: "y2", fill: "mse", inset: 0, fillOpacity: 0.9 }),
+        Plot.rect(scaledGrid.cells, { x1: "x1", x2: "x2", y1: "y1", y2: "y2", fill: "displayExcessMse", inset: 0, fillOpacity: 0.9 }),
         Plot.dot([{ x: state.intercept, y: state.slope }], { x: "x", y: "y", r: 6, fill: VERMILION, stroke: "white", strokeWidth: 1.5 }),
-        ...(state.showBest && fit ? [Plot.dot([{ x: fit.intercept, y: fit.slope }], { x: "x", y: "y", r: 7, fill: BLUE, stroke: "white", strokeWidth: 2 }), Plot.text([{ x: fit.intercept, y: fit.slope, label: "least squares" }], { x: "x", y: "y", text: "label", dy: -12, fill: BLUE, fontSize: 11 })] : []),
+        Plot.text([{ x: state.intercept, y: state.slope, label: `your line · MSE ${fmt(proposedMse, 3)}` }], { x: "x", y: "y", text: "label", dy: 18, fill: VERMILION, fontSize: 11 }),
+        ...(state.showBest && fit ? [
+          Plot.dot([{ x: fit.intercept, y: fit.slope }], { x: "x", y: "y", r: 13, fill: "none", stroke: BLUE, strokeWidth: 2 }),
+          Plot.dot([{ x: fit.intercept, y: fit.slope }], { x: "x", y: "y", r: 7, fill: BLUE, stroke: "white", strokeWidth: 2 }),
+          Plot.text([{ x: fit.intercept, y: fit.slope, label: `least squares · MSE ${fmt(bestMse, 3)}` }], { x: "x", y: "y", text: "label", dy: -16, fill: BLUE, fontSize: 11 }),
+        ] : []),
       ],
     });
-    const rightStats = `Dark basin = smaller MSE · grid minimum ${fmt(minMse, 3)}${state.showBest && fit ? ` · optimum = (${fmt(fit.intercept)}, ${fmt(fit.slope)})` : ""}`;
+    heat.dataset.mseGrid = "true";
+    const rightStats = `Click/drag the grid to set your line · colour = excess MSE above minimum (top 10% clipped) · actual minimum = ${fit ? fmt(bestMse, 3) : "—"}`;
     const info = html("div", "rl-hover-info");
     if (hovered) info.innerHTML = `<strong>Observation ${hovered.order + 1}</strong><br>xᵢ = ${fmt(hovered.x)} · yᵢ = ${fmt(hovered.y)}<br>ŷᵢ = ${fmt(hovered.fitted)} · eᵢ = ${fmt(hovered.resid)} · eᵢ² = ${fmt(hovered.resid ** 2)}`;
     else info.textContent = "Hover a point to inspect its squared residual.";

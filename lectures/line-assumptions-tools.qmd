@@ -67,8 +67,8 @@ linearityLab({ Inputs, Plot })
 ::: {.ll-slide-note}
 The straight line can overpredict at both ends and underpredict in the
 middle — and $R^2$ can stay high while it does.
-The dial bends the curve up (U-shape) or down (S-shape); compare with the
-quadratic fit to see how a curve hides from a straight line.
+The dial bends the curve up (U-shape) or down (S-shape); the residuals-vs-fitted
+plot shows the same curve as a systematic arch.
 :::
 
 ## Independence — does one error tell you about the next?
@@ -79,10 +79,9 @@ independenceLab({ Inputs, Plot })
 ```
 
 ::: {.ll-slide-note}
-Well-behaved and Violation draw the *same* kind of sample: a sequence with
+Well-behaved and Violation draw the *same* data sample: a sequence with
 genuine time structure. Well-behaved shows it shuffled, where the pattern is
-invisible; Violation sorts the slider into *time order*, so the runs appear —
-the violation always comes from the slider, never from new data. Positive
+invisible; Violation sorts the slider into *time order*. Positive
 $r_1$ gives runs above and below zero; negative $r_1$ gives alternation.
 :::
 
@@ -111,5 +110,5 @@ equalVarianceLab({ Inputs, Plot })
 The line still passes through the middle. What changes is how precisely
 we can predict individual outcomes. The SD dial rescales the spread around
 the same line — even for the constant pattern. Try the bow-tie pattern too,
-and show the mean $\pm$ 2 SD band.
+and show the fitted line $\pm$ 2 SD band.
 :::

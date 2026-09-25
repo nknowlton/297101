@@ -1,5 +1,5 @@
 ---
-title: "Workshop Week 11: Testing — data preparation"
+title: "Workshop Week 11: Testing: data preparation"
 author: "Johnathan Marshall, Nick Knowlton"
 date: "`r format(Sys.Date(), '%Y-%m-%d')`"
 format: 

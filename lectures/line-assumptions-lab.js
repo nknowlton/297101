@@ -13,8 +13,6 @@
 const GENERATED_FILL = "#4d4d4d";
 const STUDENT_FILL = "#D55E00";
 const HOVER_STROKE = "#0072B2";
-const QUAD_STROKE = "#0072B2";
-const SMOOTHER_STROKE = "#E69F00";
 // Diagnostic plots redraw the same observations in a different coordinate
 // space (residuals, quantiles, sequence positions). Each plot is tinted slightly
 // there — a step lighter for generated data, a step softer for student points —
@@ -929,7 +927,7 @@ function createLab(Inputs, Plot, opts) {
   }
 
   function buildScatter(ctx) {
-    const { data, fit, quadFit, hovered } = ctx;
+    const { data, fit, hovered } = ctx;
     const marks = [Plot.ruleY([0], { stroke: "#d0d0d0" })];
     if (!fit) {
       marks.push(...emptyMarks("Add at least two points with distinct x-values"));
@@ -956,15 +954,6 @@ function createLab(Inputs, Plot, opts) {
       stroke: "#24313a",
       strokeWidth: 2.5,
     }));
-    if (quadFit) {
-      marks.push(Plot.line(LINE_X.map((x) => ({ x, y: quadFit.predict(x) })), {
-        x: "x",
-        y: "y",
-        stroke: QUAD_STROKE,
-        strokeWidth: 2,
-        strokeDasharray: "6,4",
-      }));
-    }
     marks.push(Plot.dot(data, {
       x: "x",
       y: "y",
@@ -1032,9 +1021,6 @@ function createLab(Inputs, Plot, opts) {
   function makeCtx() {
     const data = getActivePoints();
     const fit = fitLeastSquares(data, 1);
-    const wantsQuad = opts.assumption === "linearity"
-      && state.extras.showQuad;
-    const quadFit = wantsQuad ? fitLeastSquares(data, 2) : null;
     const withStats = data.map((p) => {
       const fitted = fit ? fit.predict(p.x) : NaN;
       return { ...p, fitted, resid: fit ? p.y - fitted : NaN };
@@ -1057,7 +1043,6 @@ function createLab(Inputs, Plot, opts) {
     return {
       data: withStats,
       fit,
-      quadFit,
       hovered,
       rankOf,
       state,
@@ -1658,10 +1643,6 @@ function createLab(Inputs, Plot, opts) {
         const r2 = rSquared(ctx.data, ctx.fit.predict);
         if (r2 != null) text += `   ·   R² = ${r2.toFixed(2)}`;
       }
-      if (ctx.quadFit) {
-        const r2q = rSquared(ctx.data, ctx.quadFit.predict);
-        if (r2q != null) text += `   ·   quadratic R² = ${r2q.toFixed(2)}`;
-      }
       stats.textContent = text;
     } else {
       stats.textContent = "Fit unavailable — add at least two points with distinct x-values.";
@@ -1751,34 +1732,20 @@ function createLab(Inputs, Plot, opts) {
 /* Widget-specific overlays                                             */
 /* ------------------------------------------------------------------ */
 
-function quadDiagOverlay(ctx, Plot, hoverRing) {
-  if (!ctx.quadFit) return [];
-  const qd = ctx.data.map((d) => ({
-    id: d.id,
-    fitted: d.fitted,
-    qr: d.y - ctx.quadFit.predict(d.x),
-  }));
-  const marks = [Plot.dot(qd, {
-    x: "fitted",
-    y: "qr",
-    r: 4,
-    fill: QUAD_STROKE,
-    fillOpacity: 0.35,
-    stroke: QUAD_STROKE,
-    strokeOpacity: 0.85,
-  })];
-  if (ctx.hovered) {
-    const qh = qd.find((q) => q.id === ctx.hovered.id);
-    if (qh) marks.push(hoverRing(qh.fitted, qh.qr));
-  }
-  return marks;
-}
-
 function equalVarianceBandMarks(ctx, Plot) {
   const { pattern, sd } = ctx.state.controls;
+  // Centre the band on the least-squares line the plot actually draws. The
+  // sample line differs from the generating mean by ordinary sampling noise,
+  // and a band pinned to the generating mean floats visibly off the regression
+  // line — which reads as a bug to students. Free-edit mode can lose the fit
+  // entirely, so fall back to the generating mean there.
+  const fit = ctx.fit;
+  const centreAt = fit
+    ? (x) => fit.predict(x)
+    : (x) => 11 + 1.2 * (x - 5);
   const band = LINE_X.map((x) => {
-    const centre = 11 + 1.2 * (x - 5);
     const sdAt = equalVarianceSdAt(pattern, sd, x);
+    const centre = centreAt(x);
     return {
       x,
       y1: clamp(centre - 2 * sdAt, Y_DOMAIN),
@@ -1836,10 +1803,6 @@ export function linearityLab({ Inputs, Plot }) {
       well: { curvature: 0, slope: 1.5, noise: 1 },
       violation: { curvature: 1.6, slope: 1.5, noise: 1 },
     },
-    extraOptionDefs: [
-      { key: "showQuad", label: "Show quadratic fit & its residuals" },
-    ],
-    diagOverlay: quadDiagOverlay,
     generate: generateLinearity,
     instructions: "Free edit: click blank space in either plot to add a point (in the diagnostic the click sets the residual and fitted value), drag to move, click to select, then Delete selected. Hover either plot to link points. A high R² can still hide a curve — try strong curvature, and flip the slope negative to see the same patterns.",
   });
@@ -1959,7 +1922,7 @@ export function equalVarianceLab({ Inputs, Plot }) {
       violation: { pattern: "increasing", sd: 0.75 },
     },
     extraOptionDefs: [
-      { key: "band", label: "Show generating mean ± 2 SD band" },
+      { key: "band", label: "Show fitted line ± 2 SD band" },
     ],
     bandOverlay: equalVarianceBandMarks,
     generate: generateEqualVariance,

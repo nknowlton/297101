@@ -4,7 +4,6 @@ subtitle: "Student workbook: relationships, fitted lines and prediction"
 author:
   - name: "Nick Knowlton"
   - name: "297.101 Statistical Data Science"
-date-meta: "Spring 2026"
 format:
   html:
     toc: true

@@ -11,6 +11,8 @@ format:
     incremental: false
     highlight-style: breezedark
     highlight-lines: true
+    width: 1120
+    height: 630
     ratio: "16:9"
     progress: true
     slideNumberFormat: "%current%/%total%"
@@ -110,7 +112,7 @@ tend to regress down towards a normal average.
 
 # Example: <br> Moroccan donkeys {style="text-align: center;"}
 
-![](donkey.png "Moroccan Donkey")
+![](./graphics/donkey.png "Moroccan Donkey")
 
 ## Example: Moroccan donkeys
 
@@ -626,9 +628,9 @@ $$
 
 ## Estimating the parameters
 
-::: {.regression-instructions}
-Adjust the proposed line, then reveal the least-squares fit to compare it
-with your intuition.
+::: {.regression-instructions .small}
+Adjust the proposed line, or click/drag directly on the MSE grid — each grid
+point is a possible line (intercept × slope). 
 :::
 
 ```{ojs}
@@ -784,4 +786,4 @@ the results via `summary()` and `coef()`.
 
 ---
 
-![](donkey.png){fig-align="center"}
+![](./graphics/donkey.png){fig-align="center"}
