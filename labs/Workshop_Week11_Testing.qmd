@@ -41,6 +41,14 @@ By the end of this workshop you should be able to:
 - interpret a factor with more than two levels; and
 - make predictions for specified combinations of predictors.
 
+## How to use this workbook
+
+Work through the sections in order. Run each supplied demonstration and inspect
+its output before moving on. In each **Your turn** section, write your own code
+in the blank chunk, then answer the question in words. Hints appear when a
+function or idea is first introduced; later tasks expect you to reuse it. Open
+this file from the `labs` folder so the supplied data file can be found.
+
 ## 1. Revisit a simple model
 
 **What to do:** Start by refitting the simple engine-size and power models from
@@ -86,6 +94,10 @@ engine_model
 tidy(engine_model)
 ```
 
+Read the coefficient table and identify the engine-size slope, its standard
+error and p-value. Then use the plot to check how the fitted line summarises the
+overall pattern. Is the intercept a realistic vehicle comparison?
+
 ```{r}
 ggplot(vehicles, aes(engine_l, fuel_use_l_per_100km)) +
   geom_point(alpha = 0.45) +
@@ -108,6 +120,9 @@ than a realistic vehicle comparison.
 Refit the power model yourself and interpret the slope in useful units. Before
 moving on, make sure you can explain what the coefficient tells us about the
 overall association between power and fuel use.
+
+Reuse the Week 10 workflow: fit the model, inspect its coefficients and plot the
+fitted line. Report the power slope per 10 kW.
 
 ```{r}
 # Your code here
@@ -158,6 +173,9 @@ coefficient did not?
 Also interpret the `station_wagonOther` coefficient and its p-value at a common
 value of engine power. Show the first rows of the design matrix and explain its
 columns.
+
+**Hint:** `model.matrix()` shows the numerical columns R creates for the
+factor. The first factor level is the reference group.
 
 ```{r}
 # Your code here
@@ -262,14 +280,10 @@ the data are extrapolations.
 ### Your turn: every body type at 150 kW
 
 Repeat the prediction exercise with engine power fixed at 150 kW. Compare the
-ordering of the predicted values with the 2.0 L predictions.
-
-Does changing the variable that we hold constant change the comparison between
-body types? Also check whether changing the order of rows in `newdata` changes
-the predictions, and distinguish this from changing the factor reference level.
-
-Pay attention to the order of body_type. Does it change from the model above?
-Does it matter?
+ordering of the predicted values with the 2.0 L predictions. Which body type has
+the highest and lowest fitted mean fuel use in each comparison? Explain why the
+two rankings can differ when a different numerical characteristic is held
+constant.
 
 ```{r}
 # Your code here
@@ -279,23 +293,19 @@ Does it matter?
 
 **Your turn: complete the full workflow using gross vehicle mass.**
 
-1. Fit the simple gross-mass model from last week.
-2. Add the two-level Station wagon/Other factor and interpret the adjusted mass
-   and factor coefficients.
-3. Replace the two-level factor with the full five-level `body_type` factor.
-4. Identify the reference category and interpret the body-type coefficients
-   relative to it.
-5. Examine the standard errors and p-values for the adjusted coefficients.
-6. Compare the gross-mass slope before and after adjusting for body type. Report
-   the slope per 1000 kg so the effect size is easier to interpret.
-7. Explain why the simple and adjusted mass coefficients answer different
-   questions.
-8. Predict fitted fuel use for every body type at a gross mass of 2000 kg.
-9. Compare $R^2$ and adjusted $R^2$ across the simple, two-level-factor and
-   full-factor models.
-10. Decide which additional model terms materially improve the in-sample fit,
-    while remembering that ordinary $R^2$ cannot decrease simply because more
-    predictors are added.
+1. Fit a simple model of fuel use and `gross_mass_kg`, then add
+   `station_wagon`. Replace that factor with the five-level `body_type` and fit
+   the third model. Station wagon is the reference level.
+2. For each model, inspect the coefficients. Interpret the adjusted slopes and
+   body-type differences, including the Sedan-minus-Station-wagon comparison.
+   Remember that the body-type lines share a slope.
+3. Compare the simple and adjusted mass slopes per 1000 kg. Explain what each
+   comparison holds constant and whether the slopes suggest mass and body type
+   carry overlapping information.
+4. Predict fuel use for each body type at 2000 kg. Identify the largest fitted
+   mean and explain what the adjustment adds.
+5. Compare $R^2$ and adjusted $R^2$ across all three models. State what happens
+   as terms are added and which model's adjusted $R^2$ is largest.
 
 ### Fit and interpret the mass models
 

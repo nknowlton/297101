@@ -100,8 +100,10 @@ vehicles |>
   summarise(engine_correlation = cor(engine_l, fuel_use_l_per_100km))
 ```
 
-What does the correlation add to the plot? Remember that it describes linear
-strength, has no units, and is not a slope.
+Look at the scatterplot first. Describe the direction, shape and strength of
+the relationship, and note anything unusual. Then use the correlation to
+summarise its linear strength. Does that number support what you saw? Remember
+that correlation has no units and is not a slope.
 
 The relationship is positive, strong and approximately linear. The correlation
 is about 0.90, so larger engines tend to be associated with higher fuel use,
@@ -118,6 +120,9 @@ Repeat the same process for engine power. Before looking at the correlation, use
 the plot to decide whether the relationship is positive or negative, whether it
 looks approximately linear, and whether it appears stronger or weaker than the
 engine-size relationship.
+
+**Hint:** Use `ggplot()` with a LOESS smooth, then calculate the correlation
+with `cor()`.
 
 ```{r}
 ggplot(vehicles, aes(power_kw, fuel_use_l_per_100km)) +
@@ -145,8 +150,9 @@ larger correlation (0.901 versus 0.884). These correlations measure unit-free
 linear strength; they are not slopes and should not be compared as changes in
 fuel use per unit of the predictor.
 
-Which relationship appears more nearly linear? Which has the larger correlation?
-Do not compare the correlations as if they were slopes.
+Which relationship appears more nearly linear? Which has the stronger linear
+association according to correlation? Use the plot and correlation as evidence;
+do not interpret either correlation as a slope.
 
 ## 2. Fit simple linear models
 
@@ -186,6 +192,10 @@ ggplot(vehicles, aes(engine_l, fuel_use_l_per_100km)) +
   theme_minimal(base_size = 13)
 ```
 
+From the printed model, identify the intercept and slope. On the plot, check
+whether the fitted line follows the main pattern in the points. What does the
+line represent for vehicles with the same engine size?
+
 There are many possible straight lines we could draw through these data.
 `lm()` uses least squares: it chooses the intercept and slope that minimise the
 sum of the squared vertical distances between the observed values and the fitted
@@ -206,6 +216,10 @@ above and below it. It is a summary of the conditional mean, not an exact rule.
 Fit the power model yourself before looking at the answer. Compare its fitted
 line with the LOESS smooth from Section 1. Does a straight line still seem like
 a reasonable summary?
+
+**Hint:** Fit fuel use as the response and `power_kw` as the explanatory
+variable with `lm()`. Add a straight fitted line to a scatterplot with
+`geom_smooth(method = "lm")`.
 
 ```{r}
 power_model <- lm(
@@ -270,8 +284,9 @@ $$
 \widehat{\text{fuel use}} = 4.070 + 1.886(\text{engine size})
 $$
 
-Write the fitted equation. Which number is the intercept, and which number is
-the slope?
+Write the fitted equation. Identify the intercept and slope, then interpret the
+slope in L/100 km per litre of engine size. Before giving the intercept a
+practical meaning, check whether zero litres is represented in these data.
 
 A one-litre difference in engine size is associated with about 1.886 L/100 km
 higher average fuel use. Zero litres is outside the observed range (0.998 to
@@ -284,6 +299,9 @@ interpretation are different questions!
 We already calculated the correlation between engine size and fuel use. Square
 it and compare it with the model $R^2$. What do you notice? Write one sentence
 about how much variation the engine-size model explains.
+
+**Hint:** Compare the squared correlation with
+`glance(engine_model)$r.squared`.
 
 ```{r}
 engine_r <- cor(vehicles$engine_l, vehicles$fuel_use_l_per_100km)
@@ -317,7 +335,9 @@ power_fit |>
 Now interpret the power model yourself. What does the slope mean in L/100 km
 per kW? Is that a useful scale, or would reporting the change per 100 kW be
 easier to understand? Compare its standard error, p-value and $R^2$ with the
-engine-size model.
+engine-size model. State which model accounts for more of the observed
+variation. Since the predictors use different units, do not compare their raw
+slope standard errors as if they were on the same scale.
 
 Read this output in the same way. The power coefficient is about 0.0186 L/100
 km per kW, with a very small standard error and p-value. The coefficient tells
@@ -345,7 +365,12 @@ accounts for slightly more of the observed variation in fuel use.
 
 **What to do:** Use the fitted equation to calculate the fitted fuel use for a
 vehicle with a 2.0 L engine by hand. Then use `predict()` to obtain the same
-value in R. The two answers should agree.
+value in R. The two answers should agree. Explain what the fitted value
+represents and whether it describes every individual vehicle with a 2.0 L
+engine.
+
+**Hint:** Use the intercept and engine-size slope from `coef(engine_model)`;
+for the R prediction, supply a one-row tibble with `engine_l = 2`.
 
 ```{r}
 engine_prediction_manual <- coef(engine_model)[["(Intercept)"]] +
@@ -369,8 +394,8 @@ vehicles with a 2.0 L engine according to this model. Note that individual 2.0 L
 vehicles can sit well above or below this value, so it should
 not be interpreted as *truth* or a guarantee for an individual vehicle.
 
-What does 7.84 L/100 km represent? Does the model say that every 2.0 L vehicle
-will have this fuel use?
+What does your fitted value represent? Does the model say that every 2.0 L
+vehicle will have this fuel use?
 
 It is the model’s estimated mean fuel use for vehicles with a 2.0 L engine. It
 does not mean every 2.0 L vehicle will use 7.84 L/100 km; individual vehicles
@@ -397,6 +422,10 @@ $$
 Find one positive residual and one negative residual and explain what each means
 in the context of fuel use.
 
+**Hint:** In the augmented results, the observed response is
+`fuel_use_l_per_100km`, the fitted value is `.fitted`, and the residual is
+`.resid`.
+
 ```{r}
 engine_results <- augment(engine_model)
 engine_results |>
@@ -407,6 +436,12 @@ engine_results |>
 On the plot, the residual is the vertical distance from each observed value to
 the fitted line. Before looking at the residual column, use the graph to decide
 whether a point should have a positive or negative residual.
+
+Use the plot to find one point above the fitted line and one below it. Predict
+the sign of each residual from the graph, then check those signs in the table.
+What are the units of a residual?
+
+**Hint:** The residual is the observed value minus the fitted value.
 
 ```{r}
 set.seed(297101)
@@ -441,9 +476,9 @@ vehicle has a residual of about +0.62 L/100 km: it uses more fuel than the
 fitted value. The sign comes from observed minus fitted, not from the size of
 the engine itself.
 
-What are the units of a residual? A near-zero average residual is expected from
-least squares, but it does not by itself establish that the model is adequate.
-Formal residual diagnostics belong to Week 12.
+A near-zero average residual is expected from least squares, but it does not by
+itself establish that the model is adequate. Formal residual diagnostics belong
+to Week 12.
 
 Each residual is in L/100 km. A point above the line has a positive residual;
 one below has a negative residual. The residual is vertical because the model
@@ -455,15 +490,14 @@ but that algebraic fact does not validate the model.
 
 **Your turn: complete the full workflow using gross vehicle mass.**
 
-1. Plot gross mass against fuel use and use a smooth to examine the shape of the relationship.
-2. Describe the direction, strength and approximate form of the relationship.
-3. Calculate the correlation.
-4. Fit a simple linear regression model and save it as `mass_model`.
-5. Interpret the slope. Report it per 1000 kg rather than per kilogram if that makes the effect easier to understand.
-6. Examine the standard error and p-value for the slope.
-7. Report and interpret $R^2$.
-8. Predict the fitted mean fuel use for a 2000 kg vehicle.
-9. Compare the gross-mass model with the engine-size and power models. Which has the largest in-sample $R^2$?
+1. Plot gross mass against fuel use with a smooth. Describe the direction,
+   strength and shape, and calculate the correlation.
+2. Fit and print a simple model called `mass_model`. Interpret its slope per
+   1000 kg, then inspect the slope's standard error and p-value.
+3. Report $R^2$ and explain how much variation the model accounts for.
+4. Predict the fitted mean fuel use at 2000 kg.
+5. Compare this model's $R^2$ with the engine-size and power models. Which
+   single-predictor model accounts for the most variation in this dataset?
 
 ```{r}
 ggplot(vehicles, aes(gross_mass_kg, fuel_use_l_per_100km)) +

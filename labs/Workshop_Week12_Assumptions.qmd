@@ -58,6 +58,15 @@ By the end of this workshop you should be able to:
   model; and
 - evaluate one transformed alternative without relying on R-squared alone.
 
+## How to use this workbook
+
+Work through the sections in order. Run each supplied demonstration and inspect
+its output or plot before moving on. In each **Your turn** section, write your
+own code in the blank chunk, then record your interpretation beside the prompt.
+Hints appear when a function or idea is first introduced; later tasks expect
+you to reuse it. Open this file from the `labs` folder so the supplied data file
+can be found.
+
 ## 1. Fit and understand one primary cancer model
 
 **What to do:** Fit the multiple regression model and identify the response and
@@ -108,6 +117,11 @@ cancer_model
 tidy(cancer_model)
 ```
 
+From the output, name the response and both predictors. Find each slope and
+interpret its units while holding the other predictor fixed. Compare each
+estimate with its standard error: which slope is estimated more precisely
+relative to its size?
+
 The poverty coefficient is the estimated difference in mortality for a
 one-percentage-point difference in poverty among counties with the same
 incidence rate. The incidence coefficient is interpreted similarly while
@@ -137,6 +151,8 @@ glance(cancer_model) |>
 added, while adjusted $R^2$ can decrease? What would it suggest if $R^2$
 increased but adjusted $R^2$ decreased?
 
+**Hint:** Compare what the two measures reward when a model gains another term.
+
 ## 2. Confidence intervals and coefficient p-values
 
 **What to do:** Use the coefficient table to interpret the 95% confidence
@@ -155,11 +171,11 @@ tidy(cancer_model, conf.int = TRUE)
 The table contains a two-sided t test for each coefficient. The rows correspond
 to these null hypotheses:
 
-| Row | Null hypothesis | Interpretation if the coefficient is not zero |
+| Row | Null hypothesis | What a nonzero coefficient represents |
 |:--|:--|:--|
-| (Intercept) | $H_0:\beta_0=0$ | fitted mortality is zero when both predictors are zero |
-| poverty_percent | $H_0:\beta_{\mathrm{poverty}}=0$ | poverty has no adjusted linear association at fixed incidence |
-| incidence_rate | $H_0:\beta_{\mathrm{incidence}}=0$ | incidence has no adjusted linear association at fixed poverty |
+| (Intercept) | $H_0:\beta_0=0$ | fitted mortality when both predictors are zero |
+| poverty_percent | $H_0:\beta_{\mathrm{poverty}}=0$ | change per poverty percentage point, at fixed incidence |
+| incidence_rate | $H_0:\beta_{\mathrm{incidence}}=0$ | change per incidence-rate unit, at fixed poverty |
 
 A p-value is calculated under the stated null and model. It is not the
 probability that the null is true. Use reject or fail to reject; never say that
@@ -186,6 +202,10 @@ or practical importance.
 and p-value. State the null hypothesis and your conclusion. Then do the same
 for the intercept. Is the intercept test statistically significant, and is it
 substantively useful?
+
+**Hint:** For each term, compare the confidence interval with zero and read the
+p-value against the 5% level. Then check whether the predictor values in that
+interpretation occur in the observed data.
 
 ## 3. Confidence versus prediction intervals
 
@@ -250,6 +270,9 @@ check_model(cancer_model, check = "linearity")
 **Your turn:** Does the reference line show clear curvature, or is a
 straight-line mean structure reasonably supported?
 
+**Hint:** Look for a systematic curve in the residual trend, rather than
+isolated points far from the line.
+
 ### Demonstration: I: what independence asks
 
 There is no valid row-order plot for independence. Counties may share
@@ -260,6 +283,8 @@ this one is handled by study design and knowing your data and its source.
 
 **Your turn:** Can independence be assessed from these diagnostic plots alone?
 What features of the study design could make counties non-independent?
+
+**Hint:** Think about nearby counties sharing geography, exposures or services.
 
 ### Demonstration: N: what normality asks
 
@@ -277,6 +302,9 @@ plot(normality_check, type = "qq")
 **Your turn:** How closely do the residuals follow the reference line? Pay
 particular attention to the centre and tails.
 
+**Hint:** A Q-Q plot compares the residual quantiles with what a normal
+distribution would produce; check whether departures are mainly in the tails.
+
 ### Demonstration: E: what equal variance asks
 
 `check_heteroscedasticity()` is the same plot as linearity, that is fitted
@@ -291,6 +319,8 @@ plot(heteroscedasticity_check)
 
 **Your turn:** Does the residual spread stay approximately constant as the
 fitted values increase, or does it change systematically?
+
+**Hint:** Look for a widening or narrowing vertical cloud across fitted values.
 
 ## 5. Influence and one transformation
 
@@ -324,6 +354,10 @@ influence_data |>
 **Your turn:** Identify the counties with the largest Cook's distances. Which
 observations would you investigate further, and what would you check before
 deciding whether any observation should be excluded?
+
+**Hint:** Inspect the largest values in the supplied table. Treat a large
+Cook's distance as a reason to investigate the source record, not as an
+automatic deletion rule.
 
 ### Demonstration: compare a log-incidence alternative
 
@@ -360,25 +394,32 @@ plot(check_heteroscedasticity(cancer_log_model))
 residual SD, residual curvature and spread. Does the transformation improve the
 model enough to justify making the coefficient harder to interpret?
 
+**Hint:** Compare the supplied fit table and paired diagnostic plots. Base the
+decision on the size of the improvement and the model's purpose, not on $R^2$
+alone.
+
 ## 6. Independent workflow: income and insurance
 
 **Your turn: complete the full workflow using income and insurance.**
 
-1. Prepare the analysis variables and fit the multiple regression model.
-2. Interpret both adjusted coefficients in their original units.
-3. Examine the standard errors, 95% confidence intervals and p-values.
-4. Interpret $R^2$ and adjusted $R^2$.
-5. Predict mortality for the specified predictor values using both confidence
-   and prediction intervals.
-6. Interpret the LINE diagnostics.
-7. Identify any influential observations and explain what you would investigate.
-8. Fit the transformed alternative and decide whether it materially improves the model.
-9. Justify your decision using diagnostics, interpretability and model fit rather than $R^2$ alone.
+1. Keep complete rows for the response, income, uninsured count and population.
+   Calculate income in thousands of dollars and uninsured percentage, then fit
+   mortality using both predictors.
+2. Interpret each adjusted coefficient in its original units. Inspect standard
+   errors, 95% intervals and p-values, and compare $R^2$ with adjusted $R^2$.
+3. Predict mortality when income is 50 thousand dollars and uninsured
+   percentage is 10. Calculate both an interval for the average county and an
+   interval for one county; compare their widths.
+4. Interpret the supplied LINE plots and influence output. State the main
+   concern for each assumption and name any counties you would investigate.
+5. Fit a second model using log income. Compare fit and diagnostic plots, then
+   recommend which model to retain and explain the trade-off in interpretation.
 
 ### Your turn: prepare and fit the independent model
 
 Fit the model and interpret both adjusted slopes, confidence intervals and
-p-values.
+p-values. Also state what the intercept represents and whether that comparison
+is meaningful for these counties.
 
 Create income_data with complete rows for area_name, Mortality_Rate_num,
 med_income, all_without_insur and popestimate2015. Derive:
@@ -401,6 +442,8 @@ Use tidy(income_model, conf.int = TRUE) and answer:
 4. Is the intercept at zero income and zero uninsured percentage a meaningful
    county comparison?
 
+Also report ordinary and adjusted $R^2$.
+
 ### Your turn: predict with uncertainty
 
 Calculate both intervals and explain why they differ in width. Use a county with
@@ -416,7 +459,13 @@ confidence interval for the average and a prediction interval for one county:
 Work through LINE and influence just as you did for the primary model. Which
 assumptions cause the most concern?
 
-After fitting income_model, run this supplied code:
+For each plot, write what pattern you see, what it suggests about the
+assumption, and whether it concerns you. For influence, name any counties in
+the largest Cook's-distance rows and say what you would check.
+
+This supplied diagnostics chunk uses `income_model` from your previous task.
+After you have created and fitted that model, run the chunk in RStudio. It is
+skipped during rendering while the model code is still blank.
 
 ```{r}
 #| eval: false
