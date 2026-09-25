@@ -294,3 +294,5 @@ introduces multiple regression, reference categories and adjusted coefficients.
 The coefficient estimates, standard errors and p-values are interpreted in the
 same general way as today, but the meaning of each coefficient changes because
 it is now conditional on the other variables in the model.
+
+[View the worked solutions online](https://knowlton.co.nz/297101/labs/Workshop_Week10_Relationships_guide.html).
