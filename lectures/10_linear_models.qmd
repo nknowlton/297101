@@ -110,11 +110,7 @@ tend to regress down towards a normal average.
 
 # Moroccan donkeys {style="text-align: center;"}
 
-![](https://upload.wikimedia.org/wikipedia/commons/6/66/Donkeys_of_Morocco.JPG){fig-align="center" width="82%"}
-
-::: {.tiny style="text-align: center;"}
-Photo: Makary / Wikimedia Commons, CC BY 3.0
-:::
+![](./graphics/donkey_morocco.jpg){fig-align="center" width="82%"}
 
 ## Example: Moroccan donkeys
 
@@ -792,14 +788,11 @@ the results via `summary()` and `coef()`.
 
 :::{.columns}
 :::{.column width="50%"}
-![](https://images.pexels.com/photos/30298392/pexels-photo-30298392.jpeg){fig-align="center" width="96%"}
+![](./graphics/donkey_pexels.jpg){fig-align="center" width="96%"}
 :::
 
 :::{.column width="50%"}
-![](https://commons.wikimedia.org/wiki/Special:Redirect/file/Fes,_Morocco_(28148932782).jpg){fig-align="center" width="82%"}
+![](./graphics/donkey_fes.jpg){fig-align="center" width="82%"}
 :::
 :::
 
-::: {.tiny style="text-align: center;"}
-Photos: Othmane Ettalbi / Pexels; UC Berkeley Department of Geography / Wikimedia Commons
-:::
