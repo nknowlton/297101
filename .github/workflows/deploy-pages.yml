@@ -40,6 +40,12 @@ jobs:
             performance
             see
 
+      - name: Remove auto-installed Quarto
+        run: |
+          if dpkg -s quarto >/dev/null 2>&1; then
+            sudo apt-get remove -y quarto
+          fi
+
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         with:
