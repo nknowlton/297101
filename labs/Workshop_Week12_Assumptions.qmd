@@ -469,3 +469,5 @@ Summarise the primary model's adjusted associations, what each p-value tests,
 the confidence-versus-prediction distinction, the most important diagnostic
 concern and whether the transformation is worth retaining. Explain what extra
 data or study design would make the independence assumption more credible.
+
+[View the worked solutions online](https://knowlton.co.nz/297101/labs/Workshop_Week12_Assumptions_guide.html).
