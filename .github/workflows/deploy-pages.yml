@@ -39,6 +39,7 @@ jobs:
             fontawesome
             performance
             see
+            svglite
 
       - name: Remove auto-installed Quarto
         run: |
