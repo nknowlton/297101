@@ -1,0 +1,129 @@
+name: Build & Deploy Course Materials
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/configure-pages@v6
+        with:
+          enablement: true
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            tidyverse
+            broom
+            knitr
+            ggplot2
+            patchwork
+            shape
+            visreg
+            fontawesome
+            performance
+            see
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.10.14
+
+      - name: Render lecture slides
+        run: |
+          quarto render lectures/10_linear_models.qmd
+          quarto render lectures/11_linear_models_hypoth_pred.qmd
+          quarto render lectures/12_linear_models_assump_resids.qmd
+
+      - name: Render workshops and solutions
+        run: |
+          quarto render labs/Workshop_Week10_Relationships.qmd
+          quarto render labs/Workshop_Week10_Relationships_guide.qmd
+          quarto render labs/Workshop_Week11_Testing.qmd
+          quarto render labs/Workshop_Week11_Testing_guide.qmd
+          quarto render labs/Workshop_Week12_Assumptions.qmd
+          quarto render labs/Workshop_Week12_Assumptions_guide.qmd
+
+      - name: Assemble Pages site
+        run: |
+          rm -rf _site
+          mkdir -p _site/lectures _site/labs
+
+          cp site/index.html _site/index.html
+          cp site/lectures/index.html _site/lectures/index.html
+          cp site/labs/index.html _site/labs/index.html
+
+          cp lectures/10_linear_models.html _site/lectures/
+          cp lectures/11_linear_models_hypoth_pred.html _site/lectures/
+          cp lectures/12_linear_models_assump_resids.html _site/lectures/
+
+          cp labs/Workshop_Week10_Relationships.html _site/labs/
+          cp labs/Workshop_Week10_Relationships_guide.html _site/labs/
+          cp labs/Workshop_Week11_Testing.html _site/labs/
+          cp labs/Workshop_Week11_Testing_guide.html _site/labs/
+          cp labs/Workshop_Week12_Assumptions.html _site/labs/
+          cp labs/Workshop_Week12_Assumptions_guide.html _site/labs/
+
+          cp labs/Workshop_Week10_Relationships.qmd _site/labs/
+          cp labs/Workshop_Week11_Testing.qmd _site/labs/
+          cp labs/Workshop_Week12_Assumptions.qmd _site/labs/
+          cp labs/nz_vehicles_2025.csv _site/labs/
+          mkdir -p _site/labs/regression
+          cp labs/regression/cancer_data.csv _site/labs/regression/
+
+      - name: Verify Pages artifact
+        run: |
+          required=(
+            _site/index.html
+            _site/lectures/index.html
+            _site/lectures/10_linear_models.html
+            _site/lectures/11_linear_models_hypoth_pred.html
+            _site/lectures/12_linear_models_assump_resids.html
+            _site/labs/index.html
+            _site/labs/Workshop_Week10_Relationships.html
+            _site/labs/Workshop_Week10_Relationships_guide.html
+            _site/labs/Workshop_Week11_Testing.html
+            _site/labs/Workshop_Week11_Testing_guide.html
+            _site/labs/Workshop_Week12_Assumptions.html
+            _site/labs/Workshop_Week12_Assumptions_guide.html
+          )
+          for file in "${required[@]}"; do
+            test -f "$file"
+          done
+
+          grep -q 'View the worked solutions online' _site/labs/Workshop_Week10_Relationships.html
+          grep -q 'View the worked solutions online' _site/labs/Workshop_Week11_Testing.html
+          grep -q 'View the worked solutions online' _site/labs/Workshop_Week12_Assumptions.html
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
