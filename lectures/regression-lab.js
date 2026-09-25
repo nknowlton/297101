@@ -185,7 +185,7 @@ function lineMarks(Plot, line, domain, color, width = 2.5, dash = null) {
 export function coefficientLab({ Inputs, Plot }) {
   void Inputs;
   const { root, controls, visual } = shell("coefficient");
-  const state = { intercept: 5, slope: 0.4, seed: 0, revealed: false };
+  const state = { intercept: 5, slope: 0.4, seed: 0 };
   const X = [0, 10];
   const Y = [-4, 14];
 
@@ -197,7 +197,6 @@ export function coefficientLab({ Inputs, Plot }) {
     }[key];
     state.intercept = values[0];
     state.slope = values[1];
-    state.revealed = false;
     intercept.input.value = String(state.intercept);
     slope.input.value = String(state.slope);
     intercept.readout.textContent = fmt(state.intercept);
@@ -210,7 +209,6 @@ export function coefficientLab({ Inputs, Plot }) {
     const random = makeStreams(`coefficient,${state.seed}`);
     state.intercept = 2 + random.uniform() * 6;
     state.slope = -0.6 + random.uniform() * 1.2;
-    state.revealed = false;
     intercept.input.value = String(state.intercept);
     slope.input.value = String(state.slope);
     intercept.readout.textContent = fmt(state.intercept);
@@ -219,21 +217,14 @@ export function coefficientLab({ Inputs, Plot }) {
   });
   controls.append(challenge);
   const intercept = rangeField("Intercept (α)", 2, 8, 0.05, state.intercept, (v) => {
-    state.intercept = v; state.revealed = false; render();
+    state.intercept = v; render();
   });
   const slope = rangeField("Slope (β)", -0.6, 0.6, 0.01, state.slope, (v) => {
-    state.slope = v; state.revealed = false; render();
+    state.slope = v; render();
   });
   controls.append(intercept.field, slope.field);
-  const reveal = button("Reveal interpretation", "rl-reveal-btn", () => {
-    state.revealed = !state.revealed;
-    render();
-  });
-  controls.append(html("div", "rl-reveal-note", "Predict the interpretation first."), reveal);
-
   function render() {
     preset.update(state.slope > 0.03 ? "positive" : state.slope < -0.03 ? "negative" : "flat");
-    reveal.textContent = state.revealed ? "Hide interpretation" : "Reveal interpretation";
     const line = (x) => state.intercept + state.slope * x;
     const run = [{ x1: 4, y1: line(4), x2: 5, y2: line(4) }];
     const rise = [{ x1: 5, y1: line(4), x2: 5, y2: line(5) }];
@@ -253,15 +244,11 @@ export function coefficientLab({ Inputs, Plot }) {
       x: { domain: X, label: "x", grid: true, nice: false },
       y: { domain: Y, label: "predicted mean y", grid: true, nice: false }, marks,
     }), equation);
-    const rightBody = html("div", state.revealed ? "rl-interpretation" : "rl-hidden-panel");
-    if (!state.revealed) {
-      rightBody.innerHTML = "<strong>🤔 Predict first</strong><br>What does α mean at x = 0?<br>What changes when x increases by one?";
-    } else {
-      const change = Math.abs(state.slope) < 0.005
-        ? "does not change"
-        : `${state.slope > 0 ? "increases" : "decreases"} by ${fmt(Math.abs(state.slope))}`;
-      rightBody.innerHTML = `<div class="rl-equation">${equation}</div><p>When <strong>x = 0</strong>, the predicted mean of y is <strong>α = ${fmt(state.intercept)}</strong>.</p><p>For each one-unit increase in x, the predicted mean <strong>${change}</strong>.</p><p class="rl-muted">The orange run is one x-unit; the orange rise is β.</p>`;
-    }
+    const rightBody = html("div", "rl-interpretation");
+    const change = Math.abs(state.slope) < 0.005
+      ? "does not change"
+      : `${state.slope > 0 ? "increases" : "decreases"} by ${fmt(Math.abs(state.slope))}`;
+    rightBody.innerHTML = `<div class="rl-equation">${equation}</div><p>When <strong>x = 0</strong>, the predicted mean of y is <strong>α = ${fmt(state.intercept)}</strong>.</p><p>For each one-unit increase in x, the predicted mean <strong>${change}</strong>.</p><p class="rl-muted">The orange run is one x-unit; the orange rise is β.</p>`;
     visual.replaceChildren(left, panel("Reading the coefficients", rightBody));
   }
   render();
