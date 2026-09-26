@@ -295,18 +295,25 @@ The factor terms only shift the fitted mean up or down.
 summary(full_model)$coefficients
 ```
 
-`Estimate` is the fitted coefficient. `Std. Error` describes the sampling
-uncertainty in that estimate under the model.
+The values in `Estimate` are estimates from this sample. The population
+coefficients are fixed but unknown. If we collected another comparable sample
+of donkeys, we would get slightly different fitted coefficients.
 
-The t statistic is the estimate divided by its standard error, and the p-value
-tests a zero coefficient.
+Technically, least squares is the **estimator**, the rule used to calculate a
+coefficient. The numerical value returned for this particular sample is the
+**estimate**.
 
-For a factor row, the null hypothesis is a zero adjusted difference from the
-reference category. A large p-value is not evidence that the groups are
-identical. It means these data do not provide strong evidence for an adjusted
-difference.
+`Std. Error` estimates how much that coefficient estimate would vary across
+repeated comparable samples under the model. It is not the spread of individual
+donkey body weights around the fitted lines.
 
-We will work more carefully with uncertainty next week.
+The t statistic compares the estimate with its standard error, and the p-value
+tests a zero population coefficient. For a factor row, that null hypothesis is
+a zero adjusted difference from the reference category.
+
+A large p-value is not evidence that the groups are identical. It means these
+data do not provide strong evidence for an adjusted difference. We will make
+the repeated-sampling logic and confidence intervals explicit next week.
 
 ## Predict comparable donkeys
 
