@@ -708,8 +708,11 @@ function createLab(Inputs, Plot, opts) {
   );
   controlsEl.append(h("div", "ll-section-label", "Mode"), modeSeg.el);
 
+  const presetOptions = opts.assumption === "independence"
+    ? [["well", "Shuffled order"], ["violation", "Time order"]]
+    : [["well", "Well-behaved"], ["violation", "Violation"]];
   const presetSeg = segmented(
-    [["well", "Well-behaved"], ["violation", "Violation"]],
+    presetOptions,
     () => state.preset,
     (value) => applyPreset(value),
     "ll-preset",
@@ -1832,11 +1835,10 @@ export function independenceLab({ Inputs, Plot }) {
       },
     ],
     presets: {
-      // Both examples draw the SAME kind of sample: strength 1 = pure time
-      // pattern, 0 = pure noise. Well-behaved shows it shuffled (the pattern is
-      // invisible); Violation sorts it into time order — so the slider can
-      // always dial between a sample with no pattern and one with runs, and the
-      // violation genuinely comes from the slider, not from new data.
+      // Both buttons show the same strength-1 time-structured sample.
+      // Shuffled order hides its temporal pattern; Time order reveals runs.
+      // The slider can then move through stronger time ordering and alternation
+      // without changing the sample or its residual values.
       well: { order: 0, strength: 1 },
       violation: { order: 1, strength: 1 },
     },
@@ -1844,7 +1846,7 @@ export function independenceLab({ Inputs, Plot }) {
       { key: "lag", label: "Lag plot: e(i) vs e(i−1)" },
     ],
     generate: generateIndependence,
-    instructions: "The sample never changes. The slider only puts the recorded sequence back into <em>time order</em>: in the middle it has been shuffled, and either end sorts the same points so their time pattern shows. Positive r\u2081 gives runs above and below zero; negative r\u2081 gives alternation.",
+    instructions: "The sample never changes. In the middle, its residuals are shown in shuffled order; toward the positive end, the same sequence returns to time order and shows runs. Toward the negative end, the display arranges residuals in alternation. Shuffling hides temporal dependence; it does not make the observations independent, and alternation is not a plausible time order.",
   });
 }
 
