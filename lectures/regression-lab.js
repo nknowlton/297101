@@ -230,7 +230,7 @@ export function coefficientLab({ Inputs, Plot }) {
     render();
   });
   controls.append(html("div", "rl-section-label", "Example"), preset.wrap);
-  const challenge = button("New challenge", "rl-new-sample", () => {
+  const challenge = button("New random line", "rl-new-sample", () => {
     state.seed += 1;
     const random = makeStreams(`coefficient,${state.seed}`);
     state.intercept = 2 + random.uniform() * 6;

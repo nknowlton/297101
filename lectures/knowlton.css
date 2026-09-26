@@ -26,10 +26,10 @@ h3 {
 }
 
 .math {
-  font-size: 0.8em !important; /* Adjust the font size */
-  line-height: 1.5 !important; /* Increase vertical spacing */
-  margin-right: 0.5em;         /* Space to the right of the math element */
-  margin-left: 0.5em;          /* Space to the left of the math element */
+    font-size: 0.8em !important; /* Adjust the font size */
+    line-height: 1.5 !important; /* Increase vertical spacing */
+    margin-right: 0.5em;         /* Space to the right of the math element */
+    margin-left: 0.5em;          /* Space to the left of the math element */
 }
 
 .remark-slide-content {
@@ -55,4 +55,24 @@ h3 {
 
 .reveal section div.center-h {
 	text-align: center;
+}
+
+.reveal .history-slide p {
+  font-size: 0.72em !important;
+  line-height: 1.3;
+  margin: 0.45em 0;
+}
+
+.reveal .math-model-slide p {
+  font-size: 0.72em !important;
+  line-height: 1.3;
+}
+
+.reveal .math-model-slide .math.display {
+  font-size: 0.82em !important;
+}
+
+.reveal .cell-output pre,
+.reveal .cell-output pre code {
+  color: #000 !important;
 }
