@@ -138,7 +138,9 @@ holding poverty constant. These are associations, not causal effects.
 **Your turn:** Identify the response variable and both predictors. Interpret each
 slope in the units of the problem, remembering to hold the other predictor
 constant. Which coefficient appears to be estimated more precisely relative to
-its size?
+its size? If the study were repeated with another comparable sample, which
+quantities here are fixed population parameters and which fitted quantities
+would change?
 
 ### A quick return to $R^2$ and adjusted $R^2$
 
