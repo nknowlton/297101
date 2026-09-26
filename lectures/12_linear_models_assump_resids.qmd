@@ -67,6 +67,7 @@ import {
 
 By the end of this lecture, you should be able to:
 
+- explain why fitted coefficients vary across repeated comparable samples;
 - read uncertainty and hypothesis tests for a regression coefficient;
 - distinguish an interval for a mean response from an interval for one new outcome;
 - explain the assumptions behind linear-model inference;
