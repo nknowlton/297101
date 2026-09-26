@@ -2,8 +2,9 @@
  *
  * The teaching claim is that the sample never changes while the order slider
  * moves, and that the slider's ends produce runs (+r1) and alternation (-r1).
- * These tests verify exactly those two claims, plus the well-behaved preset
- * genuinely having no pattern rather than merely hiding one.
+ * These tests verify exactly those two claims, plus that the generator's
+ * strength-zero sample has no time pattern (the UI uses shuffled/time-order
+ * examples for the structured sample).
  *
  * They also guard the residual axis: a violation must be big enough to read and
  * small enough not to clip the fixed scale.
@@ -80,7 +81,7 @@ assert.ok(rNeg < -0.6, `alternating order should give strong negative r1, got ${
 assert.ok(Math.abs(r0) < Math.abs(rPos) / 2, `shuffled r1 should be near zero, got ${r0}`);
 
 /* ---------------------------------------------------------------- */
-/* Well-behaved preset must have no pattern at all                   */
+/* A strength-zero sample has no time pattern                        */
 /* ---------------------------------------------------------------- */
 
 const flat = generateIndependence({ n, strength: 0 }, makeStreams("ind,0"));
@@ -174,7 +175,7 @@ for (let seed = 0; seed < 20; seed += 1) {
 
 // Sorting by residual value manufactures alternation even from pure noise, so
 // the negative end must be gated on the sample actually containing a pattern.
-// Without this a "well-behaved" sample would show a violation that is not there.
+// Without this a no-pattern sample would show a violation that is not there.
 for (let seed = 0; seed < 20; seed += 1) {
   const flatPts = generateIndependence({ n, strength: 0 }, makeStreams(`ind,${seed}`));
   const flatE = residOf(flatPts);
@@ -494,10 +495,9 @@ for (const spread of [0, 0.2, 0.45, 0.7, 1]) {
 assert.ok(equalVarianceSdAt("increasing", 1, 10) > 3 * equalVarianceSdAt("increasing", 1, 0),
   "full-dial funnel must open widely (thin vs wide end)");
 
-// Independence: the Well-behaved and Violation presets must draw the SAME kind
-// of sample (strength 1 — a genuine time pattern), so that the violation is
-// produced by the slider's sorting, not by new data. With strength 1 the
-// sample sorted into time order must show a strong positive r1.
+// Independence: shuffled order and time order show the SAME strength-1 sample
+// (a genuine time pattern). With strength 1 the sample sorted into time order
+// must show a strong positive r1.
 for (let seed = 0; seed < 20; seed += 1) {
   const pts = generateIndependence({ n: 26, strength: 1 }, makeStreams(`ind,${seed}`));
   const e = residOf(pts);
