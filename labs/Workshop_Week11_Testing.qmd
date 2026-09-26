@@ -52,9 +52,11 @@ this file from the `labs` folder so the supplied data file can be found.
 ## 1. Revisit a simple model
 
 **What to do:** Start by refitting the simple engine-size and power models from
-last week. Check that you can still interpret the slope, intercept, standard
-error, p-value and $R^2$. These give us the baseline models that we will compare
-with once body type is added.
+last week. Check that you can still interpret the slope, intercept and $R^2$.
+The coefficient table also shows the standard error and p-value introduced in
+this week's lecture. For now, use them to recognise that a fitted coefficient
+is an estimate from a sample. We will do the formal confidence-interval and
+hypothesis-testing interpretation next week.
 
 ```{r}
 library(readr)
@@ -94,9 +96,11 @@ engine_model
 tidy(engine_model)
 ```
 
-Read the coefficient table and identify the engine-size slope, its standard
-error and p-value. Then use the plot to check how the fitted line summarises the
-overall pattern. Is the intercept a realistic vehicle comparison?
+Read the coefficient table and identify the engine-size slope. Then identify
+its standard error and p-value. Which number is the fitted estimate, and which
+number describes sampling uncertainty in that estimate? Use the plot to check
+how the fitted line summarises the overall pattern. Is the intercept a realistic
+vehicle comparison?
 
 ```{r}
 ggplot(vehicles, aes(engine_l, fuel_use_l_per_100km)) +
@@ -170,9 +174,10 @@ coefficient with the simple power model from Section 1. Has the coefficient
 changed? What question does the adjusted coefficient answer that the simple
 coefficient did not?
 
-Also interpret the `station_wagonOther` coefficient and its p-value at a common
-value of engine power. Show the first rows of the design matrix and explain its
-columns.
+Also interpret the `station_wagonOther` coefficient at a common value of engine
+power. Identify its p-value and state which zero population coefficient that
+p-value is testing. Do not use the p-value by itself to decide whether the model
+is useful. Show the first rows of the design matrix and explain its columns.
 
 **Hint:** `model.matrix()` shows the numerical columns R creates for the
 factor. The first factor level is the reference group.
