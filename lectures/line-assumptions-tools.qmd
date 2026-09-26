@@ -28,8 +28,9 @@ line on the left, the diagnostic plot on the right.
 
 **Guided mode**
 
-- Presets give a *Well-behaved* example or a *Violation*; sliders dial the
-  violation up and down against the *same underlying random draws*.
+- The two buttons choose example settings. Controls then alter the display or
+  the size or shape of a departure while keeping the underlying random draws
+  fixed.
 - **Generate another sample** shows a fresh dataset — a valid model does
   not produce perfectly patternless residuals every time.
 
@@ -79,10 +80,9 @@ independenceLab({ Inputs, Plot })
 ```
 
 ::: {.ll-slide-note}
-Well-behaved and Violation draw the *same* data sample: a sequence with
-genuine time structure. Well-behaved shows it shuffled, where the pattern is
-invisible; Violation sorts the slider into *time order*. Positive
-$r_1$ gives runs above and below zero; negative $r_1$ gives alternation.
+Both settings show the same residual sequence. *Shuffled order* hides its
+temporal pattern; *Time order* reveals its positive autocorrelation. Alternation
+is a deliberately rearranged display, not a plausible chronological sequence.
 :::
 
 ## Normality — what shape do the errors have?
