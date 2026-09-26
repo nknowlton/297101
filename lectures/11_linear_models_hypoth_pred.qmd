@@ -274,7 +274,7 @@ ggplot(full_plot_data, aes(Heartgirth, Bodywt)) +
       y = fitted,
       colour = Sex,
       linetype = AgeGroup,
-      group = interaction(Sex, AgeGroup)
+      group = paste(Sex, AgeGroup)
     ),
     linewidth = 1
   ) +
