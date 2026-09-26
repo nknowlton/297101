@@ -79,6 +79,42 @@ Last week we used vehicle models to make adjusted comparisons. A coefficient is 
 
 Now we need to quantify uncertainty and check whether the model's structure is credible. We will use the donkey model for the worked examples. In the workshop, you will transfer the same reasoning to county-level cancer data.
 
+## Why would the fitted slope change?
+
+The population slope, \(\beta\), is fixed but unknown. The fitted slope,
+\(\hat\beta\), depends on the sample we happened to observe.
+
+If we repeated the same study with another comparable sample of donkeys, the
+observed body weights would differ slightly and the fitted line would move. The
+collection of \(\hat\beta\) values we could obtain across repeated samples is
+the **sampling distribution** of the slope estimator.
+
+That sampling distribution is what coefficient uncertainty refers to. We are
+not treating the population slope itself as random.
+
+## From sampling distribution to standard error
+
+Under the linear model, the least-squares estimator is centred on the population
+coefficient:
+
+\[
+E(\hat\beta)=\beta.
+\]
+
+So across repeated comparable samples, least squares does not systematically
+estimate the slope too high or too low.
+
+The **standard error** estimates the spread of that sampling distribution. With
+more information, usually from a larger and more informative sample, that spread
+gets narrower.
+
+This is the link we need for inference:
+
+\[
+\text{estimate} \rightarrow \text{standard error} \rightarrow
+\text{t statistic} \rightarrow \text{p-value or confidence interval}.
+\]
+
 ## A coefficient is an estimate
 
 Fit body weight against heart girth and inspect the coefficient table. The slope is the estimated change in mean body weight, in kilograms, for a one-centimetre difference in heart girth.
