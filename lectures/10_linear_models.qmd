@@ -64,7 +64,12 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(fig.dim=c(8,5), out.width="70%", fig.retina=2)
 
 # Load the dataset
-donkey <- read.csv("https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv")
+donkey_file <- if (file.exists("data/donkey.csv")) {
+  "data/donkey.csv"
+} else {
+  "../data/donkey.csv"
+}
+donkey <- read.csv(donkey_file)
 
 ```
 
