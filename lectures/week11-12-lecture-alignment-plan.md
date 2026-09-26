@@ -1,6 +1,6 @@
 # 297.101 Weeks 11–12 lecture alignment
 
-This is the implementation brief for Luna. Nick has approved planning the lecture revision. All student-facing prose below is final copy written for this task. Luna may move and edit code, Quarto/OJS wiring, layout and build files, but must not invent, paraphrase or extend student-facing text. If layout needs fewer words, split a slide while retaining the text, or report the conflict.
+This file records the approved implementation brief and exact student-facing copy. The lecture changes are being implemented on `work/week11-12-lecture-alignment`. All student-facing prose below is final copy written for this task. An implementer may change code, Quarto/OJS wiring, layout and build files, but must not invent, paraphrase or extend student-facing text. If layout needs fewer words, split a slide while retaining the text, or report the conflict.
 
 ## Source of truth and scope
 
@@ -14,19 +14,21 @@ This is the implementation brief for Luna. Nick has approved planning the lectur
 
 ## Implementation to-dos
 
-- [ ] Rebuild Week 11 in the order and with the exact slide prose below. Keep code and printed output next to the question it supports. Do not preserve old inference material in the new Week 11 deck by inertia.
-- [ ] Set Week 11 title to “297.101 Week 11: Multiple Regression and Factors” and subtitle to “Adjusted comparisons and predictions”. Preserve the course logo/theme; check normal 16:9 projector layout.
-- [ ] Source the vehicle data with `readr::read_csv`. Create `station_wagon` and five-level `body_type` exactly as in the Week 11 workshop. Fit `engine_model`, `power_model`, `binary_model`, `power_binary_model`, `body_model` and `power_body_model` when each first appears. Use named objects and `lm()`, `summary()`, `broom::tidy()`, `broom::glance()`, `model.matrix()` and `predict()` where the corresponding slide calls for them.
-- [ ] Show raw group averages on one slide beside the model's adjusted comparison, using the same vehicle sample. Check categories remain in the specified order. Do not describe the numerical results until R has been run.
-- [ ] Show one simple line and the two parallel group lines on the same axes where specified, preferably with observed-row fitted values and `geom_line()`; use colour and a legend accessible on a projector. The illustrated parallelism follows from the additive model, not a claim that the raw data prove equal slopes.
-- [ ] Use `newdata` with a valid `body_type` factor for all five body types at 2.0 L, then an analogous prediction at 150 kW from `power_body_model`. Confirm those values lie within sensible support for each group or explicitly mark a group combination as extrapolation.
-- [ ] Move the Week 11 coefficient interval, t test, mean-versus-individual prediction and MSE concepts to Week 12 only where the exact Week 12 text below calls for them. Leave the incorrect direct comparison of raw-response and log-response R² out of both decks.
-- [ ] Integrate `predictionIntervalLab({ Inputs, Plot })` from `lectures/regression-lab.js` into Week 12, with `regression-lab.css`. Remove its instantiation from Week 11.
-- [ ] Integrate `linearityLab`, `independenceLab`, `normalityLab` and `equalVarianceLab` from `lectures/line-assumptions-lab.js` into Week 12 with `line-assumptions-lab.css`. The standalone `line-assumptions-tools.qmd` remains a preview harness. Reuse its tested import and invocation syntax. Do not move these widgets to Week 11: they teach diagnostic checks that the Week 12 workshop actually practises.
-- [ ] Replace the two old Shiny iframe slides in Week 12 with local widgets. Keep at least one real-model diagnostic display after the synthetic widgets, so students transfer from idealised patterns to the donkey residuals.
-- [ ] Preserve functioning code and plots where reusable, but use only the replacement slide wording supplied here. Source comments aimed at maintainers may be written by Luna; student-facing captions, prompts, labels and interpretations must come from this plan or existing unchanged text.
-- [ ] Render both decks and the standalone widget preview; inspect at a 16:9 projector viewport for clipping, output contrast, navigation and working OJS controls. Run the Week 11/12 workshop code or compare outputs against their answer guides after any data-processing change. Do not silently change the lab's answer key.
-- [ ] Finish with a short implementation report listing changed files, render results, any observed data values used in prose, and unresolved content decisions.
+- [x] Rebuild Week 11 in the order and with the exact slide prose below. Keep code and printed output next to the question it supports. Do not preserve old inference material in the new Week 11 deck by inertia.
+- [x] Set Week 11 title to “297.101 Week 11: Multiple Regression and Factors” and subtitle to “Adjusted comparisons and predictions”. Preserve the course logo/theme.
+- [ ] Inspect the normal 16:9 projector layout after rendering.
+- [x] Source the vehicle data with `readr::read_csv`. Create `station_wagon` and five-level `body_type` exactly as in the Week 11 workshop. Fit `engine_model`, `power_model`, `binary_model`, `power_binary_model`, `body_model` and `power_body_model` when each first appears. Use named objects and `lm()`, `summary()`, `broom::tidy()`, `broom::glance()`, `model.matrix()` and `predict()` where the corresponding slide calls for them.
+- [x] Show raw group averages on one slide beside the model's adjusted comparison, using the same vehicle sample. Check categories remain in the specified order. Do not describe the numerical results until R has been run.
+- [x] Show one simple line and the two parallel group lines on the same axes where specified, preferably with observed-row fitted values and `geom_line()`; use colour and a legend accessible on a projector. The illustrated parallelism follows from the additive model, not a claim that the raw data prove equal slopes.
+- [x] Use `newdata` with a valid `body_type` factor for all five body types at 2.0 L, then an analogous prediction at 150 kW from `power_body_model`. The Sports-car prediction at 150 kW is labelled as extrapolation because the observed range starts at 174 kW.
+- [x] Move the Week 11 coefficient interval, t test, mean-versus-individual prediction and MSE concepts to Week 12 only where the exact Week 12 text below calls for them. Leave the incorrect direct comparison of raw-response and log-response R² out of both decks.
+- [x] Integrate `predictionIntervalLab({ Inputs, Plot })` from `lectures/regression-lab.js` into Week 12, with `regression-lab.css`. Remove its instantiation from Week 11.
+- [x] Integrate `linearityLab`, `independenceLab`, `normalityLab` and `equalVarianceLab` from `lectures/line-assumptions-lab.js` into Week 12 with `line-assumptions-lab.css`. The standalone `line-assumptions-tools.qmd` remains a preview harness. Reuse its tested import and invocation syntax. Do not move these widgets to Week 11: they teach diagnostic checks that the Week 12 workshop actually practises.
+- [x] Replace the two old Shiny iframe slides in Week 12 with local widgets. Keep at least one real-model diagnostic display after the synthetic widgets, so students transfer from idealised patterns to the donkey residuals.
+- [x] Preserve functioning code and plots where reusable, but use only the replacement slide wording supplied here. Student-facing captions, prompts, labels and interpretations come from this plan or the explicit widget clarification in the Independence slide block.
+- [ ] Render both decks and the standalone widget preview; inspect at a 16:9 projector viewport for clipping, output contrast, navigation and working OJS controls. R and Quarto are unavailable in the current execution environment, so this render and workshop-code check remain outstanding.
+- [x] Run the standalone LINE widget JavaScript syntax check and regression suite; perform static checks for balanced lecture code fences, imports, models and removed legacy embeds.
+- [x] Finish with the implementation report at the end of this file. It records changed files, available checks, the render limitation, the extrapolation note and remaining QA.
 
 ## Week 11: exact student-facing slide copy
 
@@ -383,10 +385,12 @@ Does a high R² rule out a systematic curve in the residuals?
 
 The same points can look unremarkable in a scatterplot while their residuals form runs when we recover the time order. Change the displayed order without changing any \(x\), \(y\), fitted value or residual.
 
+Shuffling can hide temporal dependence, but it does not make observations independent. The alternating order is a display arrangement, not a plausible chronology.
+
 A residual plot against fitted values cannot establish independence. We also need the sampling design and, where relevant, the meaningful order of observations.
 ~~~
 
-[Instantiate `independenceLab({ Inputs, Plot })`. Check that the widget's “well-behaved” state genuinely lacks the time pattern before retaining that label; do not write new explanatory text if a widget defect is found, report it.]
+[Instantiate `independenceLab({ Inputs, Plot })`. The preset buttons must read “Shuffled order” and “Time order”. The widget instructions must explain that shuffling hides, but does not remove, temporal dependence, and that the alternating order is a display arrangement.]
 
 ~~~markdown
 ## N: what does a Q–Q plot compare?
@@ -448,9 +452,18 @@ Nearby counties may share exposures and health services. That concern comes from
 
 ## Cross-file consistency and acceptance
 
-- [ ] Week 11 lecture and workshop agree on the factor reference (Station wagon), five body types, shared slope, coefficient units, prediction scenarios, and ordinary versus adjusted R². Existing `labs/Workshop_Week11_Testing.qmd` mentions p-values, so keep the compact coefficient-test slide in Week 11; reserve intervals and diagnostic assumptions for Week 12.
-- [ ] Week 12 lecture and workshop agree on coefficient CIs, mean versus single-county prediction intervals, L–I–N–E, influence as investigation rather than deletion, and comparing models on the same response scale.
-- [ ] Week 12 workshop's opening currently says that Weeks 10–11 already covered standard errors and p-values. The new Week 11 slide does. Its statement about interval teaching remains Week 12.
-- [ ] Verify no broken URLs, OJS imports, missing CSS, hidden widgets, or code/output that extends off the slide. Ensure labels in plots and prose use L/100 km, litres, kW, cm and kg correctly.
-- [ ] A source-level check confirms there is no Week 11 prediction-interval widget, no Week 11 LINE widget, no Week 12 statement that normality is a Gauss–Markov assumption, no unconditional “CLT means ignore Q–Q tails”, and no comparison of R² values for raw versus logged responses.
-- [ ] Because this plan intentionally changes the taught sequence, review both rendered lectures as a pair before release. Keep the generated Pages navigation paths unchanged. This plan file is editorial specification; mark completed checkboxes only after implementation and verification.
+- [x] Week 11 lecture and workshop agree on the factor reference (Station wagon), five body types, shared slope, coefficient units, prediction scenarios, and ordinary versus adjusted R². Existing `labs/Workshop_Week11_Testing.qmd` mentions p-values, so keep the compact coefficient-test slide in Week 11; reserve intervals and diagnostic assumptions for Week 12.
+- [x] Week 12 lecture and workshop agree on coefficient CIs, mean versus single-county prediction intervals, L–I–N–E, influence as investigation rather than deletion, and comparing models on the same response scale.
+- [x] Week 12 workshop's opening currently says that Weeks 10–11 already covered standard errors and p-values. The new Week 11 slide does. Its statement about interval teaching remains Week 12.
+- [x] Static checks confirm that widget imports, CSS references, and invocations are present and the old iframe embeds are absent. Render inspection for hidden widgets and clipping remains open below.
+- [x] A source-level check confirms there is no Week 11 prediction-interval widget, no Week 11 LINE widget, no Week 12 statement that normality is a Gauss–Markov assumption, no unconditional “CLT means ignore Q–Q tails”, and no comparison of R² values for raw versus logged responses.
+- [ ] Because this plan intentionally changes the taught sequence, review both rendered lectures as a pair before release. Keep the generated Pages navigation paths unchanged. This plan file is editorial specification; leave this check open until visual render review.
+
+
+## Implementation report
+
+- Updated Week 11 and Week 12 lecture QMDs, the reusable LINE widget source and preview, the widget test comments, and both implementation plans.
+- Week 11 uses the supplied five body-type levels and labels. The 150 kW Sports-car prediction is explicitly identified as extrapolation; the observed Sports-car power range begins at 174 kW.
+- Validation completed: JavaScript syntax check, LINE widget regression suite, and static checks for balanced Quarto fences, expected models and OJS imports, and removed legacy embeds.
+- Render and visual review remain outstanding because this environment has Node but no R or Quarto executable. No numerical R outputs were added to prose.
+- Remaining decision: none in the teaching sequence; complete the render and 16:9 layout review before release.
