@@ -50,6 +50,7 @@ lung-cancer mortality?
 
 By the end of this workshop you should be able to:
 
+- explain that a fitted coefficient varies across repeated comparable samples;
 - use standard errors to interpret uncertainty in regression coefficients;
 - interpret confidence intervals and hypothesis tests;
 - distinguish confidence intervals for an average from prediction intervals for
@@ -118,8 +119,13 @@ tidy(cancer_model)
 ```
 
 From the output, name the response and both predictors. Find each slope and
-interpret its units while holding the other predictor fixed. Compare each
-estimate with its standard error: which slope is estimated more precisely
+interpret its units while holding the other predictor fixed. Then distinguish
+the coefficient estimate from its standard error.
+
+Imagine repeating the same study with another comparable set of counties. The
+population coefficient would be unchanged, but the fitted coefficient would not
+be exactly the same. The standard error estimates the spread of those possible
+coefficient estimates under the model. Which slope is estimated more precisely
 relative to its size?
 
 The poverty coefficient is the estimated difference in mortality for a
@@ -160,9 +166,11 @@ interval and p-value for each coefficient. State the null hypothesis being
 tested, decide whether the data provide evidence against a zero coefficient,
 and keep statistical evidence separate from effect size and causality.
 
-Last week we used standard errors and p-values to describe uncertainty and
-evidence for adjusted coefficients. We can now extend that idea by attaching a
-confidence interval to each coefficient.
+The standard error gives us the estimated spread of the coefficient's sampling
+distribution. A p-value and confidence interval use that same sampling
+uncertainty in different ways: the p-value tests a specified null value, while
+the confidence interval gives a range of population-coefficient values that are
+compatible with the data and model.
 
 ```{r}
 tidy(cancer_model, conf.int = TRUE)
