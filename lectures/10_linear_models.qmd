@@ -116,7 +116,7 @@ g2 <- ggplot(donkey, aes(x=Umbgirth, y=Bodywt)) + geom_point(col="#7f577492")
 g3 <- ggplot(donkey, aes(x=Length, y=Bodywt)) + geom_point(col="#7f577492")
 g4 <- ggplot(donkey, aes(x=Height, y=Bodywt)) + geom_point(col="#7f577492")
 g5 <- ggplot(donkey, aes(x=Sex, y=Bodywt)) + geom_boxplot(col="#7f577492") 
-plot.out <- g1 + g2 + g3 + g4 + g5 + plot_layout(nrow=1) 
+plot.out <- g1 + g2 + g3 + g4 + g5 + plot_layout(nrow=3) 
 
 
 ```
@@ -171,6 +171,15 @@ g5
 ```
 
 Which variables are most strongly related to body weight?
+
+## Donkeys: all relationships vs body weight
+
+```{r all_plots, echo=FALSE, fig.width=8, fig.height=6, message = FALSE, out.width="85%"}
+#| fig-align: center
+plot.out
+
+```
+
 
 # Simple linear regression
 
@@ -684,7 +693,7 @@ residuals with `min`, `max`, `median` and another two quartiles.
 * `Coefficients:` summarizes the information on the estimates for the
 regression coefficients and `Estimate` column gives us the values of our
 coefficients. We will discuss the columns `Std. Error`, `t value` and
-`Pr(>|t|)` in Lecture C2.
+`Pr(>|t|)` in Lecture 11.
 
 :::
 :::
