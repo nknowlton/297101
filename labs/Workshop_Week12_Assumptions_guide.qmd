@@ -53,6 +53,7 @@ lung-cancer mortality?
 
 By the end of this workshop you should be able to:
 
+- explain that a fitted coefficient varies across repeated comparable samples;
 - use standard errors to interpret uncertainty in regression coefficients;
 - interpret confidence intervals and hypothesis tests;
 - distinguish confidence intervals for an average from prediction intervals for
@@ -116,9 +117,14 @@ tidy(cancer_model)
 ```
 
 From the output, name the response and both predictors. Find each slope and
-interpret its units while holding the other predictor fixed. Compare each
-estimate with its standard error: which slope is estimated more precisely
-relative to its size?
+interpret its units while holding the other predictor fixed. Then distinguish
+the coefficient estimate from its standard error.
+
+The population coefficients are fixed but unknown. If we repeated the same
+study with another comparable set of counties, the fitted coefficients would
+change slightly because the observed outcomes would change. The standard error
+estimates the spread of those possible coefficient estimates under the model.
+Which slope is estimated more precisely relative to its size?
 
 The fitted model is approximately
 
@@ -139,13 +145,19 @@ Both are adjusted associations.
 **Your turn:** Identify the response variable and both predictors. Interpret each
 slope in the units of the problem, remembering to hold the other predictor
 constant. Which coefficient appears to be estimated more precisely relative to
-its size?
+its size? If the study were repeated with another comparable sample, which
+quantities here are fixed population parameters and which fitted quantities
+would change?
 
 The response is lung-cancer mortality in deaths per 100,000. Poverty is a
 percentage and incidence is cases per 100,000. The incidence slope is estimated
 more precisely relative to its size: its standard error is about 0.008 versus
 an estimate about 0.665, while the poverty standard error is about 0.023 versus
-an estimate about 0.265. A standard error describes sampling uncertainty in a
+an estimate about 0.265.
+
+The population coefficients are fixed but unknown. The fitted coefficient
+estimates would change across repeated comparable samples, as would their
+standard errors. A standard error describes sampling uncertainty in a
 coefficient; the residual standard deviation (about 6.88 deaths per 100,000)
 describes county-to-county scatter around the fitted model.
 
@@ -184,9 +196,11 @@ interval and p-value for each coefficient. State the null hypothesis being
 tested, decide whether the data provide evidence against a zero coefficient,
 and keep statistical evidence separate from effect size and causality.
 
-Last week we used standard errors and p-values to describe uncertainty and
-evidence for adjusted coefficients. We can now extend that idea by attaching a
-confidence interval to each coefficient.
+The standard error gives us the estimated spread of the coefficient's sampling
+distribution. A p-value and confidence interval use that same sampling
+uncertainty in different ways: the p-value tests a specified null value, while
+the confidence interval gives a range of population-coefficient values that are
+compatible with the data and model.
 
 ```{r}
 tidy(cancer_model, conf.int = TRUE)
