@@ -1,12 +1,12 @@
 ---
-title: "297.101 Week 11: Testing"
-subtitle: "Testing associations and making predictions"
+title: "297.101 Week 11: Multiple Regression and Factors"
+subtitle: "Adjusted comparisons and predictions"
 author: Dr. Nick Knowlton
-format: 
+format:
   revealjs:
     code-copy: hover
     embed-resources: true
-    css: ["knowlton.css", "regression-lab.css"]
+    css: "knowlton.css"
     theme: sky
     slide-number: true
     incremental: true
@@ -21,693 +21,347 @@ format:
 execute:
   output: true
   eval: true
-  code-fold: true   # Add this to enable code folding
-editor: 
-  markdown: 
+  code-fold: true
+editor:
+  markdown:
     wrap: 72
-
-code-tools: true
 ---
 
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(broom)
 library(knitr)
-library(ggplot2); theme_set(theme_bw(base_size=15))
-library(patchwork)
-library(fontawesome)
-```
+library(ggplot2)
+theme_set(theme_bw(base_size = 15))
 
+# Quarto may execute from the repository root or the lecture directory.
+vehicle_file <- if (file.exists("labs/nz_vehicles_2025.csv")) {
+  "labs/nz_vehicles_2025.csv"
+} else {
+  "../labs/nz_vehicles_2025.csv"
+}
+
+vehicles <- readr::read_csv(vehicle_file, show_col_types = FALSE) |>
+  mutate(
+    station_wagon = factor(
+      if_else(body_type == "STATION WAGON", "Station wagon", "Other"),
+      levels = c("Station wagon", "Other")
+    ),
+    body_type = factor(
+      body_type,
+      levels = c(
+        "STATION WAGON", "HATCHBACK", "SALOON",
+        "SPORTS CAR", "CONVERTIBLE"
+      ),
+      labels = c(
+        "Station wagon", "Hatchback", "Sedan",
+        "Sports car", "Convertible"
+      )
+    )
+  )
+```
 
 ## Learning outcomes
 
-* Interpret and using model outputs
-* Constructing confidence intervals 
-* Testing hypotheses
-* Predicting with the model
-* Comparing different models
-* Goodness of fit and $R^2$
-* Prediction and mean square error (MSE)
+By the end of this lecture, you should be able to:
 
-# Interpreting R output and making inferences {.center}
-```{r load_data}
-donkey <- read.csv("https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv")
+- fit a model with a numerical predictor and a categorical predictor;
+- interpret an adjusted slope and a difference from a reference category;
+- explain why an adjusted comparison can differ from a raw comparison;
+- make predictions at a common value of the numerical predictor; and
+- compare ordinary and adjusted R² across models fitted to the same response.
 
+# Return to the vehicle problem {.center}
+
+## One predictor was a start
+
+Last week we related fuel use to engine size, power or mass, one at a time. A fitted line described the average trend, but vehicles with the same engine size can be quite different.
+
+Does body type account for some of that difference? We can add it to the model while keeping engine size in the equation.
+
+## What are we comparing?
+
+Each row is one 2025 petrol vehicle specification. The response is combined test-cycle fuel use in L/100 km. Engine size is measured in litres; body type is a category.
+
+These are associations among specifications. The model does not tell us the fuel use of every driver or show that changing a vehicle's body type would change its consumption.
+
+```{r vehicle-counts}
+vehicles |>
+  count(body_type, name = "specifications")
+
+nrow(vehicles)
 ```
 
-```{ojs}
-//| echo: false
-//| output: false
-import { predictionIntervalLab } from "./regression-lab.js"
+## Start with one line
+
+Fit fuel use against engine size and draw the fitted line over the data.
+
+The slope gives the fitted change in L/100 km for a one-litre difference in engine size. It averages across all the body types in this dataset. The intercept is the fitted value at zero litres, well outside the vehicles we observed.
+
+```{r engine-model}
+engine_model <- lm(
+  fuel_use_l_per_100km ~ engine_l,
+  data = vehicles
+)
+
+summary(engine_model)
+
+ggplot(vehicles, aes(engine_l, fuel_use_l_per_100km)) +
+  geom_point(alpha = 0.45) +
+  geom_smooth(method = "lm", se = FALSE, colour = "#0072B2") +
+  labs(
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)"
+  )
 ```
 
+## Add Station wagon or Other
 
-## Summary of a linear model in R
+First, reduce body type to two categories: Station wagon and Other. We fit one engine-size slope while allowing the groups to have different fitted heights.
 
-```{r}
-#| echo: true
-#| eval: false
-mod <- lm(Bodywt ~ Heartgirth, data=donkey)
-summary(mod)
+The model asks how fuel use differs between these groups at the same engine size. That is a different comparison from putting all vehicles on one line.
+
+```{r binary-model}
+binary_model <- lm(
+  fuel_use_l_per_100km ~ engine_l + station_wagon,
+  data = vehicles
+)
+
+binary_plot_data <- vehicles |>
+  mutate(fitted = predict(binary_model)) |>
+  arrange(station_wagon, engine_l)
+
+tidy(binary_model)
+
+ggplot(binary_plot_data, aes(engine_l, fuel_use_l_per_100km)) +
+  geom_point(aes(colour = station_wagon), alpha = 0.45) +
+  geom_line(
+    aes(y = fitted, colour = station_wagon, group = station_wagon),
+    linewidth = 1
+  ) +
+  scale_colour_manual(
+    values = c("Station wagon" = "#0072B2", "Other" = "#D55E00")
+  ) +
+  labs(
+    x = "Engine size (litres)",
+    y = "Combined fuel use (L/100 km)",
+    colour = "Body type"
+  )
 ```
 
-## Summary of a linear model in R
+## Two intercepts, one slope
 
-```{r}
-#| echo: true
-#| output: true
-mod <- lm(Bodywt ~ Heartgirth, data=donkey)
-summary(mod)
-```
-
-## Parameter estimates and inference
-
-```{r}
-#| echo: true
-
-summary(mod)$coefficients
-```
-
-```{r}
-#| echo: false
-s <- summary(mod)$coefficients
-```
-
-The table of coefficients tells us about estimates $a$ and $b$ in the linear model $\mathsf{Mean}[y] = a + bx$.
-
-::: {.fragment .r-fit-text}
-The **`Estimate`** column gives us the point estimates of the parameters.
-
-* The '`(Intercept)`' row relates to the estimate of the intercept $a$ 
-* The '`Heartgirth`' row relates to the estimate of the slope $b$
-* Plug in the estimates, and our model is: 
-$\mathsf{Mean[body weight]} =`r round(s[1,1],1)` + `r round(s[2,1],2)` \times \mathsf{heart girth}$
-
-:::
-::: {.fragment .r-fit-text}
-The **`Std. Error`** column gives the standard errors of the parameter estimates.
-
-* Remember, $a$ and $b$ (or $\hat\alpha$ and $\hat\beta$) are *sample estimates* of the true intercept and slope parameters $\alpha$ and $\beta$. 
-* If you repeated the study many times with different samples of donkeys, you'd get different parameter estimates every time. So how reliable are the estimates we've made?
-* The standard errors tell us how much the point estimates are expected to vary among different samples (as a standard deviation). 
-
-:::
-
-## Interpreting the Coefficients table
-
-
-
-```{r echo=TRUE}
-summary(mod)$coefficients
-```
-::: {fragment}
-We can use the point estimates ( $a$ and $b$ ) and standard errors ( $\hat\sigma_a$ and $\hat\sigma_b$ ) to build **confidence intervals** for the intercept and slope parameters. Confidence intervals are a common measure of uncertainty for quantities estimated from samples. 
-:::
-::: {.fragment}
-Recall the $2\sigma$ rule: if a random variable $x$ is normally distributed with standard deviation $\sigma$, 95% of values of $x$ will be within the interval $x\pm2\sigma = ( x-2\sigma , x+2\sigma )$. 
-:::
-::: {.fragment}
-We can apply this rule to calculate 95% confidence intervals for parameters.
-
-* For estimate $b$ with standard error $\hat\sigma_b$, we construct a 95% confidence interval as $b \pm 2\hat\sigma_b$. Can we assume that $b$ is normally distributed? Usually we can. We'll discuss this next week. 
-
-* For `Heartgirth`, the interval is $`r round(s[2,1],2)` \pm 2 \times `r round(s[2,2],2)`$.   
-Thus, we are 95% confident that the true slope is within the interval  (`r round(s[2,1]-2*s[2,2],2)`, `r round(s[2,1]+2*s[2,2],2)`).
-
-:::
-::: {.fragment}
-Note, if a confidence interval includes zero, we are not convinced that $x$ and $y$ are linearly related at all!
-:::
-
-## Interpreting the Coefficients table
-
-
-```{r echo=TRUE}
-summary(mod)$coefficients
-```
-
-We can use the point estimates ( $a$ and $b$ ) and standard errors ( $\hat\sigma_a$ and $\hat\sigma_b$ ) to build **confidence intervals** for the intercept and slope parameters. Confidence intervals are a common measure of uncertainty for quantities estimated from samples. 
-
-::: {.fragment}
-What if we want a 90% confidence interval? We don't have to use 95%. 
-:::
-::: {.fragment}
-The probability of a normal variable falling into the $2\sigma$ region is given by `r round(pnorm(2)-pnorm(-2),4)`. To obtain a confidence interval with confidence level $g$  ($0<g<1$ ), one can find the corresponding multiplier as:
-    
-```{r, echo=TRUE}
-g <- 0.90
-qnorm(1-(1-g)/2)
-```
-:::
-
-## Interpreting the 'Coefficients' table
-
-```{r echo=TRUE}
-summary(mod)$coefficients
-```
-
-The `t value` and `Pr(>|t|)` values relate to testing the **null hypothesis that the true coefficient is 0**.
-
-* A good scientists is skeptical of any idea unless there is empirical evidence to support it.
-
-* In this study, we are looking for evidence of a linear relationship between the body weight and heart girth of donkeys. 
-
-* Does our analysis of this data set convince you that such a relationship does indeed exist?
-
-## Interpreting the 'Coefficients' table
-
-```{r echo=TRUE}
-summary(mod)$coefficients
-```
-
-
-The `t value` and `Pr(>|t|)` values relate to testing the **null hypothesis that the true coefficient is 0**.
-
-* To test ideas, we actually quantify the evidence *against a null hypothesis*. The null hypothesis is like a sceptical, place-holder position, which we maintain until convinced otherwise. 
-* Here, our null hypothesis is "*body weight is* ***not*** *related to heart girth*". That is, the true value of the slope $\beta$ is exactly 0. 
-* Then, we measure the evidence *against* the null hypothesis. 
-  * If we have strong evidence against the null, we reject the null and conclude that body weight is related to heart girth in donkeys. 
-* If we do not have evidence against the null, we fail to reject the null and conclude that we have no evidence that body weight is related to heart girth in donkeys.
-* Importantly, **we never "accept the null hypothesis"**. Absence of evidence is not evidence of absence.
-
-## Interpreting the 'Coefficients' table
-
-```{r echo=TRUE}
-summary(mod)$coefficients
-```
-
-The `t value` and `Pr(>|t|)` values relate to testing the **null hypothesis that the true coefficient is 0**.
-
-* When testing the null hypothesis that the coefficient for `Heartgirth` is 0, we are essentially asking "*how plausible would our estimate of `r round(s[2,1],2)` be if the true coefficient is zero?*". In other words, "*could our result just be due to sampling error?*". 
-
-* The test statistic '`t value`' is simply `Estimate/Std. Error`. It compares each estimate to its sampling error.
-
-* The '`Pr(>|t|)`' is the 'P-value', which determines the result of our hypothesis test. The P-value for `Heartgirth` is tiny. This means that, if there was no relationship between the body weight and heart girth of donkeys, there would be negligible chance of observing an estimate as large or larger than `r round(s[2,1],2)`. 
-
-* Thus, our conclusion is that we reject the null hypothesis that $\beta=0$ and conclude that body weight does indeed increase with heart girth.
-
-## Summary of a linear model in R
-
-```{r}
-summary(mod)
-```
-
-
-`r fa("atom") ` **Next, we'll look at the bottom part of the summary output. First, what are '`Signif. codes`'?**
-
-
-## Reading the stars- significance codes
-
-The linear model summary presents a coded system for p-values:
-
-`Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1`
-
-This represents a scale of statistical significance, as follows:
-
-* If P > 0.1, you get no asterisks and the result is "not significant".
-* If 0.05 < P < 0.1, you get no asterisks but a consolation '`.`'. 
-The result is "not significant", but it's marginal. 
-* If 0.01 < P < 0.05, you get one asterisk and the result is "significant". 
-* If 0.001 < P < 0.01, you get two asterisks and the result is "very significant".
-* If P < 0.001, you get three asterisks and the result is "very very significant".
-
-. . .
-
-::: {.fragment}
-P-values are always between 0 and 1. 
-:::
-::: {.fragment}
-A small P-value means evidence against the null hypothesis. 
-:::
-::: {.fragment}
-A large P-value means no evidence against the null hypothesis (**not** evidence **for** the null hypothesis). 
-:::
-
-## Summary of a linear model in R
-
-```{r}
-
-mod <- lm(Bodywt ~ Heartgirth, data=donkey)
-summary(mod)
-```
-
-
-`r fa("atom") ` **Now, we'll look at the bottom three lines of the summary output.**
-
-## Interpreting Residuals and Goodness of Fit
-
-`Residual standard error: 10.83 on 383 degrees of freedom`  
-`Multiple R-squared:  0.8048,    Adjusted R-squared:  0.8043`  
-`F-statistic:  1580 on 1 and 383 DF,  p-value: < 2.2e-16`
-
-The `Residual standard error: 10.83` is simply the standard deviation of residuals, which is the square root of the residual variance. It measures the inaccuracy of our predictions; on average, the points are `10.83` units away from the predicted mean.
-
-::: {.fragment}
-The residual variance (i.e., the square of the residual standard error) is estimated by
-
-$$\mathsf{Var}_\mathsf{res} = \frac{1}{n-2}\sum_{i=1}^n [y_i - (\hat\alpha + \hat\beta x_i)]^2$$
-
-:::
-::: {.fragment}
-The `383 degrees of freedom` is obtained by subtracting the number of estimated coefficients ( $p=2$ ) from the sample size ( $n=385$ ).
-:::
-
-## Interpreting model summary - R<sup>2</sup>
-
-`Residual standard error: 10.83 on 383 degrees of freedom`  
-`Multiple R-squared:  0.8048,    Adjusted R-squared:  0.8043`  
-`F-statistic:  1580 on 1 and 383 DF,  p-value: < 2.2e-16`
-
-The `Multiple R-squared` value is the proportion of variation in body weight explained by the model (i.e. explained by a linear relationship between body weight and heart girth). 
-
-
-$$ \begin{aligned}
-R^2 &= \frac{\mathsf{Variance\ Explained}}{\mathsf{Total\ Variance}} = \frac{\mathsf{Total\ Variance} - \mathsf{Residual\ Variance}}{\mathsf{Total\ Variance}}\\\\
-&= \frac{\sigma_\mathsf{Y}^2 - \sigma_\mathsf{res}^2}{\sigma_\mathsf{Y}^2}= 1-\frac{ \sigma_\mathsf{res}^2}{\sigma_\mathsf{Y}^2}
-\end{aligned}$$
-
-
-::: {.fragment}
-A high $R^2$ value suggests that the model explains a lot of the variation of the outcome variable. Once you know the value of the heartgirth, you have a much better idea of what the body weight will be. Our linear model is useful!
-
-We won't discuss `Adjusted R-squared` but it is used in multiple linear regression, when we fit linear models with more than one predictor.
-:::
-
-## For our model of donkey body weights, the R<sup>2</sup> is 0.80
-
-```{r echo=FALSE, fig.align="center", fig.height=5, fig.width=8, message=FALSE}
-model_wt_hg <- lm(Bodywt ~ Heartgirth, data=donkey)
-ab <- coef(model_wt_hg)
-p <- augment(model_wt_hg, interval='prediction')
-
-ggplot(p, aes(x=Heartgirth, y=Bodywt)) +
-  ylab("Response variable (Body weight in kg)") +
-  xlab("Explanatory variable (Heart girth in cm)") +
-  xlim(79,140) +
-  ylim(0,229) +
-  geom_smooth(method="lm", fill = 4) +
-  geom_point(alpha=.7) +
-  annotate('text', x=95, y=140, 
-           label = expression("Unexplained residual variation\nin body weight: ~ 20%"), hjust=1) +
-  geom_ribbon(aes(ymin=.lower, ymax=.upper), alpha=.2) + 
-  annotate('curve', x=95, y=160, curvature = -0.2, 
-           xend = 110, yend = ab[1] + ab[2]*110 + 20,
-           arrow=arrow(angle=20, type='closed', 
-                       length=unit(0.15, 'inches'))) + 
-  annotate('text', x=121, y=70, 
-           label= expression(atop("Variation in "* bold(mean)*" body weight", 
-                                  "explained by model: ~ 80%")), 
-           hjust=0) +
-  annotate('curve', x=120, y=80, curvature = -0.2, 
-           xend = 110, yend = ab[1] + ab[2]*110-2,
-           arrow=arrow(angle=20, type='closed', 
-                       length=unit(0.15, 'inches')))
-```
-
-## Interpreting model summary - _F-test_
-
-
-`Residual standard error: 10.83 on 383 degrees of freedom`  
-`Multiple R-squared:  0.8048,    Adjusted R-squared:  0.8043`  
-`F-statistic:  1580 on 1 and 383 DF,  p-value: < 2.2e-16`
-
-The `F-statistic` is related to an omnibus test for checking whether **anything** (covariates) in our linear model helps explain body weight.
-
-The `p-value` for this test (last line) is same as the P-value for heart girth (`Pr(>|t|)`) in this case, as the only covariate in the model.
-
-In models with more than one covariate, i.e. multiple linear regression model, it will be assessing whether any of them help explain the outcome variable.
-
-# Making predictions with a simple linear regression model {.center}
-
-
-## Making predictions
-
-We can predict the mean of $y$ for any given value of $x$ by just substituting values into the estimated linear model equation. e.g. for $\mathsf{Heartgirth}=120$:
+For Station wagons, the fitted mean is
 
 $$
-\begin{aligned}
-\mathsf{mean}[\mathsf{Body weight}] &= `r round(s[1,1],1)` + `r round(s[2,1],2)` \times \mathsf{Heart girth}\\
-& = `r round(s[1,1],1)` + `r round(s[2,1],2)` \times 120\\
-& = `r round(s[1,1] + s[2,1] * 120,1)`
-\end{aligned}
+\widehat{\mathrm{fuel\ use}} =
+\hat\beta_0 + \hat\beta_1\,\mathrm{engine\ size}.
 $$
 
-Therefore, we estimate that donkeys with a heart girth of 120 will have, on average, a body weight of `r round(s[1,1] + s[2,1] * 120,1)`. 
+For Other vehicles, it is
 
-::: {.fragment}
-In R, we can use the `predict` function for this:
+$$
+\widehat{\mathrm{fuel\ use}} =
+(\hat\beta_0+\hat\beta_2) + \hat\beta_1\,\mathrm{engine\ size}.
+$$
 
-```{r, echo=TRUE, comment=""}
-predict(mod, newdata = data.frame(Heartgirth=120))
+Station wagon is the reference category. The coefficient \(\hat\beta_2\) is the fitted Other-minus-Station-wagon difference at the same engine size. Both groups share \(\hat\beta_1\), so the fitted lines are parallel.
+
+## The reference category is coded as zero
+
+Run `model.matrix(binary_model)` and inspect a few rows. R has made a column called `station_wagonOther`: zero for Station wagons and one for Other vehicles.
+
+For a Station wagon, that term drops out. For an Other vehicle, its coefficient is added to the fitted value. The reference category is the first factor level we supplied; it is a coding choice, not a claim that Station wagons are the natural baseline.
+
+```{r model-matrix}
+head(model.matrix(binary_model))
 ```
 
-It is necessary to create a `data.frame` with a column named by `Heartgirth` for the `newdata` argument when we run the `predict` function.
-:::
+## Two different comparisons
 
-## Prediction in R - confidence and prediction intervals
+Compare the raw mean fuel use in each group with the fitted difference at a common engine size.
 
-We can use the standard errors of our estimates to quantify the uncertainty for our prediction of the mean body weight of donkeys with a heart girth of 120. This is a **confidence interval for the predicted mean**.
+The raw means combine differences in body type with differences in the kinds of engines found in each group. The factor coefficient holds engine size fixed within the additive model. Neither comparison identifies a causal effect.
 
-```{r, echo=TRUE, comment=""}
-new.data <- data.frame(Heartgirth=120)
-predict(mod, new.data, interval="confidence")
+```{r raw-adjusted}
+raw_group_means <- vehicles |>
+  group_by(station_wagon) |>
+  summarise(raw_mean = mean(fuel_use_l_per_100km), .groups = "drop")
+
+raw_difference <- with(
+  raw_group_means,
+  raw_mean[station_wagon == "Other"] -
+    raw_mean[station_wagon == "Station wagon"]
+)
+
+adjusted_difference <- tidy(binary_model) |>
+  filter(term == "station_wagonOther") |>
+  pull(estimate)
+
+tibble(
+  comparison = c(
+    "Raw Other minus Station wagon",
+    "Adjusted Other minus Station wagon at the same engine size"
+  ),
+  difference_l_per_100km = c(raw_difference, adjusted_difference)
+)
 ```
 
-We estimate that the true **average** body weight of donkeys with a heart girth of 120 lies between `r round(predict(mod, new.data, interval="confidence")[1,2],1)` and `r round(predict(mod, new.data, interval="confidence")[1,3],1)`. If we were to repeat this process many times, approximately 95% of the confidence intervals calculated from those repeated samples would contain the true average body weight."
+## Keep the question, change the numerical predictor
 
+Now fit fuel use against engine power, first alone and then with Station wagon or Other. Compare the two power slopes.
 
-## Prediction in R - confidence and prediction intervals
+The simple slope summarises the association across all vehicles. The adjusted slope compares vehicles in the same group. The coefficient for Other compares groups at the same power, in L/100 km.
 
-We can use the variance of the residuals to predict the **spread of individual values** around the mean. This is a **prediction interval**.
+```{r power-binary}
+power_model <- lm(
+  fuel_use_l_per_100km ~ power_kw,
+  data = vehicles
+)
 
-```{r, echo=TRUE, comment=""}
-predict(mod, new.data, interval="prediction")
+power_binary_model <- lm(
+  fuel_use_l_per_100km ~ power_kw + station_wagon,
+  data = vehicles
+)
+
+tibble(
+  model = c("Power only", "Power adjusted for Station wagon/Other"),
+  slope_per_10_kw = c(
+    10 * coef(power_model)[["power_kw"]],
+    10 * coef(power_binary_model)[["power_kw"]]
+  )
+)
+
+tidy(power_binary_model)
 ```
 
-We estimate that 95% of donkeys with a heart girth of 120 will have a body weight between  `r round(predict(mod, new.data, interval="prediction")[1,2],1)` and `r round(predict(mod, new.data, interval="prediction")[1,3],1)`. Note we have not used the word 'mean' or 'average' here, because this is about the spread of values around the mean.
+## Use all five categories
 
-::: {.fragment .highlight-blue}
-It is important that you understand the difference between a confidence interval and a prediction interval.
-:::
+Our two-group comparison hides differences among Hatchbacks, Sedans, Sports cars and Convertibles. Replace it with the full `body_type` factor.
 
-## Confidence interval or prediction interval?
+Station wagon remains the reference. R fits one shared engine-size slope and four body-type differences. Each difference compares that category with Station wagons at the same engine size.
 
-::: {.regression-instructions}
-Choose whether the target is the mean response or one new outcome. Predict
-which interval is appropriate before revealing both intervals.
-:::
+```{r body-model}
+body_model <- lm(
+  fuel_use_l_per_100km ~ engine_l + body_type,
+  data = vehicles
+)
 
-```{ojs}
-//| echo: false
-predictionIntervalLab({Inputs, Plot})
+tidy(body_model)
 ```
 
-## Prediction in R: two levels of uncertainty
+## What does the Sedan coefficient mean?
 
-```{r, echo=TRUE, comment=""}
-new.data <- data.frame(Heartgirth=c(100,120))
-predict(mod, new.data, interval="confidence")
-predict(mod, new.data, interval="prediction")
+The `body_typeSedan` coefficient is the fitted Sedan-minus-Station-wagon difference in L/100 km for vehicles with the same engine size. Its sign gives the direction of that comparison.
+
+It is not the Sedan mean minus the Station wagon mean. It is also not a separate engine-size slope: the additive model uses the same slope for every body type.
+
+```{r body-model-summary}
+summary(body_model)$coefficients
 ```
 
-## Prediction in R: two levels of uncertainty
+## Estimates have uncertainty
 
-```{r, fig.align='center', fig.width=7, fig.height=5, echo=FALSE}
-par(mar=rep(0,4), cex=1.5)
-set.seed(2015)
-x <- rnorm(100, 3, 1)
-y <- 0.5 + 0.5*x + rnorm(100, 0, 0.3)
-line <- lm(y ~ x) 
-plot(y ~ x, col=alpha(1, .8), xlim=c(min(x)-0.25, max(x)+0.25), ylim=c(min(x)-0.25, max(y)+0.25),
-     pch=19, xlab="", ylab="", xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-xv <- seq(0,6,0.01)
-yv_c <- predict(line, data.frame(x=xv), interval="confidence")
-yv_p <- predict(line, data.frame(x=xv), interval="prediction")
-polygon(c(xv,rev(xv)),c(yv_p[,2], rev(yv_p[,3])), col=alpha(1, .3), border=NA)
-polygon(c(xv,rev(xv)),c(yv_c[,2], rev(yv_c[,3])), col=alpha(1, .3), border=NA)
-abline(coef(line), lwd=3, col = 4)
-legend("bottomright", border = NA, 
-       lty=c(1,1,1),
-       # fill=c(NA, alpha(1, .6), alpha(1, .3)), 
-       col=c(4, alpha(1, .6), alpha(1, .3)), lwd=c(3,20,20), 
-       legend=c("Regression line", "Confidence interval for the mean", "Prediction interval for the data"), bty="n")
+`Estimate` is the fitted coefficient. `Std. Error` describes how much that estimate would vary across comparable samples under the model. The t statistic is the estimate divided by its standard error; the p-value tests a zero coefficient.
+
+For a body-type row, the null hypothesis is a zero adjusted difference from Station wagons. A small p-value is evidence against that null under the model. It does not measure how large or useful the difference is, and a large p-value does not establish equality. We will work with confidence intervals next week.
+
+## Hold power fixed instead
+
+Fit fuel use against power and all five body types. Compare the Sedan coefficient with the one from the engine-size model.
+
+These models hold different numerical characteristics fixed. If their body-type coefficients differ, that does not make one of them automatically wrong. State which comparison answers the question you actually want to ask.
+
+```{r power-body-model}
+power_body_model <- lm(
+  fuel_use_l_per_100km ~ power_kw + body_type,
+  data = vehicles
+)
+
+body_sedan <- tidy(body_model) |>
+  filter(term == "body_typeSedan") |>
+  mutate(model = "Adjusted for engine size")
+
+power_sedan <- tidy(power_body_model) |>
+  filter(term == "body_typeSedan") |>
+  mutate(model = "Adjusted for engine power")
+
+bind_rows(body_sedan, power_sedan) |>
+  select(model, estimate, std.error, p.value)
 ```
 
-## Prediction in R: wider intervals, more confidence
+## Compare body types at 2.0 L
 
-By default, `predict` returns a 95% interval. You can adjust the argument `level` between 0 and 1 to get narrower or wider intervals. 
+Use `predict(body_model, newdata = ...)` to obtain a fitted mean for each body type at an engine size of 2.0 L.
 
-```{r, echo=TRUE, comment=""}
-new.data <- data.frame(Heartgirth=c(100,120))
-predict(mod, new.data, interval="confidence", level = 0.99)
-predict(mod, new.data, interval="prediction", level = 0.99)
+Every prediction uses the same engine size, so the differences among fitted values come from the body-type coefficients. These are model-based averages, not guarantees for individual vehicles.
+
+```{r body-prediction-engine}
+new_body_vehicles <- tibble(
+  engine_l = 2,
+  body_type = factor(
+    levels(vehicles$body_type),
+    levels = levels(vehicles$body_type)
+  )
+)
+
+new_body_vehicles |>
+  mutate(
+    predicted_fuel_use = predict(body_model, newdata = new_body_vehicles)
+  )
 ```
 
-## Confidence and prediction intervals
+## Compare body types at 150 kW
 
-We can predict the mean of $y$ given any reasonable values of $x$. 
+Now use the power-and-body-type model to predict each body type at 150 kW. Compare its ranking with the 2.0 L engine-size comparison.
 
-For a refined grid of $x$, we can lineate the lower limits and upper limits of corresponding confidence/prediction intervals.
+The rankings may differ because one model holds engine size fixed and the other holds power fixed. At 150 kW the Sports-car prediction is below the observed Sports-car power range, so it is an extrapolation. Do not treat its rank as a like-for-like comparison supported by these data.
 
-This leads to a pointwise confidence/prediction band for our linear model. 
+```{r body-prediction-power}
+new_body_power <- tibble(
+  power_kw = 150,
+  body_type = factor(
+    levels(vehicles$body_type),
+    levels = levels(vehicles$body_type)
+  )
+)
 
-As we can see from the previous plot, among 100 pairs of observations, there are a few points falling outside the 95% prediction band. 
-
-# Comparing Two Models with **R<sup>2</sup>** and **MSE** {.center}
-
-## Another possible model?
-
-One scientist took a look at our linear model and said, 'Not so fast!' Instead, they proposed that body weight and heart girth follow a power-law relationship—so, forget the straight line, we’re talking curves now, baby!
-
-$$\mathsf{Body weight} = c\times [\mathsf{Heart girth}]^k$$
-
-with $c$ and $k$ being some unknown parameters.
-
-::: {.fragment}
-How can we handle this non-linear relationship?
-:::
-::: {.fragment}
-We can still fit this model under the framework of simple linear regression!
-:::
-::: {.fragment}
-We just apply a log transformation to both sides of the above power-law relationship as
-
-$$\log(\mathsf{Body weight}) = \log(c) + k\times \log(\mathsf{Heart girth})$$
-:::
-
-## Fit the transformed model
-
-
-Set the response $y=\log(\mathsf{Body weight})$ and the predictor $x=\log(\mathsf{Heart girth})$.
-
-The parameters can be further transformed as $\alpha=\log(c)$ and $\beta=k$.
-
-Then, we can fit a linear model to the transformed data:
-
-
-```{r, echo=TRUE, eval=FALSE}
-mod2 <- lm(log(Bodywt) ~ log(Heartgirth), data=donkey)
-summary(mod2)
+new_body_power |>
+  mutate(
+    predicted_fuel_use = predict(
+      power_body_model,
+      newdata = new_body_power
+    )
+  )
 ```
 
-::: {.columns}
+## Does adding body type improve the model?
 
-::: {.column width=50% .fragment}
-#### Model without log transformation 
+Compare the simple engine-size model, the two-group model and the five-body-type model. All three have the same response in the same units and use the same vehicle rows.
 
-```{r, echo=FALSE}
-summary(mod)
+Ordinary R² cannot fall when we add terms to a model fitted on the same observations. Adjusted R² accounts for the number of fitted coefficients, so it can fall if extra terms contribute too little. Neither measure establishes causation or performance on new vehicles.
+
+```{r model-fit}
+model_fit <- bind_rows(
+  glance(engine_model) |> mutate(model = "Engine size"),
+  glance(binary_model) |> mutate(model = "Engine size + Station wagon/Other"),
+  glance(body_model) |> mutate(model = "Engine size + five body types")
+) |>
+  select(model, nobs, r.squared, adj.r.squared)
+
+stopifnot(n_distinct(model_fit$nobs) == 1)
+
+model_fit
 ```
 
-:::
+## What have we assumed?
 
-::: {.column width=50% .fragment}
- 
-#### Model with log transformation 
+The additive model lets body types have different intercepts but gives them a common numerical slope. The lines are parallel because we specified that structure.
 
-```{r, echo=FALSE}
-mod2 <- lm(log(Bodywt) ~ log(Heartgirth), data=donkey)
-summary(mod2)
-```
-:::
-:::
+A model with different slopes would ask another question. We are not fitting that model in 297.101. For now, interpret each body-type difference at a shared value of engine size or power.
 
-::: {.fragment .center-h}
-Which model is better?
-Why are the coefficients so different?
-:::
+## Try the same reasoning with mass
 
-## Comparing two models via the goodness of fit
-Let's plot the models...
+In the workshop you will start with gross vehicle mass, add the two-group factor, then use all five body types. Watch what happens to the mass slope when you compare vehicles within body types.
 
-::: {.columns}
-
-
-```{r, echo=FALSE, fig.align="center", fig.dim=c(10,4), out.width="100%"}
-
-plotdata <- donkey |> arrange(Heartgirth)
-plotdata$fit_raw <- predict(mod, newdata=plotdata)
-plotdata$fit_power <- exp(predict(mod2, newdata=plotdata))
-
-g1 <- ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) +
-  geom_point() +
-  geom_line(data=plotdata, aes(y=fit_raw), colour="dodgerblue") +
-  labs(title="lm(Bodywt ~ Heartgirth)")
-g2 <- ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) +
-  geom_point() +
-  geom_line(data=plotdata, aes(y=fit_power), colour="dodgerblue") +
-  labs(title="lm(log(Bodywt) ~ log(Heartgirth))")
-
-```
-::: {.fragment}
-::: {.column width=50%}
-
-#### Model without log transformation 
-
-```{r, echo=FALSE, fig.align="center", fig.dim=c(6,5), out.width="100%"}
-g1
-```
-:::
-
-::: {.column width=50%}
-
-#### Model with log transformation 
-
-```{r, echo=FALSE, fig.align="center", fig.dim=c(6,5), out.width="100%"}
-g2
-```
-:::
-:::
-:::
-::: {.fragment .center-h}
-
-Which do you prefer?
-:::
-
-## Comparing two models via the goodness of fit
-
-The `Multiple R-squared` or ' $R^2$ ' is called '**the coefficient of determination**'. It measures the proportion of variation in $y$ that is  explained by a model.
-
-For the linear model in the raw scale, $R^2=0.80$.
-
-For the linear model in the log scale, i.e. the power law model, $R^2=0.82$.
-
-The power law model explains more of the variation in the data. By this measure, it is better than the original linear model fit to the raw $x$ and $y$.
-
-## Comparing two models via prediction (MSE)
-
-$R^2$ is a convenient index for comparing two models.
-
-A high $R^2$ suggests a good fit to the observed data.
-
-::: {.fragment}
-In other words, a model with a high $R^2$ explains more variation in the response variable $y$, and leaves less of the variation in $y$ as unexplained random 'noise'.
-
-:::
-
-::: {.fragment}
-
-In statistics, when we are building a linear model, our focus may be on the things we have not observed, i.e. **prediction** or **forecasting**.
-
-* A high $R^2$ does not necessarily yield a good prediction model.
-
-* Correspondingly, a low $R^2$ does not necessarily lead to a bad prediction model! 
-
-:::
-
-::: {.fragment}
-It is better to have a more realistic model with more noise than an unrealistic model that makes overconfident predictions.
-:::
-
-::: {.fragment}
-#### *All models are wrong, but some are useful*
-##### — George Box
-:::
-
-## Useful Models
-
-
-While the linear model on untransformed data isn't as good, it might still be good enough for your purposes. 
-
-For example, if you were only using the model for 'typical' donkeys in the middle of the range of $x$ and $y$. Maybe, on your own farm, most of your donkeys are pretty fit.
-
-The key idea is that the model we come up with is always going to be 'wrong' in some way, but it might still work in your use case.
-
-Even the linear model on log-transformed data, i.e. the power law model, can't explain all the variability in the donkey's body weight!
-   
- 
-
-## Comparing two models via prediction (MSE)
-
-In the scientific research, after building some candidate models, the researchers want to validate their models on [new, unseen data]{.fragment .highlight-blue}. 
-
-Given an observed sample of data $(x_{1},y_{1}),\ldots,(x_{n},y_{n})$, let the fitted linear model be $y=\hat\alpha+\hat\beta x$. 
-
-::: {.fragment}
-A researcher now collect a new sample of data as $(x_{n+1},y_{n+1}),\ldots,(x_{n+m},y_{n+m})$. 
-:::
-::: {.fragment}
-They can compute the predictions of the fitted model at the values $x_{n+1},\ldots,x_{n+m}$ as $\hat{y}_{n+1}=\hat\alpha+\hat\beta x_{n+1},\ldots,\hat{y}_{n+m}=\hat\alpha+\hat\beta x_{n+m}$.
-
-The prediction performance can be evaluated by comparing the true observed responses $y_{n+1},\ldots,y_{n+m}$ against the predicted responses $\hat{y}_{n+1},\ldots,\hat{y}_{n+m}$.
-:::
-::: {.fragment}
-Similar to the residual variance, we can define the **mean square error** (**MSE**) as
-
-$$\mathsf{MSE}=\frac{1}{m}\sum_{i=1}^{m}(y_{n+i}-\hat{y}_{n+i})^2$$
-
-:::
-
-## Comparing two models via prediction (**MSE**)
-
-MSE serves a critical index to measure the prediction performance of candidate models.
-
-It reduces to the residual variance if we supply the original observation $(x_1,\ldots,x_n)$ to it. 
-
-Often need a new dataset to judge the predictive accuracy of a model! 
-
-
-## Prediction for the power law model
-
-Notice that we fit a linear model to the logged body weight and logged heart girth and the prediction from `predict` function is in the log scale. So we need to exponentiate it to get it back to the raw scale. 
-
-```{r, echo=TRUE, comment=""}
-new.data <- data.frame(Heartgirth=c(100,120))
-pred <- predict(mod2, new.data, interval="prediction")
-pred
-exp(pred)
-```
-
-
-## MSE for the power law model
-
-The residual variance for the linear model with transformation, i.e., power law model is also calculated in the log scale. We can then calculate the MSE of the power law model in the raw scale and compare it with the MSE (residual variance) of the linear model in the raw scale. 
-
-```{r, echo=TRUE, comment=""}
-n <- length(donkey$Bodywt)
-
-pred.linear <- predict(mod)
-MSE.linear <- sum((donkey$Bodywt - pred.linear)^2)/n
-MSE.linear
-
-pred.powerlaw <- exp(predict(mod2))
-MSE.powerlaw <- sum((donkey$Bodywt - pred.powerlaw)^2)/n
-MSE.powerlaw
-```
-
-## MSE for the power law model
-
-
- * `predict()` returns the fitted values for the original data if `new.data` is not supplied.
- * `sum()` returns the summation of a vector
- * The basic arithmetic and function operations, like `exp()`, `-`, `^2` and `/n`, is applied to sequences of predictions `pred.linear`, `pred.powerlaw` and observations `donkey$Bodywt` term by term.  
- * We can see that the power law model outperforms the linear model in terms of MSE. 
- * However, MSE here still serves as an index on the goodness of fit, not really an indicator on the prediction performance.  
-
-## A tidy way to compute the MSE
-
-```{r, echo=TRUE, message=FALSE}
-library(broom)
-augment(mod) |> summarise(MSE.linear = mean((Bodywt - .fitted)^2))
-augment(mod2) |> summarise(MSE.powerlaw = mean((exp(`log(Bodywt)`) - exp(.fitted))^2))
-```
-
-## A tidy way to compute the MSE
-
-The R function `augment()` from the package `broom` extracts the predictors, responses, fitted values, residuals and some other information from `mod` and organizes them into a tidy fashion. Notice the column name of this tibble.
-
-```{r, echo=FALSE, message=FALSE}
-augment(mod2)
-```
-
-## Summary
-
-* How to read the R summary of a linear model
-
-* Making inference based on the R summary
-
-* Prediction with confidence interval and prediction interval
-
-* Power law model and log transformation
-
-* Comparing different models with $R^2$ and **MSE**
+Next week we ask how uncertain the coefficients and predictions are, and whether the residual patterns support the model we have fitted.
