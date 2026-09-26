@@ -35,28 +35,18 @@ library(ggplot2)
 theme_set(theme_bw(base_size = 15))
 
 # Quarto may execute from the repository root or the lecture directory.
-vehicle_file <- if (file.exists("labs/nz_vehicles_2025.csv")) {
-  "labs/nz_vehicles_2025.csv"
+donkey_file <- if (file.exists("data/donkey.csv")) {
+  "data/donkey.csv"
 } else {
-  "../labs/nz_vehicles_2025.csv"
+  "../data/donkey.csv"
 }
 
-vehicles <- readr::read_csv(vehicle_file, show_col_types = FALSE) |>
+donkey <- readr::read_csv(donkey_file, show_col_types = FALSE) |>
   mutate(
-    station_wagon = factor(
-      if_else(body_type == "STATION WAGON", "Station wagon", "Other"),
-      levels = c("Station wagon", "Other")
-    ),
-    body_type = factor(
-      body_type,
-      levels = c(
-        "STATION WAGON", "HATCHBACK", "SALOON",
-        "SPORTS CAR", "CONVERTIBLE"
-      ),
-      labels = c(
-        "Station wagon", "Hatchback", "Sedan",
-        "Sports car", "Convertible"
-      )
+    Sex = factor(Sex, levels = c("Female", "Male")),
+    AgeGroup = factor(
+      if_else(Age < 7, "Under 7", "7 and over"),
+      levels = c("Under 7", "7 and over")
     )
   )
 ```
@@ -65,287 +55,302 @@ vehicles <- readr::read_csv(vehicle_file, show_col_types = FALSE) |>
 
 By the end of this lecture, you should be able to:
 
-- fit a model with a numerical predictor and a categorical predictor;
+- fit a model with a numerical predictor and categorical predictors;
 - interpret an adjusted slope and a difference from a reference category;
 - explain why an adjusted comparison can differ from a raw comparison;
-- make predictions at a common value of the numerical predictor; and
+- make predictions at common values of the other predictors; and
 - compare ordinary and adjusted R² across models fitted to the same response.
 
-# Return to the vehicle problem {.center}
+# Back to the Moroccan donkeys {.center}
 
 ## One predictor was a start
 
-Last week we related fuel use to engine size, power or mass, one at a time. A fitted line described the average trend, but vehicles with the same engine size can be quite different.
+Last week we fitted body weight against heart girth:
 
-Does body type account for some of that difference? We can add it to the model while keeping engine size in the equation.
-
-## What are we comparing?
-
-Each row is one 2025 petrol vehicle specification. The response is combined test-cycle fuel use in L/100 km. Engine size is measured in litres; body type is a category.
-
-These are associations among specifications. The model does not tell us the fuel use of every driver or show that changing a vehicle's body type would change its consumption.
-
-```{r vehicle-counts}
-vehicles |>
-  count(body_type, name = "specifications")
-
-nrow(vehicles)
+```r
+Bodywt ~ Heartgirth
 ```
 
-## Start with one line
+Heart girth explains a large amount of the variation in body weight, but
+donkeys with the same heart girth can still have different body weights.
 
-Fit fuel use against engine size and draw the fitted line over the data.
+Can some of that remaining variation be explained by age or sex? We can add
+those variables while keeping heart girth in the model.
 
-The slope gives the fitted change in L/100 km for a one-litre difference in engine size. It averages across all the body types in this dataset. The intercept is the fitted value at zero litres, well outside the vehicles we observed.
+## The data
 
-```{r engine-model}
-engine_model <- lm(
-  fuel_use_l_per_100km ~ engine_l,
-  data = vehicles
+Each row is one Moroccan donkey. We will keep body weight as the response and
+heart girth as our numerical predictor.
+
+This week we will also use two categorical predictors:
+
+- **Age group:** Under 7 versus 7 and over
+- **Sex:** Female versus Male
+
+The age split is just a convenient teaching category. We are not claiming that
+seven years is a biologically important threshold.
+
+```{r donkey-counts}
+donkey |>
+  count(AgeGroup, Sex)
+```
+
+## Start with the model from Week 10
+
+```{r heart-model}
+heart_model <- lm(
+  Bodywt ~ Heartgirth,
+  data = donkey
 )
 
-summary(engine_model)
+summary(heart_model)
 
-ggplot(vehicles, aes(engine_l, fuel_use_l_per_100km)) +
+ggplot(donkey, aes(Heartgirth, Bodywt)) +
   geom_point(alpha = 0.45) +
-  geom_smooth(method = "lm", se = FALSE, colour = "#0072B2") +
+  geom_smooth(method = "lm", se = FALSE) +
   labs(
-    x = "Engine size (litres)",
-    y = "Combined fuel use (L/100 km)"
+    x = "Heart girth (cm)",
+    y = "Body weight (kg)"
   )
 ```
 
-## Add Station wagon or Other
+The slope gives the fitted change in mean body weight for a one-centimetre
+difference in heart girth.
 
-First, reduce body type to two categories: Station wagon and Other. We fit one engine-size slope while allowing the groups to have different fitted heights.
+## Add age group
 
-The model asks how fuel use differs between these groups at the same engine size. That is a different comparison from putting all vehicles on one line.
+Now allow younger and older donkeys to have different fitted mean body weights
+at the same heart girth.
 
-```{r binary-model}
-binary_model <- lm(
-  fuel_use_l_per_100km ~ engine_l + station_wagon,
-  data = vehicles
+```{r age-model}
+age_model <- lm(
+  Bodywt ~ Heartgirth + AgeGroup,
+  data = donkey
 )
 
-binary_plot_data <- vehicles |>
-  mutate(fitted = predict(binary_model)) |>
-  arrange(station_wagon, engine_l)
+age_plot_data <- donkey |>
+  mutate(fitted = predict(age_model)) |>
+  arrange(AgeGroup, Heartgirth)
 
-tidy(binary_model)
+tidy(age_model)
 
-ggplot(binary_plot_data, aes(engine_l, fuel_use_l_per_100km)) +
-  geom_point(aes(colour = station_wagon), alpha = 0.45) +
+ggplot(age_plot_data, aes(Heartgirth, Bodywt)) +
+  geom_point(aes(colour = AgeGroup), alpha = 0.45) +
   geom_line(
-    aes(y = fitted, colour = station_wagon, group = station_wagon),
+    aes(y = fitted, colour = AgeGroup, group = AgeGroup),
     linewidth = 1
   ) +
-  scale_colour_manual(
-    values = c("Station wagon" = "#0072B2", "Other" = "#D55E00")
-  ) +
   labs(
-    x = "Engine size (litres)",
-    y = "Combined fuel use (L/100 km)",
-    colour = "Body type"
+    x = "Heart girth (cm)",
+    y = "Body weight (kg)",
+    colour = "Age group"
   )
 ```
 
 ## Two intercepts, one slope
 
-For Station wagons, the fitted mean is
+For donkeys under 7, the fitted mean is
 
 $$
-\widehat{\mathrm{fuel\ use}} =
-\hat\beta_0 + \hat\beta_1\,\mathrm{engine\ size}.
+\widehat{\mathrm{Bodywt}} =
+\hat\beta_0 + \hat\beta_1\,\mathrm{Heartgirth}.
 $$
 
-For Other vehicles, it is
+For donkeys aged 7 and over, it is
 
 $$
-\widehat{\mathrm{fuel\ use}} =
-(\hat\beta_0+\hat\beta_2) + \hat\beta_1\,\mathrm{engine\ size}.
+\widehat{\mathrm{Bodywt}} =
+(\hat\beta_0+\hat\beta_2) +
+\hat\beta_1\,\mathrm{Heartgirth}.
 $$
 
-Station wagon is the reference category. The coefficient \(\hat\beta_2\) is the fitted Other-minus-Station-wagon difference at the same engine size. Both groups share \(\hat\beta_1\), so the fitted lines are parallel.
+**Under 7** is the reference category. The coefficient
+\(\hat\beta_2\) is the fitted difference between the age groups at the
+same heart girth.
+
+Both groups share \(\hat\beta_1\), so the fitted lines are parallel.
 
 ## The reference category is coded as zero
 
-Run `model.matrix(binary_model)` and inspect a few rows. R has made a column called `station_wagonOther`: zero for Station wagons and one for Other vehicles.
+Run `model.matrix(age_model)` and inspect a few rows.
 
-For a Station wagon, that term drops out. For an Other vehicle, its coefficient is added to the fitted value. The reference category is the first factor level we supplied; it is a coding choice, not a claim that Station wagons are the natural baseline.
+R has made a column called `AgeGroup7 and over`:
+
+- 0 for donkeys under 7
+- 1 for donkeys aged 7 and over
+
+For the reference group, that term drops out. For the other group, its
+coefficient is added to the fitted value.
+
+The reference category is a coding choice. It does not change the fitted
+values.
 
 ```{r model-matrix}
-head(model.matrix(binary_model))
+head(model.matrix(age_model))
 ```
 
-## Two different comparisons
+## Raw and adjusted comparisons are different
 
-Compare the raw mean fuel use in each group with the fitted difference at a common engine size.
+First compare the raw mean body weight in the two age groups.
 
-The raw means combine differences in body type with differences in the kinds of engines found in each group. The factor coefficient holds engine size fixed within the additive model. Neither comparison identifies a causal effect.
+Then compare the coefficient from the model that holds heart girth fixed.
 
-```{r raw-adjusted}
-raw_group_means <- vehicles |>
-  group_by(station_wagon) |>
-  summarise(raw_mean = mean(fuel_use_l_per_100km), .groups = "drop")
+```{r raw-adjusted-age}
+raw_age_means <- donkey |>
+  group_by(AgeGroup) |>
+  summarise(raw_mean = mean(Bodywt), .groups = "drop")
 
-raw_difference <- with(
-  raw_group_means,
-  raw_mean[station_wagon == "Other"] -
-    raw_mean[station_wagon == "Station wagon"]
+raw_age_difference <- with(
+  raw_age_means,
+  raw_mean[AgeGroup == "7 and over"] -
+    raw_mean[AgeGroup == "Under 7"]
 )
 
-adjusted_difference <- tidy(binary_model) |>
-  filter(term == "station_wagonOther") |>
+adjusted_age_difference <- tidy(age_model) |>
+  filter(term == "AgeGroup7 and over") |>
   pull(estimate)
 
 tibble(
   comparison = c(
-    "Raw Other minus Station wagon",
-    "Adjusted Other minus Station wagon at the same engine size"
+    "Raw: 7 and over minus Under 7",
+    "Adjusted: 7 and over minus Under 7 at the same heart girth"
   ),
-  difference_l_per_100km = c(raw_difference, adjusted_difference)
+  difference_kg = c(raw_age_difference, adjusted_age_difference)
 )
 ```
 
-## Keep the question, change the numerical predictor
+The raw means also contain differences in heart girth between the groups. The
+factor coefficient compares the groups **at the same heart girth** within this
+additive model.
 
-Now fit fuel use against engine power, first alone and then with Station wagon or Other. Compare the two power slopes.
+## Add another factor: Sex
 
-The simple slope summarises the association across all vehicles. The adjusted slope compares vehicles in the same group. The coefficient for Other compares groups at the same power, in L/100 km.
+Now add Sex to the age-adjusted model.
 
-```{r power-binary}
-power_model <- lm(
-  fuel_use_l_per_100km ~ power_kw,
-  data = vehicles
+```{r full-model}
+full_model <- lm(
+  Bodywt ~ Heartgirth + AgeGroup + Sex,
+  data = donkey
 )
 
-power_binary_model <- lm(
-  fuel_use_l_per_100km ~ power_kw + station_wagon,
-  data = vehicles
-)
+tidy(full_model)
+```
 
-tibble(
-  model = c("Power only", "Power adjusted for Station wagon/Other"),
-  slope_per_10_kw = c(
-    10 * coef(power_model)[["power_kw"]],
-    10 * coef(power_binary_model)[["power_kw"]]
+With Female as the reference category, `SexMale` is the fitted Male-minus-
+Female difference for donkeys with the same heart girth and in the same age
+group.
+
+Nothing about adding Sex changes the meaning of the heart-girth slope: it is
+still the fitted change in mean body weight for a one-centimetre difference in
+heart girth, holding the other predictors fixed.
+
+## What does "holding the others fixed" mean?
+
+In the full model:
+
+- the **Heartgirth** coefficient compares donkeys differing by 1 cm in heart
+  girth but with the same age group and sex;
+- the **AgeGroup** coefficient compares age groups at the same heart girth and
+  sex;
+- the **Sex** coefficient compares males and females at the same heart girth
+  and age group.
+
+That is what an adjusted coefficient is doing. Each coefficient answers its
+comparison after accounting for the other terms in the model.
+
+## One slope, several shifted lines
+
+The full model is still additive. There is one common heart-girth slope.
+
+```{r full-model-plot}
+full_plot_data <- donkey |>
+  mutate(fitted = predict(full_model)) |>
+  arrange(AgeGroup, Sex, Heartgirth)
+
+ggplot(full_plot_data, aes(Heartgirth, Bodywt)) +
+  geom_point(aes(colour = Sex), alpha = 0.35) +
+  geom_line(
+    aes(
+      y = fitted,
+      colour = Sex,
+      linetype = AgeGroup,
+      group = interaction(Sex, AgeGroup)
+    ),
+    linewidth = 1
+  ) +
+  labs(
+    x = "Heart girth (cm)",
+    y = "Body weight (kg)",
+    colour = "Sex",
+    linetype = "Age group"
   )
-)
-
-tidy(power_binary_model)
 ```
 
-## Use all five categories
-
-Our two-group comparison hides differences among Hatchbacks, Sedans, Sports cars and Convertibles. Replace it with the full `body_type` factor.
-
-Station wagon remains the reference. R fits one shared engine-size slope and four body-type differences. Each difference compares that category with Station wagons at the same engine size.
-
-```{r body-model}
-body_model <- lm(
-  fuel_use_l_per_100km ~ engine_l + body_type,
-  data = vehicles
-)
-
-tidy(body_model)
-```
-
-## What does the Sedan coefficient mean?
-
-The `body_typeSedan` coefficient is the fitted Sedan-minus-Station-wagon difference in L/100 km for vehicles with the same engine size. Its sign gives the direction of that comparison.
-
-It is not the Sedan mean minus the Station wagon mean. It is also not a separate engine-size slope: the additive model uses the same slope for every body type.
-
-```{r body-model-summary}
-summary(body_model)$coefficients
-```
+Four groups give four fitted lines, but all four lines have the same slope.
+The factor terms only shift the fitted mean up or down.
 
 ## Estimates have uncertainty
 
-`Estimate` is the fitted coefficient. `Std. Error` describes how much that estimate would vary across comparable samples under the model. The t statistic is the estimate divided by its standard error; the p-value tests a zero coefficient.
-
-For a body-type row, the null hypothesis is a zero adjusted difference from Station wagons. A small p-value is evidence against that null under the model. It does not measure how large or useful the difference is, and a large p-value does not establish equality. We will work with confidence intervals next week.
-
-## Hold power fixed instead
-
-Fit fuel use against power and all five body types. Compare the Sedan coefficient with the one from the engine-size model.
-
-These models hold different numerical characteristics fixed. If their body-type coefficients differ, that does not make one of them automatically wrong. State which comparison answers the question you actually want to ask.
-
-```{r power-body-model}
-power_body_model <- lm(
-  fuel_use_l_per_100km ~ power_kw + body_type,
-  data = vehicles
-)
-
-body_sedan <- tidy(body_model) |>
-  filter(term == "body_typeSedan") |>
-  mutate(model = "Adjusted for engine size")
-
-power_sedan <- tidy(power_body_model) |>
-  filter(term == "body_typeSedan") |>
-  mutate(model = "Adjusted for engine power")
-
-bind_rows(body_sedan, power_sedan) |>
-  select(model, estimate, std.error, p.value)
+```{r full-model-summary}
+summary(full_model)$coefficients
 ```
 
-## Compare body types at 2.0 L
+`Estimate` is the fitted coefficient. `Std. Error` describes the sampling
+uncertainty in that estimate under the model.
 
-Use `predict(body_model, newdata = ...)` to obtain a fitted mean for each body type at an engine size of 2.0 L.
+The t statistic is the estimate divided by its standard error, and the p-value
+tests a zero coefficient.
 
-Every prediction uses the same engine size, so the differences among fitted values come from the body-type coefficients. These are model-based averages, not guarantees for individual vehicles.
+For a factor row, the null hypothesis is a zero adjusted difference from the
+reference category. A large p-value is not evidence that the groups are
+identical. It means these data do not provide strong evidence for an adjusted
+difference.
 
-```{r body-prediction-engine}
-new_body_vehicles <- tibble(
-  engine_l = 2,
-  body_type = factor(
-    levels(vehicles$body_type),
-    levels = levels(vehicles$body_type)
-  )
+We will work more carefully with uncertainty next week.
+
+## Predict comparable donkeys
+
+Suppose we want fitted mean body weights for all four combinations of age group
+and sex at a heart girth of 115 cm.
+
+```{r common-predictions}
+new_donkeys <- tidyr::expand_grid(
+  Heartgirth = 115,
+  AgeGroup = levels(donkey$AgeGroup),
+  Sex = levels(donkey$Sex)
 )
 
-new_body_vehicles |>
+new_donkeys |>
   mutate(
-    predicted_fuel_use = predict(body_model, newdata = new_body_vehicles)
-  )
-```
-
-## Compare body types at 150 kW
-
-Now use the power-and-body-type model to predict each body type at 150 kW. Compare its ranking with the 2.0 L engine-size comparison.
-
-The rankings may differ because one model holds engine size fixed and the other holds power fixed. At 150 kW the Sports-car prediction is below the observed Sports-car power range, so it is an extrapolation. Do not treat its rank as a like-for-like comparison supported by these data.
-
-```{r body-prediction-power}
-new_body_power <- tibble(
-  power_kw = 150,
-  body_type = factor(
-    levels(vehicles$body_type),
-    levels = levels(vehicles$body_type)
-  )
-)
-
-new_body_power |>
-  mutate(
-    predicted_fuel_use = predict(
-      power_body_model,
-      newdata = new_body_power
+    predicted_body_weight = predict(
+      full_model,
+      newdata = new_donkeys
     )
   )
 ```
 
-## Does adding body type improve the model?
+Every prediction uses the same heart girth. The remaining differences come
+from the fitted factor coefficients.
 
-Compare the simple engine-size model, the two-group model and the five-body-type model. All three have the same response in the same units and use the same vehicle rows.
+## Does every extra term improve the model?
 
-Ordinary R² cannot fall when we add terms to a model fitted on the same observations. Adjusted R² accounts for the number of fitted coefficients, so it can fall if extra terms contribute too little. Neither measure establishes causation or performance on new vehicles.
+Compare four models fitted to exactly the same response and the same donkeys.
 
 ```{r model-fit}
+sex_model <- lm(
+  Bodywt ~ Heartgirth + Sex,
+  data = donkey
+)
+
 model_fit <- bind_rows(
-  glance(engine_model) |> mutate(model = "Engine size"),
-  glance(binary_model) |> mutate(model = "Engine size + Station wagon/Other"),
-  glance(body_model) |> mutate(model = "Engine size + five body types")
+  glance(heart_model) |>
+    mutate(model = "Heart girth"),
+  glance(age_model) |>
+    mutate(model = "Heart girth + age group"),
+  glance(sex_model) |>
+    mutate(model = "Heart girth + sex"),
+  glance(full_model) |>
+    mutate(model = "Heart girth + age group + sex")
 ) |>
   select(model, nobs, r.squared, adj.r.squared)
 
@@ -354,14 +359,49 @@ stopifnot(n_distinct(model_fit$nobs) == 1)
 model_fit
 ```
 
+Ordinary R² cannot fall when we add terms to a model fitted to the same
+observations.
+
+Adjusted R² asks whether the improvement is large enough to justify estimating
+another coefficient. Here, age group earns its place more clearly. Adding Sex
+after age group increases ordinary R² a little, but adjusted R² is essentially
+unchanged and is slightly lower.
+
+## Why adjusted R² can go down
+
+Adding a term gives the model another way to fit the observed data. So ordinary
+R² can only stay the same or increase.
+
+Adjusted R² applies a penalty for estimating more coefficients. If the new term
+does not reduce the residual variation enough, the penalty is larger than the
+gain and adjusted R² falls.
+
+That does **not** prove the term has no scientific importance. It tells us that,
+in this fitted model and sample, the extra term has added little explanatory
+information.
+
 ## What have we assumed?
 
-The additive model lets body types have different intercepts but gives them a common numerical slope. The lines are parallel because we specified that structure.
+The additive model allows the groups to have different intercepts but gives all
+groups the same heart-girth slope.
 
-A model with different slopes would ask another question. We are not fitting that model in 297.101. For now, interpret each body-type difference at a shared value of engine size or power.
+The lines are parallel because that is the model we specified.
 
-## Try the same reasoning with mass
+A model with different slopes would contain an interaction. We are **not**
+fitting interactions in 297.101. For this course, interpret the factor
+differences at a shared value of the numerical predictor.
 
-In the workshop you will start with gross vehicle mass, add the two-group factor, then use all five body types. Watch what happens to the mass slope when you compare vehicles within body types.
+## The same structure in the workshop
 
-Next week we ask how uncertain the coefficients and predictions are, and whether the residual patterns support the model we have fitted.
+The workshop uses the vehicle data you first saw in Week 10.
+
+The dataset changes, but the model logic is the same:
+
+1. start with a numerical predictor;
+2. add a categorical predictor;
+3. interpret factor coefficients relative to a reference category;
+4. compare fitted values while holding the numerical predictor fixed; and
+5. ask whether the extra terms add enough information to justify the more
+   complicated model.
+
+Next week we add uncertainty, residual diagnostics and model assumptions.
