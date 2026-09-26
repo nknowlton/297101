@@ -1,0 +1,26 @@
+name: Temporary fetch donkey teaching data
+
+on:
+  push:
+    branches:
+      - work/week11-12-lecture-alignment
+    paths:
+      - .github/workflows/fetch-donkey-data.yml
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch exact Massey teaching CSV
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 \
+            'https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv' \
+            -o donkey.csv
+          echo "DONKEY_CSV_BEGIN"
+          cat donkey.csv
+          echo "DONKEY_CSV_END"
