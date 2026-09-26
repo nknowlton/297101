@@ -30,7 +30,7 @@ Each function returns one self-contained DOM element and must work with Quarto�
 - [ ] Use fixed seeded latent random draws. Moving a guided slider away and back must reproduce the exact same observations; “Generate another sample” advances to a new seed.
 - [ ] Keep ordinary plot domains fixed during slider changes and free edits. Clamp pointer-created values to those domains.
 - [ ] Refit least squares after every applicable edit and retain a graceful empty/error state when fewer than two distinct predictor values remain.
-- [ ] Add a shared “Well-behaved / Violation” preset toggle, assumption-specific controls, “Generate another sample,” “Predict first / Reveal diagnostic,” Guided/Free edit mode, Undo, Reset, and Delete selected.
+- [ ] Add assumption-appropriate preset labels, assumption-specific controls, “Generate another sample,” “Predict first / Reveal diagnostic,” Guided/Free edit mode, Undo, Reset, and Delete selected. The independence buttons read “Shuffled order” and “Time order”; other widgets keep “Well-behaved” and “Violation”.
 - [ ] In Guided mode, enable presets and generating controls. Entering Free edit freezes the displayed sample and disables those controls.
 - [ ] In Free edit mode, support blank-area click to add, point drag to move, click to select, Delete selected, Undo, and Reset edits. Returning to Guided mode discards free edits and regenerates the current seed from the guided controls.
 - [ ] Render generated points in dark grey and student-added points in accessible vermilion (`#D55E00`) in both scatter and diagnostic plots.
@@ -51,7 +51,7 @@ Each function returns one self-contained DOM element and must work with Quarto�
 - [x] Default to residuals versus observation order, connect neighbouring residuals, and show observation numbers taken from the displayed sequence.
 - [x] Report the lag-1 correlation of the displayed sequence, since the widget is about correlation and the number makes it explicit.
 - [x] Treat the time index as independent of `x`, so the violation is invisible in the scatterplot and only appears once order is known.
-- [x] Let "Well-behaved" genuinely remove the time pattern, rather than merely hiding it.
+- [x] Label the independence presets “Shuffled order” and “Time order”. Both show the same time-structured residual sequence: shuffling hides its temporal pattern, while time order reveals runs. State that shuffling does not make observations independent and alternation is a display arrangement, not a plausible chronology.
 - [x] Provide an optional lag view plotting e_i against e_(i-1); associate each lag point with observation i for linked highlighting.
 - [x] In Free edit mode, permit vertical dragging in the ordered residual plot, update the corresponding y_i, and refit the model.
 - [x] Ensure every newly added point receives the next visible observation number, and freeze the shuffled arrangement while editing so the order plot does not reshuffle underneath the student.
