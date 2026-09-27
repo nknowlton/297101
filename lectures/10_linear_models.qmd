@@ -693,7 +693,7 @@ residuals with `min`, `max`, `median` and another two quartiles.
 * `Coefficients:` summarizes the information on the estimates for the
 regression coefficients and `Estimate` column gives us the values of our
 coefficients. We will discuss the columns `Std. Error`, `t value` and
-`Pr(>|t|)` in Lecture 11.
+`Pr(>|t|)` in Lecture 12.
 
 :::
 :::
