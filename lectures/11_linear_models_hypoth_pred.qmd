@@ -213,61 +213,137 @@ For the reference group, that term drops out. For the other group, its
 coefficient is added to the fitted value.
 
 
-## Raw and adjusted comparisons are different
+## Observed mean body weight
 
-The raw difference compares the two groups' average body weights. The age-group
-coefficient from our new model compares them **at the same heart girth**.
+The mean body weight across all donkeys is 122.39 kg. Splitting the data by age
+group gives two quite different means:
 
 ```{r raw-adjusted-age}
 raw_age_means <- donkey |>
   group_by(AgeGroup) |>
-  summarise(raw_mean = mean(Bodywt), .groups = "drop")
+  summarise(
+    mean_body_weight = mean(Bodywt),
+    mean_heart_girth = mean(Heartgirth),
+    .groups = "drop"
+  )
 
-raw_age_difference <- with(
-  raw_age_means,
-  raw_mean[AgeGroup == "7 and over"] -
-    raw_mean[AgeGroup == "Under 7"]
-)
-
-adjusted_age_difference <- tidy(age_model) |>
-  filter(term == "AgeGroup7 and over") |>
-  pull(estimate)
-
-tibble(
-  comparison = c(
-    "Raw: 7 and over minus Under 7",
-    "Adjusted: 7 and over minus Under 7 at the same heart girth"
-  ),
-  difference_kg = c(raw_age_difference, adjusted_age_difference)
-)
+bind_rows(
+  donkey |>
+    summarise(
+      AgeGroup = "All donkeys",
+      mean_body_weight = mean(Bodywt),
+      mean_heart_girth = mean(Heartgirth)
+    ),
+  raw_age_means |> mutate(AgeGroup = as.character(AgeGroup))
+) |>
+  knitr::kable(
+    digits = 2,
+    col.names = c("Group", "Mean body weight (kg)", "Mean heart girth (cm)")
+  )
 ```
 
+Donkeys aged 7 and over weigh 16.51 kg more on average. They also have a
+larger mean heart girth. This raw difference compares the groups as observed;
+it does not hold heart girth fixed.
 
+## Compare age groups at the same heart girth
 
-## Where does the raw difference come from?
+Use the age-group model to predict **mean body weight** for both groups at a
+heart girth of 115 cm:
 
-The older group has a mean heart girth of 113.91 cm, compared with 109.39 cm
-for the younger group. In the model with age group, the fitted heart-girth
-slope is 2.7547 kg per cm. The raw difference breaks down as:
+```{r common-age-means}
+common_age_donkeys <- data.frame(
+  Heartgirth = c(115, 115),
+  AgeGroup = factor(
+    c("Under 7", "7 and over"),
+    levels = levels(donkey$AgeGroup)
+  )
+)
+
+common_age_donkeys |>
+  mutate(fitted_mean_body_weight = predict(
+    age_model, newdata = common_age_donkeys
+  )) |>
+  select(AgeGroup, Heartgirth, fitted_mean_body_weight) |>
+  knitr::kable(
+    digits = 2,
+    col.names = c("Age group", "Heart girth (cm)", "Fitted mean body weight (kg)")
+  )
+```
+
+The fitted means are 128.25 kg and 132.30 kg, a gap of 4.05 kg. This is the
+age-group coefficient: the age comparison **adjusted for heart girth**. Because
+the lines share a slope, the 4.05 kg gap is the same at any heart girth.
+
+## Why are the group means 16.5 kg apart?
+
+The 16.51 kg raw gap and the 4.05 kg fitted gap use different heart-girth
+values. To connect them, use the fitted age-group model:
+
+$$
+\widehat{\mathrm{Bodywt}} =
+-188.55 + 2.7547\,\mathrm{Heartgirth} + 4.05\,I(\text{7 and over}),
+$$
+
+where $I(\text{7 and over})$ is 0 for the younger group and 1 for the older
+group.
+
+. . .
+
+The two groups have different average heart girths:
+
+$$
+\overline{\mathrm{Heartgirth}}_{\text{under }7} = 109.39\text{ cm}, \qquad
+\overline{\mathrm{Heartgirth}}_{7\text{ and over}} = 113.91\text{ cm}.
+$$
+
+## Recover the observed age-group means
+
+Plug each group's own average heart girth into the **same model**:
+
+$$
+\widehat{W}_{\text{under }7} = -188.55 + 2.7547(109.39) \approx 112.78\text{ kg},
+$$
+
+$$
+\widehat{W}_{7\text{ and over}} = -188.55 + 2.7547(113.91) + 4.05 \approx 129.29\text{ kg}.
+$$
+
+These fitted values match the raw group means, because each group's own mean
+heart girth reproduces its own mean body weight in this model.
+
+## Splitting the 16.5 kg apart
+
+Subtracting the two predictions cancels the intercept:
 
 $$
 \begin{aligned}
-129.29 - 112.78
-&\approx 4.05 + 2.7547(113.91 - 109.39) \\
-16.51\text{ kg}
-&\approx 4.05\text{ kg} + 12.45\text{ kg}.
+\widehat{W}_{7\text{ and over}} - \widehat{W}_{\text{under }7}
+&= 2.7547(113.91 - 109.39) + 4.05 \\
+&= 12.45\text{ kg} + 4.05\text{ kg} \\
+&\approx 16.51\text{ kg}.
 \end{aligned}
 $$
 
-The 4.05 kg is the fitted age-group difference at a shared heart girth. The
-other 12.45 kg reflects the groups' different mean heart girths in this model.
+. . .
+
+> **12.45 kg** comes from evaluating the model at the groups' different average
+> heart girths.
+>
+> **4.05 kg** is the fitted age-group difference **when heart girth is held the
+> same** — the coefficient from the adjusted model.
+
+. . .
+
+Both numbers come from the same fitted model. The 16.51 kg gap uses each
+group's own mean heart girth. The 4.05 kg gap holds heart girth fixed, so it
+answers the like-for-like age-group question more directly.
 
 ## Add another factor: Sex
 
-That seemed to improve the model, why not keep adding more variables? This time we will add `Sex`. This will help us test if gender plays a role in
-`Bodywt` when holding `Heartgirth` and `AgeGroup` fixed.
-
-Like before we add a new term with `+`.
+The age-group term gives us a like-for-like comparison and slightly improves
+model fit. Does `Sex` explain any remaining variation once heart girth and age
+group are included? We add it with another `+`.
 
 ```{r full-model}
 full_model <- lm(
@@ -376,7 +452,7 @@ weight from the model with heart girth alone:
 predict(heart_model, newdata = data.frame(Heartgirth = 115))
 ```
 
-## Predict across age and sex groups
+. . .
 
 Now keep heart girth at 115 cm and ask for a fitted mean for each combination
 of age group and sex.
@@ -397,17 +473,14 @@ come from the age-group and sex coefficients.
 
 ## Compare donkeys at the same heart girth
 
-Build the model one term at a time. Move the heart-girth marker to compare
-fitted mean body weights at the same heart girth. Then change the reference
-categories and watch what changes, and what does not.
+Move the heart-girth marker: fitted means change, but the gaps between groups
+stay constant. Change a reference category: coefficients change, but fitted
+means do not.
 
 ```{ojs}
 //| echo: false
 multipleRegressionLab({ Plot, data: donkeyWidgetData })
 ```
-
-The widget deliberately fits additive models only. The group lines stay
-parallel; no interactions are introduced.
 
 ## Does every extra term improve the model?
 
@@ -438,8 +511,6 @@ model_fit
 
 Ordinary R² cannot fall when we add terms to a model fitted to the same
 observations.
-
-. . .
 
 Adjusted R² asks whether the improvement is large enough to justify estimating
 another coefficient. Here, `age group` earns its place more clearly. Adding `Sex`
@@ -473,10 +544,9 @@ information.
 
 ## What have we assumed?
 
-- The additive model allows the groups to have different intercepts but gives all
-groups the same heart-girth slope.
+An additive model gives each age and sex group its own vertical shift, while all
+groups share the same heart-girth slope. The fitted lines are parallel by
+construction.
 
-- The lines are parallel because that is the model we specified.
-
-- What about differnet slopes? That is an "interaction" and we are **not**
-fitting interactions in 297.101.
+If the slopes differ between groups, we need an interaction term. We have not
+fitted interactions in this lecture.

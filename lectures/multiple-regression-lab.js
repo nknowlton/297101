@@ -20,12 +20,6 @@ const GREY = "#6b7780";
 const AGE_LEVELS = ["Under 7", "7 and over"];
 const SEX_LEVELS = ["Female", "Male"];
 
-const MODEL_LABELS = {
-  heart: "Heart girth",
-  age: "+ Age group",
-  full: "+ Age group + Sex",
-};
-
 export function prepareDonkeyData(rows) {
   return (rows || [])
     .map((row, index) => {
@@ -175,10 +169,6 @@ export function rawFactorDifference(rows, factor, reference) {
   };
 }
 
-function coefficientFor(fit, prefix) {
-  return fit.coefficients.find((row) => row.name.startsWith(prefix)) || null;
-}
-
 function formatNumber(value, digits = 3) {
   return Number.isFinite(value) ? value.toFixed(digits) : "--";
 }
@@ -280,6 +270,14 @@ function modelFormula(model) {
   return "Bodywt ~ Heartgirth + AgeGroup + Sex";
 }
 
+function coefficientLabel(name) {
+  if (name === "(Intercept)") return "Intercept";
+  if (name === "Heartgirth") return "Heart girth";
+  if (name.startsWith("AgeGroup: ")) return `Age: ${name.slice("AgeGroup: ".length)}`;
+  if (name.startsWith("Sex: ")) return `Sex: ${name.slice("Sex: ".length)}`;
+  return name;
+}
+
 function table(headers, rows, className = "") {
   const node = el("table", `mr-table ${className}`.trim());
   const thead = document.createElement("thead");
@@ -291,56 +289,18 @@ function table(headers, rows, className = "") {
     const tr = document.createElement("tr");
     row.forEach((cell) => {
       const td = document.createElement("td");
-      if (cell && typeof cell === "object" && cell.html != null) td.innerHTML = cell.html;
-      else td.textContent = String(cell);
+      if (cell && typeof cell === "object" && cell.reference) {
+        tr.classList.add("mr-reference-row");
+        td.append(document.createTextNode(cell.label), el("span", "mr-reference", "ref"));
+      } else {
+        td.textContent = String(cell);
+      }
       tr.append(td);
     });
     tbody.append(tr);
   });
   node.append(thead, tbody);
   return node;
-}
-
-function statusForModel(stateModel, fits) {
-  if (stateModel === "heart") {
-    return {
-      title: "Baseline model",
-      text: "Start with Heartgirth alone. Ordinary and adjusted R-squared are the same comparison target for every model below because the response and observations are unchanged.",
-      cls: "neutral",
-    };
-  }
-  const previous = stateModel === "age" ? fits.heart : fits.age;
-  const current = stateModel === "age" ? fits.age : fits.full;
-  const term = stateModel === "age" ? "Age group" : "Sex";
-  const delta = current.adjR2 - previous.adjR2;
-  return {
-    title: `${term}: adjusted R-squared ${delta >= 0 ? "increases" : "decreases"}`,
-    text: `${term} changes adjusted R-squared by ${signed(delta, 4)}. ${delta > 0 ? "By this criterion, the term earns its place in the model." : "By this criterion, the extra term has not earned the added complexity."} This is a model-fit criterion, not a significance test or a claim of scientific importance.`,
-    cls: delta > 0 ? "positive" : "negative",
-  };
-}
-
-function contrastRows(rows, fit, model, references) {
-  const output = [];
-  if (["age", "full"].includes(model)) {
-    const raw = rawFactorDifference(rows, "AgeGroup", references.AgeGroup);
-    const adjusted = coefficientFor(fit, "AgeGroup:");
-    output.push([
-      `${raw.other} - ${raw.reference}`,
-      signed(raw.difference),
-      adjusted ? signed(adjusted.estimate) : "--",
-    ]);
-  }
-  if (model === "full") {
-    const raw = rawFactorDifference(rows, "Sex", references.Sex);
-    const adjusted = coefficientFor(fit, "Sex:");
-    output.push([
-      `${raw.other} - ${raw.reference}`,
-      signed(raw.difference),
-      adjusted ? signed(adjusted.estimate) : "--",
-    ]);
-  }
-  return output;
 }
 
 export function multipleRegressionLab({ Plot, data }) {
@@ -435,10 +395,11 @@ export function multipleRegressionLab({ Plot, data }) {
     });
 
     const plot = Plot.plot({
-      width: 650,
-      height: 430,
-      marginLeft: 58,
-      marginBottom: 48,
+      width: 520,
+      height: 390,
+      marginLeft: 56,
+      marginBottom: 46,
+      style: { fontSize: "13px" },
       x: { label: "Heart girth (cm)", domain: [minHeart, maxHeart], grid: true },
       y: { label: "Body weight (kg)", grid: true },
       marks,
@@ -456,71 +417,77 @@ export function multipleRegressionLab({ Plot, data }) {
       legend.append(item);
     });
 
-    const caption = el("div", "mr-caption", `${modelFormula(state.model)}. All displayed group lines share the same Heartgirth slope.`);
+    const caption = el("div", "mr-caption", state.model === "heart"
+      ? "One fitted mean at each heart girth."
+      : "Equal slopes keep the gaps between fitted lines constant.");
     plotWrap.replaceChildren(plot, legend, caption);
   }
 
-  function renderSummary(fits, fit) {
+  function renderSummary(fit) {
     summary.replaceChildren();
+    const groups = groupDefinitions(state.model);
+    const referenceGroup = state.model === "heart"
+      ? groups[0]
+      : groups.find((group) => group.AgeGroup === state.AgeGroup
+        && (state.model === "age" || group.Sex === state.Sex));
+    const referencePrediction = fit.predict({
+      Heartgirth: state.heart,
+      AgeGroup: referenceGroup.AgeGroup,
+      Sex: referenceGroup.Sex,
+    });
 
-    const fitCard = el("section", "mr-card");
-    fitCard.append(el("h3", "", "R-squared and adjusted R-squared"));
-    const ladderRows = [
-      ["Heart girth", fits.heart],
-      ["+ Age group", fits.age],
-      ["+ Sex", fits.sex],
-      ["+ Age group + Sex", fits.full],
-    ].map(([label, modelFit]) => [
-      { html: `${label}${modelFit.model === state.model ? ' <span class="mr-current">current</span>' : ""}` },
-      formatNumber(modelFit.r2, 3),
-      formatNumber(modelFit.adjR2, 3),
-    ]);
-    fitCard.append(table(["Model", "R-squared", "Adjusted"], ladderRows, "mr-fit-table"));
-    const status = statusForModel(state.model, fits);
-    const statusNode = el("div", `mr-status ${status.cls}`);
-    statusNode.append(el("strong", "", status.title), el("p", "", status.text));
-    fitCard.append(statusNode);
-    summary.append(fitCard);
+    const predictionCard = el("section", "mr-card mr-card-focus");
+    predictionCard.append(el("div", "mr-card-title", `Fitted means at ${state.heart} cm`));
+    const predictionRows = groups.map((group) => {
+      const predicted = fit.predict({
+        Heartgirth: state.heart,
+        AgeGroup: group.AgeGroup,
+        Sex: group.Sex,
+      });
+      const label = group === referenceGroup
+        ? { label: group.label, reference: true }
+        : group.label;
+      return state.model === "heart"
+        ? [group.label, formatNumber(predicted, 1)]
+        : [label, formatNumber(predicted, 1), signed(predicted - referencePrediction, 1)];
+    });
+    predictionCard.append(table(
+      state.model === "heart"
+        ? ["Group", "Mean (kg)"]
+        : ["Group", "Mean (kg)", "Gap (kg)"],
+      predictionRows,
+      "mr-prediction-table",
+    ));
+    if (state.model !== "heart") {
+      predictionCard.append(el("div", "mr-small", "Gap is measured from the reference group. Move the marker: these gaps stay the same."));
+    }
+    summary.append(predictionCard);
 
     const coefficientCard = el("section", "mr-card");
-    coefficientCard.append(el("h3", "", "Coefficients"));
+    coefficientCard.append(el("div", "mr-card-title", "Coefficients"));
     coefficientCard.append(el("div", "mr-formula", modelFormula(state.model)));
     coefficientCard.append(table(
       ["Term", "Estimate"],
-      fit.coefficients.map((coefficient) => [coefficient.name, formatNumber(coefficient.estimate, 3)]),
+      fit.coefficients.map((coefficient) => [
+        coefficientLabel(coefficient.name),
+        formatNumber(coefficient.estimate, 3),
+      ]),
+      "mr-coefficient-table",
     ));
-    summary.append(coefficientCard);
-
     if (state.model !== "heart") {
-      const contrastCard = el("section", "mr-card");
-      contrastCard.append(el("h3", "", "Raw versus adjusted comparison"));
-      contrastCard.append(table(
-        ["Comparison", "Raw mean diff. (kg)", "Adjusted diff. (kg)"],
-        contrastRows(rows, fit, state.model, { AgeGroup: state.AgeGroup, Sex: state.Sex }),
-      ));
-      contrastCard.append(el("p", "mr-small", "The adjusted difference compares groups at the same Heartgirth. In the full model it also holds the other factor fixed."));
-      summary.append(contrastCard);
+      coefficientCard.append(el("div", "mr-small", "Changing a reference shifts the intercept and reverses that factor coefficient. The slope and fitted means stay the same."));
     }
-
-    const predictionCard = el("section", "mr-card");
-    predictionCard.append(el("h3", "", `Fitted means at ${state.heart} cm`));
-    const predictionRows = groupDefinitions(state.model).map((group) => [
-      group.label,
-      formatNumber(fit.predict({ Heartgirth: state.heart, AgeGroup: group.AgeGroup, Sex: group.Sex }), 1),
-    ]);
-    predictionCard.append(table(["Group", "Predicted body weight (kg)"], predictionRows));
-    summary.append(predictionCard);
+    summary.append(coefficientCard);
   }
 
   function render() {
     const references = { AgeGroup: state.AgeGroup, Sex: state.Sex };
-    const fits = fitModelSet(rows, references);
-    const fit = fits[state.model];
+    const fit = fitDonkeyModel(rows, state.model, references);
     modelControl.update(state.model);
     ageReference.select.disabled = state.model === "heart";
     sexReference.select.disabled = state.model !== "full";
     renderPlot(fit);
-    renderSummary(fits, fit);
+    renderSummary(fit);
   }
 
   render();

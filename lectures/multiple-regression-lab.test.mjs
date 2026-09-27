@@ -63,4 +63,23 @@ assert.ok(fits.age.r2 >= fits.heart.r2 - 1e-12);
 assert.ok(fits.full.r2 >= fits.age.r2 - 1e-12);
 assert.ok(fits.full.r2 >= fits.sex.r2 - 1e-12);
 
+// The marker changes every fitted mean by the same amount, so gaps stay fixed.
+for (const model of ["age", "full"]) {
+  const fit = fits[model];
+  const reference = { AgeGroup: "Under 7", Sex: "Female" };
+  for (const group of [
+    { AgeGroup: "7 and over", Sex: "Female" },
+    ...(model === "full" ? [
+      { AgeGroup: "Under 7", Sex: "Male" },
+      { AgeGroup: "7 and over", Sex: "Male" },
+    ] : []),
+  ]) {
+    const gapAt = (Heartgirth) => fit.predict({ ...group, Heartgirth })
+      - fit.predict({ ...reference, Heartgirth });
+    close(gapAt(95), gapAt(125));
+    close(fit.predict({ ...group, Heartgirth: 125 })
+      - fit.predict({ ...group, Heartgirth: 95 }), 30 * fit.beta[1]);
+  }
+}
+
 console.log("multiple-regression-lab checks passed");
