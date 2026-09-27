@@ -63,7 +63,7 @@ import {
 } from "./line-assumptions-lab.js"
 ```
 
-## Learning outcomes
+# Learning outcomes
 
 By the end of this lecture, you should be able to:
 
@@ -76,18 +76,22 @@ By the end of this lecture, you should be able to:
 
 # How much can we trust the fitted model? {.center}
 
-Last week we used heart girth, age group and sex to make adjusted comparisons and fitted mean predictions for donkeys. The coefficients are estimates from a sample, and the fitted means are predictions from a model.
+Last week we used heart girth, age group and sex to make adjusted comparisons and fitted mean predictions for donkeys.
+The coefficients are estimates from a *sample*, and the fitted means are predictions from a *model*.
+
+. . .
 
 Now we need to quantify uncertainty and check whether the model's structure is credible. We will use the donkey model for the worked examples. In the workshop, you will transfer the same reasoning to county-level cancer data.
 
-## Why would the fitted slope change?
+## Why do estimates vary?
 
-The population slope, \(\beta\), is fixed but unknown. The fitted slope,
-\(\hat\beta\), depends on the sample we happened to observe.
+Last week we distinguished a population coefficient from the estimate calculated
+from our sample. The population slope, $\beta$, is fixed but unknown. The fitted
+slope, $\hat\beta$, depends on which donkeys we happened to observe.
 
 If we repeated the same study with another comparable sample of donkeys, the
 observed body weights would differ slightly and the fitted line would move. The
-collection of \(\hat\beta\) values we could obtain across repeated samples is
+collection of $\hat\beta$ values we could obtain across repeated samples is
 the **sampling distribution** of the slope estimator.
 
 That sampling distribution is what coefficient uncertainty refers to. We are
@@ -98,9 +102,9 @@ not treating the population slope itself as random.
 Under the linear model, the least-squares estimator is centred on the population
 coefficient:
 
-\[
+$$
 E(\hat\beta)=\beta.
-\]
+$$
 
 So across repeated comparable samples, least squares does not systematically
 estimate the slope too high or too low.
@@ -111,10 +115,10 @@ gets narrower.
 
 This is the link we need for inference:
 
-\[
+$$
 \text{estimate} \rightarrow \text{standard error} \rightarrow
 \text{t statistic} \rightarrow \text{p-value or confidence interval}.
-\]
+$$
 
 ## A coefficient is an estimate
 
@@ -129,7 +133,7 @@ sigma(mod)
 
 ## What does the slope p-value test?
 
-For heart girth, the coefficient test starts from \(H_0:\beta_{\mathrm{girth}}=0\). The t statistic compares the estimated slope with its standard error. The p-value describes how unusual a statistic at least as extreme would be if that null hypothesis and the model assumptions held.
+For heart girth, the coefficient test starts from $H_0:\beta_{\mathrm{girth}}=0$. The t statistic compares the estimated slope with its standard error. The p-value describes how unusual a statistic at least as extreme would be if that null hypothesis and the model assumptions held.
 
 A small p-value is evidence against a zero slope. It does not tell us the probability that the null is true, how accurate individual predictions are, or whether heart girth causes body weight.
 
@@ -140,10 +144,12 @@ Use a 95% confidence interval for the heart-girth coefficient. In repeated compa
 For a two-sided 5% test of a zero coefficient, an interval that excludes zero agrees with rejecting that null. Interpret the endpoints in kilograms per centimetre. We do not say that there is a 95% probability that this particular fixed coefficient lies in the calculated interval.
 
 ```{r coefficient-interval}
+#| echo: true
+#| code-fold: false
 confint(mod, parm = "Heartgirth")
 ```
 
-## Two questions at the same heart girth
+## Population vs Individual
 
 At a heart girth of 120 cm, what is the estimated average body weight? What range might contain the weight of one new donkey at 120 cm?
 
@@ -151,11 +157,14 @@ Both questions use the same fitted value. The second has an additional source of
 
 ## Ask R for the interval you mean
 
-Set `newdata = data.frame(Heartgirth = 120)`. Use `interval = "confidence"` for uncertainty in the mean weight at 120 cm, and `interval = "prediction"` for one new donkey's weight at 120 cm.
+Use `interval = "confidence"` for uncertainty in the mean weight at 120 cm,
+and `interval = "prediction"` for one new donkey's weight at 120 cm.
 
 The prediction interval is wider because it incorporates residual variation as well as uncertainty in the fitted mean. Both intervals depend on the model and its assumptions; neither is a promise about a particular donkey.
 
 ```{r prediction-intervals}
+#| echo: true
+#| code-fold: false
 new_donkey <- data.frame(Heartgirth = 120)
 
 predict(mod, newdata = new_donkey, interval = "confidence")
@@ -177,13 +186,25 @@ predictionIntervalLab({ Inputs, Plot })
 
 ## Why look at residuals?
 
-Least squares chooses coefficients to minimise the sum of squared residuals, \(e_i=y_i-\hat y_i\). It will produce a fitted line whether or not a straight-line mean describes the data well.
+For each donkey, the residual is its observed weight minus its fitted weight:
 
-The residuals let us look for systematic patterns that the fitted model left behind. We need separate questions about the shape of the mean, dependence between observations, the shape of residuals, and changes in spread.
+$$
+e_i=y_i-\hat y_i,\qquad
+\mathrm{RSS}=\sum_{i=1}^{n}e_i^2,\qquad
+\mathrm{MSE}=\frac{\mathrm{RSS}}{n}.
+$$
+
+Least squares chooses the line with the smallest residual sum of squares (RSS).
+For this sample, $n$ is fixed, so the same line also minimises the mean squared
+residual (MSE). It will produce a line even if a straight-line mean fits poorly.
+
+The residuals let us look for systematic patterns that the fitted model left
+behind. We need separate questions about the shape of the mean, dependence
+between observations, the shape of residuals, and changes in spread.
 
 ```{r least-squares}
-sum(residuals(mod)^2)
-sigma(mod)
+rss <- sum(residuals(mod)^2)
+c(RSS = rss, MSE = rss / nobs(mod))
 ```
 
 ## Four checks: L–I–N–E
@@ -200,9 +221,14 @@ These checks probe the assumptions; a plot cannot prove that they hold.
 
 ## Which assumptions support which claims?
 
-A straight-line mean, appropriate independence and constant error variance support the familiar least-squares standard errors and their usual interpretation. Normal errors provide the exact small-sample t and F distributions used for conventional intervals and tests.
+A straight-line mean, appropriate independence and constant error variance
+support the familiar least-squares standard errors and their usual
+interpretation. Normal errors provide the exact small-sample t and F
+distributions used for conventional intervals and tests.
 
-Normality is not one of the Gauss–Markov conditions for least squares to be best linear unbiased. We still inspect the residual shape because this course also uses the usual finite-sample inference and individual prediction intervals.
+Least squares finds the line with the smallest squared residuals without
+assuming normal errors. Normality matters for the exact small-sample inference
+we have just used; it is not needed to calculate that best-fitting line.
 
 ## L: what pattern has the line missed?
 
@@ -217,7 +243,7 @@ linearityLab({ Inputs, Plot })
 
 ## I: does order contain information?
 
-The same points can look unremarkable in a scatterplot while their residuals form runs when we recover the time order. Change the displayed order without changing any \(x\), \(y\), fitted value or residual.
+The same points can look unremarkable in a scatterplot while their residuals form runs when we recover the time order. Change the displayed order without changing any $x$, $y$, fitted value or residual.
 
 Shuffling can hide temporal dependence, but it does not make observations independent. The alternating order is a display arrangement, not a plausible chronology.
 
@@ -250,44 +276,144 @@ If the spread grows, uncertainty for an individual outcome also changes across t
 equalVarianceLab({ Inputs, Plot })
 ```
 
-## Return to the donkey data
+## Donkey data: L and I
 
-Now inspect the standard diagnostic plots for the fitted donkey model. State the visible pattern first, then say which assumption it bears on and why the departure matters.
+**Linearity:** Does the residual-versus-fitted plot show a curve that the line
+has missed? It can also give an initial indication of changing spread.
 
-Residuals versus fitted values can show curvature or changing spread. The Q–Q plot addresses residual shape. A leverage and Cook's-distance plot flags observations whose removal could materially change the fit. None of these plots tells us how the donkeys were sampled.
+**Independence:** This plot cannot tell us whether observations are independent.
+We would need to know how the donkeys were sampled and whether they have a
+meaningful order or grouping.
 
-```{r donkey-diagnostics}
-par(mfrow = c(2, 2))
-plot(mod, which = c(1, 2, 3, 5), pch = 19, col = "#00000080")
-par(mfrow = c(1, 1))
+```{r donkey-linearity, fig.height=5.5}
+plot(mod, which = 1, pch = 19, col = "#00000080")
+```
+
+## Donkey data: N
+
+**Normality:** Do the residual quantiles track the reference line, or do the
+tails depart systematically? A Q–Q plot can raise a concern, not confirm
+normality.
+
+```{r donkey-normality, fig.height=5.5}
+plot(mod, which = 2, pch = 19, col = "#00000080")
+```
+
+## Donkey data: E
+
+**Equal variance:** Does the residual spread change across fitted weights? A
+rising or falling trend in this scale-location plot suggests that it does.
+
+```{r donkey-equal-variance, fig.height=5.5}
+plot(mod, which = 3, pch = 19, col = "#00000080")
+```
+
+## Donkey data: influence
+
+This plot compares residual size with leverage. The Cook's-distance contours
+help flag observations whose removal could change the fitted line. Which
+labelled observations would you check in the original data?
+
+```{r donkey-influence-diagnostic, fig.height=5.5}
+plot(mod, which = 5, pch = 19, col = "#00000080")
 ```
 
 ## Investigate influence before changing the data
 
-A point can have an unusual predictor value, a large residual, or both. Cook's distance summarises how much the fitted model would change if that observation were omitted.
+A point can have an unusual predictor value, a large residual, or both. Cook's
+distance summarises how much the fitted model would change if that observation
+were omitted.
 
-Check the source record and measurement process before deciding what to do. A correct but unusual donkey is still part of the data; a data-entry error calls for correction. Report any exclusion and examine whether it changes the substantive result.
+Check the source record and measurement process before deciding what to do. A
+correct but unusual donkey is still part of the data; a data-entry error calls
+for correction. Report any exclusion and examine whether it changes the
+substantive result.
 
 ```{r influence}
 influence_data <- tibble(
-  observation = seq_len(nrow(donkey)),
-  Bodywt = donkey$Bodywt,
-  Heartgirth = donkey$Heartgirth,
+  observation = as.integer(rownames(model.frame(mod))),
+  Bodywt = model.response(model.frame(mod)),
+  Heartgirth = model.frame(mod)$Heartgirth,
   cook_distance = cooks.distance(mod),
   leverage = hatvalues(mod),
   studentised_residual = rstudent(mod)
 )
 
-influence_data |>
-  slice_max(cook_distance, n = 5) |>
+top_five <- influence_data |>
+  slice_max(cook_distance, n = 5, with_ties = FALSE) |>
   arrange(desc(cook_distance))
+
+top_five |>
+  select(observation, Heartgirth, Bodywt, cook_distance) |>
+  knitr::kable(
+    digits = 2,
+    col.names = c("Observation", "Heart girth (cm)", "Body weight (kg)", "Cook's D")
+  )
 ```
+
+## Where are those five donkeys?
+
+The orange points are the same five observations listed above. Their positions
+show whether their influence comes from unusual heart girth, body weight, or
+both. Check the records before considering any exclusion.
+
+```{r influence-on-data, fig.height=5.5}
+ggplot(donkey, aes(Heartgirth, Bodywt)) +
+  geom_point(colour = "#00000070") +
+  geom_abline(
+    intercept = coef(mod)[1], slope = coef(mod)[2],
+    colour = "#0072B2", linewidth = 0.8
+  ) +
+  geom_point(data = top_five, colour = "#D55E00", size = 3) +
+  geom_text(
+    data = top_five, aes(label = observation),
+    colour = "#A34100", vjust = -0.8, fontface = "bold"
+  ) +
+  labs(x = "Heart girth (cm)", y = "Body weight (kg)")
+```
+
+## Change the predictor scale
+
+We have fitted a straight line using heart girth in centimetres. A second model
+uses the natural log of heart girth as its predictor:
+
+$$
+\widehat{W}_{\mathrm{linear}}=a+bH,\qquad
+\widehat{W}_{\log H}=c+d\log(H).
+$$
+
+The second fitted mean can curve when plotted against heart girth in
+centimetres. `exp()` reverses `log()`: $\exp(\log H)=H$. We have **not** logged
+body weight, so both models still predict weight in kilograms.
+
+## What does the log-heart-girth coefficient mean?
+
+The original slope $b$ describes a kilogram change for one more centimetre.
+In the log-heart-girth model, a fixed centimetre increase has a different
+fitted effect at different starting girths.
+
+For a **1% increase** in heart girth, from $H$ to $1.01H$:
+
+$$
+\Delta\widehat W=d\{\log(1.01H)-\log(H)\}
+=d\log(1.01)\text{ kg}.
+$$
+
+For a **1% decrease**, the fitted change is $d\log(0.99)$ kg. These are
+percentage changes in **heart girth**; the changes in fitted weight are in
+kilograms.
 
 ## Could another scale help?
 
-If the residuals show curvature or changing spread, a transformation may be worth checking. Fit a model with logged heart girth as the predictor, then compare its fitted pattern and diagnostics with the original.
+If the residuals show curvature or changing spread, a transformation may be
+worth checking. Fit the log-heart-girth model, then compare its fit and
+diagnostics with the original.
 
-Both models predict body weight in kilograms, so their in-sample R² and residual standard deviations refer to the same response scale. A small improvement in one number alone is not enough to choose a model. Check the residuals, the observed predictor range and whether the new coefficient remains useful to interpret.
+Both models predict body weight in kilograms, so their in-sample R² and
+residual standard deviations refer to the same response scale. A small
+improvement in one number alone is not enough to choose a model. Check the
+residuals, the observed predictor range and whether the new coefficient remains
+useful to interpret.
 
 ```{r transformed-model}
 mod_log_x <- lm(Bodywt ~ log(Heartgirth), data = donkey)
@@ -296,18 +422,48 @@ bind_rows(
   glance(mod) |> mutate(model = "Heart girth"),
   glance(mod_log_x) |> mutate(model = "Log heart girth")
 ) |>
-  select(model, r.squared, sigma)
+  select(model, r.squared, sigma) |>
+  knitr::kable(
+    digits = 3,
+    col.names = c("Model", "R²", "Residual SD (kg)")
+  )
 ```
 
-```{r transformed-diagnostics}
-par(mfrow = c(2, 2))
-plot(mod, which = c(1, 2), pch = 19, col = "#00000080")
-plot(mod_log_x, which = c(1, 2), pch = 19, col = "#0072B280")
-par(mfrow = c(1, 1))
+## Compare fitted shapes
+
+Both lines use the same observed donkeys and predict body weight in kilograms.
+Does the logged predictor change the shape enough to address the pattern we saw
+in the original residuals?
+
+```{r transformed-curves, fig.height=5.5}
+girth_grid <- tibble(
+  Heartgirth = seq(min(donkey$Heartgirth), max(donkey$Heartgirth), length.out = 200)
+)
+
+fitted_curves <- bind_rows(
+  girth_grid |>
+    mutate(Bodywt = predict(mod, newdata = girth_grid), model = "Heart girth"),
+  girth_grid |>
+    mutate(Bodywt = predict(mod_log_x, newdata = girth_grid),
+           model = "Log heart girth")
+)
+
+ggplot(donkey, aes(Heartgirth, Bodywt)) +
+  geom_point(colour = "#00000050") +
+  geom_line(
+    data = fitted_curves, aes(colour = model), linewidth = 1
+  ) +
+  scale_colour_manual(values = c("Heart girth" = "#0072B2",
+                                 "Log heart girth" = "#D55E00")) +
+  labs(x = "Heart girth (cm)", y = "Body weight (kg)", colour = "Model")
 ```
 
-## Take the workflow to county data
+## Check the logged model's residuals
 
-In the workshop you will model county lung-cancer mortality using incidence and poverty. You will interpret adjusted coefficients, calculate intervals for a mean and a single county, assess LINE and investigate influence.
+The logged model has lower $R^2$, a larger residual standard deviation and a
+similar curved residual pattern. Of these two models, I would keep the original
+heart-girth model. The remaining curvature still deserves attention.
 
-Nearby counties may share exposures and health services. That concern comes from the data collection and geography, even if the residual plots look tidy. Finish by comparing an alternative model on the same mortality scale and explaining what, if anything, it changes.
+```{r transformed-diagnostics, fig.height=5.5}
+plot(mod_log_x, which = 1, pch = 19, col = "#0072B280")
+```
