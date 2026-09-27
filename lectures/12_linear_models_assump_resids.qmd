@@ -76,7 +76,7 @@ By the end of this lecture, you should be able to:
 
 # How much can we trust the fitted model? {.center}
 
-Last week we used vehicle models to make adjusted comparisons. A coefficient is still an estimate from a sample, and a fitted value is still a prediction from a model.
+Last week we used heart girth, age group and sex to make adjusted comparisons and fitted mean predictions for donkeys. The coefficients are estimates from a sample, and the fitted means are predictions from a model.
 
 Now we need to quantify uncertainty and check whether the model's structure is credible. We will use the donkey model for the worked examples. In the workshop, you will transfer the same reasoning to county-level cancer data.
 

@@ -63,6 +63,8 @@ By the end of this lecture, you should be able to:
 
 # Back to the Moroccan donkeys {.center}
 
+![](./graphics/donkey_morocco.jpg){fig-align="center" width="82%"}
+
 ## One predictor was a start
 
 Last week we fitted body weight against heart girth:
@@ -73,6 +75,8 @@ Bodywt ~ Heartgirth
 
 Heart girth explains a large amount of the variation in body weight, but
 donkeys with the same heart girth can still have different body weights.
+
+. . .
 
 Can some of that remaining variation be explained by age or sex? We can add
 those variables while keeping heart girth in the model.
@@ -87,8 +91,7 @@ This week we will also use two categorical predictors:
 - **Age group:** Under 7 versus 7 and over
 - **Sex:** Female versus Male
 
-The age split is just a convenient teaching category. We are not claiming that
-seven years is a biologically important threshold.
+. . .
 
 ```{r donkey-counts}
 donkey |>
@@ -119,8 +122,11 @@ difference in heart girth.
 
 ## Add age group
 
-Now allow younger and older donkeys to have different fitted mean body weights
-at the same heart girth.
+That model fits one line for all donkeys. What if we allow younger and older
+donkeys to have different fitted mean body weights at the same heart girth?
+
+We add `AgeGroup` to the formula: `Bodywt ~ Heartgirth + AgeGroup`. Let's fit
+the model and look at the lines.
 
 ```{r age-model}
 age_model <- lm(
@@ -131,8 +137,6 @@ age_model <- lm(
 age_plot_data <- donkey |>
   mutate(fitted = predict(age_model)) |>
   arrange(AgeGroup, Heartgirth)
-
-tidy(age_model)
 
 ggplot(age_plot_data, aes(Heartgirth, Bodywt)) +
   geom_point(aes(colour = AgeGroup), alpha = 0.45) +
@@ -147,7 +151,21 @@ ggplot(age_plot_data, aes(Heartgirth, Bodywt)) +
   )
 ```
 
-## Two intercepts, one slope
+
+## Add Age Group Con't
+
+That made a set of parallel lines with one for each of the age groups. But what happened to the model summary:
+
+```{r modelsummary}
+
+
+tidy(age_model)
+```
+
+
+We have a new term `AgeGroup7 and over` with a value of 4.05. This creates two intercepts but keeps a single slope.
+
+Specifically, the fitted equations are:
 
 For donkeys under 7, the fitted mean is
 
@@ -164,36 +182,32 @@ $$
 \hat\beta_1\,\mathrm{Heartgirth}.
 $$
 
-**Under 7** is the reference category. The coefficient
-\(\hat\beta_2\) is the fitted difference between the age groups at the
-same heart girth.
-
 Both groups share \(\hat\beta_1\), so the fitted lines are parallel.
 
-## The reference category is coded as zero
+## Reference Category
 
-Run `model.matrix(age_model)` and inspect a few rows.
+R uses the first factor level as the reference category. We set `Under 7`
+first when we created `AgeGroup`, so it is the reference group. Changing the
+reference category changes how the coefficients are written and interpreted,
+but not the fitted values.
 
-R has made a column called `AgeGroup7 and over`:
+.  .  .
+
+The model matrix has a column called `AgeGroup7 and over`:
 
 - 0 for donkeys under 7
 - 1 for donkeys aged 7 and over
 
+.  .  .
+
 For the reference group, that term drops out. For the other group, its
 coefficient is added to the fitted value.
 
-The reference category is a coding choice. It does not change the fitted
-values.
-
-```{r model-matrix}
-head(model.matrix(age_model))
-```
 
 ## Raw and adjusted comparisons are different
 
-First compare the raw mean body weight in the two age groups.
-
-Then compare the coefficient from the model that holds heart girth fixed.
+The raw difference compares the two groups' average body weights. The age-group
+coefficient from our new model compares them **at the same heart girth**.
 
 ```{r raw-adjusted-age}
 raw_age_means <- donkey |>
@@ -219,13 +233,32 @@ tibble(
 )
 ```
 
-The raw means also contain differences in heart girth between the groups. The
-factor coefficient compares the groups **at the same heart girth** within this
-additive model.
+
+
+## Where does the raw difference come from?
+
+The older group has a mean heart girth of 113.91 cm, compared with 109.39 cm
+for the younger group. In the model with age group, the fitted heart-girth
+slope is 2.7547 kg per cm. The raw difference breaks down as:
+
+$$
+\begin{aligned}
+129.29 - 112.78
+&\approx 4.05 + 2.7547(113.91 - 109.39) \\
+16.51\text{ kg}
+&\approx 4.05\text{ kg} + 12.45\text{ kg}.
+\end{aligned}
+$$
+
+The 4.05 kg is the fitted age-group difference at a shared heart girth. The
+other 12.45 kg reflects the groups' different mean heart girths in this model.
 
 ## Add another factor: Sex
 
-Now add Sex to the age-adjusted model.
+That seemed to improve the model, why not keep adding more variables? This time we will add `Sex`. This will help us test if gender plays a role in
+`Bodywt` when holding `Heartgirth` and `AgeGroup` fixed.
+
+Like before we add a new term with `+`.
 
 ```{r full-model}
 full_model <- lm(
@@ -236,9 +269,13 @@ full_model <- lm(
 tidy(full_model)
 ```
 
+. . .
+
 With Female as the reference category, `SexMale` is the fitted Male-minus-
 Female difference for donkeys with the same heart girth and in the same age
 group.
+
+. . .
 
 Nothing about adding Sex changes the meaning of the heart-girth slope: it is
 still the fitted change in mean body weight for a one-centimetre difference in
@@ -254,6 +291,8 @@ In the full model:
   sex;
 - the **Sex** coefficient compares males and females at the same heart girth
   and age group.
+
+. . .
 
 That is what an adjusted coefficient is doing. Each coefficient answers its
 comparison after accounting for the other terms in the model.
@@ -303,11 +342,15 @@ Technically, least squares is the **estimator**, the rule used to calculate a
 coefficient. The numerical value returned for this particular sample is the
 **estimate**.
 
+. . .
+
 `Std. Error` estimates how much that coefficient estimate would vary across
 repeated comparable samples under the model. It is not the spread of individual
 donkey body weights around the fitted lines.
 
-The t statistic compares the estimate with its standard error, and the p-value
+. . .
+
+The `t statistic` compares the estimate with its standard error, and the `p-value`
 tests a zero population coefficient. For a factor row, that null hypothesis is
 a zero adjusted difference from the reference category.
 
@@ -315,29 +358,33 @@ A large p-value is not evidence that the groups are identical. It means these
 data do not provide strong evidence for an adjusted difference. We will make
 the repeated-sampling logic and confidence intervals explicit next week.
 
-## Predict comparable donkeys
+## Predict with the heart-girth model
 
-Suppose we want fitted mean body weights for all four combinations of age group
-and sex at a heart girth of 115 cm.
+Last week, a donkey with a heart girth of 115 cm had one fitted mean body
+weight from the model with heart girth alone:
 
-```{r common-predictions}
-new_donkeys <- tidyr::expand_grid(
-  Heartgirth = 115,
-  AgeGroup = levels(donkey$AgeGroup),
-  Sex = levels(donkey$Sex)
-)
-
-new_donkeys |>
-  mutate(
-    predicted_body_weight = predict(
-      full_model,
-      newdata = new_donkeys
-    )
-  )
+```{r heart-prediction}
+predict(heart_model, newdata = data.frame(Heartgirth = 115))
 ```
 
-Every prediction uses the same heart girth. The remaining differences come
-from the fitted factor coefficients.
+## Predict across age and sex groups
+
+Now keep heart girth at 115 cm and ask for a fitted mean for each combination
+of age group and sex.
+
+```{r common-predictions}
+new_donkeys <- data.frame(
+  Heartgirth = c(115, 115, 115, 115),
+  AgeGroup = c("Under 7", "Under 7", "7 and over", "7 and over"),
+  Sex = c("Female", "Male", "Female", "Male")
+)
+
+new_donkeys$predicted_body_weight <- predict(full_model, newdata = new_donkeys)
+new_donkeys
+```
+
+Every row has the same heart girth. The differences among these fitted means
+come from the age-group and sex coefficients.
 
 ## Does every extra term improve the model?
 
@@ -369,9 +416,11 @@ model_fit
 Ordinary R² cannot fall when we add terms to a model fitted to the same
 observations.
 
+. . .
+
 Adjusted R² asks whether the improvement is large enough to justify estimating
-another coefficient. Here, age group earns its place more clearly. Adding Sex
-after age group increases ordinary R² a little, but adjusted R² is essentially
+another coefficient. Here, `age group` earns its place more clearly. Adding `Sex`
+after `age group` increases ordinary R² a little, but adjusted R² is essentially
 unchanged and is slightly lower.
 
 ## Why adjusted R² can go down
@@ -383,32 +432,28 @@ Adjusted R² applies a penalty for estimating more coefficients. If the new term
 does not reduce the residual variation enough, the penalty is larger than the
 gain and adjusted R² falls.
 
+$$
+R^2_{\mathrm{adj}} = 1 - (1-R^2)\frac{n-1}{n-p-1},
+$$
+
+where $n$ is the number of donkeys and $p$ is the number of predictor
+coefficients, excluding the intercept. Adding a term increases $p$, so $R^2$
+must rise enough to offset the larger fraction.
+
 That does **not** prove the term has no scientific importance. It tells us that,
 in this fitted model and sample, the extra term has added little explanatory
 information.
 
+Adjusted R² does not give us a statistical test of the extra term. Next week
+we will use a test to ask whether the data provide evidence that it contributes
+information.
+
 ## What have we assumed?
 
-The additive model allows the groups to have different intercepts but gives all
+- The additive model allows the groups to have different intercepts but gives all
 groups the same heart-girth slope.
 
-The lines are parallel because that is the model we specified.
+- The lines are parallel because that is the model we specified.
 
-A model with different slopes would contain an interaction. We are **not**
-fitting interactions in 297.101. For this course, interpret the factor
-differences at a shared value of the numerical predictor.
-
-## The same structure in the workshop
-
-The workshop uses the vehicle data you first saw in Week 10.
-
-The dataset changes, but the model logic is the same:
-
-1. start with a numerical predictor;
-2. add a categorical predictor;
-3. interpret factor coefficients relative to a reference category;
-4. compare fitted values while holding the numerical predictor fixed; and
-5. ask whether the extra terms add enough information to justify the more
-   complicated model.
-
-Next week we add uncertainty, residual diagnostics and model assumptions.
+- What about differnet slopes? That is an "interaction" and we are **not**
+fitting interactions in 297.101.
