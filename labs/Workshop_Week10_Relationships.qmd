@@ -10,6 +10,8 @@ format:
     code-tools: true
     code-copy: true
     embed-resources: true
+resources:
+  - nz_vehicles_2025.csv
 execute:
   echo: true
   warning: false
@@ -36,6 +38,7 @@ explains the standard fuel-economy measure in litres per 100 km. The supplied
 extract contains 467 unique vehicle specifications, prepared from Waka Kotahi's
 vehicle-fleet data as at **31 July 2026** and containing model-year 2025 petrol
 passenger cars and vans with complete measurements.
+Download the supplied extract here: [2025 cars dataset](https://knowlton.co.nz/297101/labs/nz_vehicles_2025.csv).
 
 ## Today's question
 
@@ -73,7 +76,7 @@ library(ggplot2)
 library(tibble)
 library(broom)
 
-vehicles <- read_csv("nz_vehicles_2025.csv", show_col_types = FALSE)
+vehicles <- read_csv("https://knowlton.co.nz/297101/labs/nz_vehicles_2025.csv", show_col_types = FALSE)
 glimpse(vehicles)
 ```
 
