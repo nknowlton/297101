@@ -691,9 +691,9 @@ simply repeats the model you have fitted.
 residuals with `min`, `max`, `median` and another two quartiles.
 
 * `Coefficients:` summarizes the information on the estimates for the
-regression coefficients and `Estimate` column gives us the values of our
-coefficients. We will discuss the columns `Std. Error`, `t value` and
-`Pr(>|t|)` in Lecture 12.
+regression coefficients and the `Estimate` column gives us the fitted
+coefficients. For today, focus on those estimates. Next week we will use
+`Std. Error`, `t value` and `Pr(>|t|)` to start thinking about uncertainty.
 
 :::
 :::

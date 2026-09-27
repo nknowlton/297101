@@ -38,7 +38,8 @@ By the end of this workshop you should be able to:
 - fit a multiple linear regression (MLR) model with numerical and categorical predictors;
 - interpret an adjusted coefficient using “holding the other variables constant”;
 - identify the reference category and interpret coefficients for categorical predictors;
-- interpret a factor with more than two levels; and
+- interpret a factor with more than two levels;
+- compare ordinary and adjusted $R^2$ across models fitted to the same response; and
 - make predictions for specified combinations of predictors.
 
 ## How to use this workbook
@@ -145,9 +146,9 @@ coefficient and `station_wagonOther` coefficient.
 Ask yourself: which coefficient is shared by both groups, and which coefficient
 represents the difference between the groups?
 
-`station_wagon` has two levels. Station wagon is deliberately the reference
-category, so the model compares Other vehicles with Station wagons at the same
-numerical specification.
+`station_wagon` has two levels. Use the factor levels, coefficient names and
+design matrix to determine which level R is using as the reference and what the
+other factor coefficient compares.
 
 ### Demonstration: engine size plus Station wagon/Other
 
@@ -197,8 +198,8 @@ Pay particular attention to the direction and magnitude of the coefficients.
 Do the adjusted comparisons make sense given what you know about the vehicles?
 
 The two-level factor hides distinctions among Hatchbacks, Sedans, Sports cars
-and Convertibles. The five-level model still uses Station wagon as its
-reference category.
+and Convertibles. Fit the five-level model, then use the coefficient names to
+identify the reference category before interpreting the remaining levels.
 
 ### Demonstration: engine size plus body type
 

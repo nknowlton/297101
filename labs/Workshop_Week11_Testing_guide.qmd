@@ -40,7 +40,8 @@ By the end of this workshop you should be able to:
 - fit a multiple linear regression (MLR) model with numerical and categorical predictors;
 - interpret an adjusted coefficient using “holding the other variables constant”;
 - identify the reference category and interpret coefficients for categorical predictors;
-- interpret a factor with more than two levels; and
+- interpret a factor with more than two levels;
+- compare ordinary and adjusted $R^2$ across models fitted to the same response; and
 - make predictions for specified combinations of predictors.
 
 ## 1. Revisit a simple model

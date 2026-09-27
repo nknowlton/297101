@@ -20,10 +20,12 @@ editor:
     wrap: 72
 ---
 
-In Weeks 10 and 11 we used vehicle data to build simple and multiple regression
-models, interpret coefficients, standard errors, p-values and $R^2$, and make
-fitted predictions. This week we apply the same ideas to a new dataset and ask
-a harder question: how much can we trust the model's estimates and predictions?
+In Week 10 we used vehicle data to fit simple regression models, interpret
+coefficients and $R^2$, and make fitted predictions. In Week 11 we extended
+those models to multiple regression, adjusted comparisons and adjusted $R^2$,
+and introduced standard errors and p-values for fitted coefficients. This week
+we apply those ideas to a new dataset and ask a harder question: how much can we
+trust the model's estimates and predictions?
 
 We will use county-level lung-cancer mortality data to introduce confidence
 intervals, prediction intervals and regression diagnostics. We use a new
@@ -221,8 +223,8 @@ interpretation occur in the observed data.
 
 **What to do:** Make a prediction for the specified county characteristics
 using both a confidence interval and a prediction interval. Compare their
-widths and explain why the prediction interval for one county is wider than the
-confidence interval for the average response.
+widths, decide which interval is wider, and explain why the two intervals have
+different widths.
 
 ```{r}
 new_county <- tibble(
@@ -298,8 +300,8 @@ What features of the study design could make counties non-independent?
 
 ### Demonstration: N: what normality asks
 
-`check_normality()` creates what is needed for a residual Q-Q diagnostic. With
-a large sample the curve can diverge at the tails.
+Use the Q-Q plot to compare the ordered residuals with a normal reference. Look
+at both the centre and the tails before deciding what pattern is present.
 
 ```{r}
 normality_check <- check_normality(cancer_model)

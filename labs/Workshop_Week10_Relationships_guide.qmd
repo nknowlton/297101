@@ -30,8 +30,8 @@ theorem, which give us a way to think about uncertainty in estimates from data.
 
 In this workshop we start bringing those ideas together. We will use plots to explore
 relationships between vehicle characteristics and fuel use, then fit our first regression
-models to describe those relationships numerically. Along the way we will interpret
-the fitted line, coefficients, standard errors, p-values, $R^2$, predictions and residuals.
+models to describe those relationships numerically. Along the way we will interpret the fitted line, coefficients, $R^2$, predictions
+and residuals.
 
 [Waka Kotahi's vehicle-fleet data](https://www.nzta.govt.nz/resources/new-zealand-motor-vehicle-register-statistics/new-zealand-vehicle-fleet-open-data-sets)
 provide a snapshot of vehicles recorded on the Motor Vehicle Register, while
@@ -51,7 +51,7 @@ By the end of this workshop you should be able to:
 
 - recognise an approximately linear association from a scatterplot;
 - fit and interpret a simple linear regression model;
-- interpret the slope, intercept, standard error, p-value and $R^2$;
+- interpret the slope, intercept and $R^2$;
 - calculate and interpret a fitted value; and
 - define and interpret a residual.
 
@@ -161,8 +161,8 @@ response and engine size as the explanatory variable. Identify the intercept and
 slope, then add the fitted regression line to the scatterplot. Repeat the same
 process using engine power.
 
-The relationship looks approximately linear, so we can now summarise it using
-a straight-line model.
+You have now examined the shape of the relationship. We will fit a
+straight-line model and compare it with the pattern you saw in the data.
 
 A simple linear model describes the average response as a straight-line
 function of one explanatory variable:
@@ -208,8 +208,9 @@ It changes the intercept and slope. The least-squares search chooses the values
 that minimise the sum of the squared residuals, so the resulting line is the
 closest straight-line summary under that criterion.
 
-The line captures the increasing average trend, but individual vehicles remain
-above and below it. It is a summary of the conditional mean, not an exact rule.
+The fitted line captures the main increasing pattern, while individual vehicles
+remain above and below it. It is a summary of the conditional mean, not an exact
+rule.
 
 ### Your turn: power model
 
@@ -249,34 +250,19 @@ vehicle.
 
 ## 3. Coefficients and R²
 
-**What to do:** Use `tidy()` to examine the fitted coefficients. For each
-coefficient, identify the estimate, standard error and p-value. Interpret the
-slope in the units of the problem rather than just reporting the number. Then
-use $R^2$ to describe how much of the observed variation in fuel use is
-accounted for by the model.
+**What to do:** Use `coef()` to examine the fitted coefficients. Identify the
+intercept and slope, and interpret the slope in the units of the problem rather
+than just reporting the number. Then use $R^2$ to describe how much of the
+observed variation in fuel use is accounted for by the model.
 
 ```{r}
-engine_coefficients <- tidy(engine_model)
+engine_coefficients <- coef(engine_model)
 engine_coefficients
 ```
 
-The `estimate` column gives the fitted coefficients from our sample. For engine
-size, the estimated slope is 1.886 L/100 km per litre, so a one-litre difference
-in engine size is associated with an average difference of about 1.89 L/100 km
-in fuel use.
-
-The `std.error` describes the sampling uncertainty in each coefficient estimate.
-Smaller standard errors mean the coefficient has been estimated more precisely.
-
-The `statistic` is the coefficient estimate divided by its standard error. The
-`p.value` asks how compatible the observed estimate is with a null hypothesis
-that the corresponding population coefficient is zero, assuming the regression
-model and its assumptions are appropriate.
-
-For engine size the p-value is extremely small, providing strong evidence that
-the population slope is not zero. The estimated effect size is still given by
-the coefficient itself. A small p-value does not tell us that an association is
-large, important or causal.
+The fitted engine-size slope is 1.886 L/100 km per litre, so a one-litre
+difference in engine size is associated with an average difference of about
+1.89 L/100 km in fuel use.
 
 The fitted equation is approximately
 
@@ -291,10 +277,7 @@ practical meaning, check whether zero litres is represented in these data.
 A one-litre difference in engine size is associated with about 1.886 L/100 km
 higher average fuel use. Zero litres is outside the observed range (0.998 to
 6.749 L), so the intercept is a mathematical line value rather than a practical
-vehicle prediction. Notice that the intercept also has an extremely small
-p-value. That **does not** make it practically useful: a zero-litre engine is
-outside the range of these data. Statistical evidence and practical
-interpretation are different questions!
+vehicle prediction.
 
 We already calculated the correlation between engine size and fuel use. Square
 it and compare it with the model $R^2$. What do you notice? Write one sentence
@@ -324,7 +307,7 @@ correlation that we can simply square to obtain the model $R^2$.
 ### Power coefficients and fit
 
 ```{r}
-power_coefficients <- tidy(power_model)
+power_coefficients <- coef(power_model)
 power_fit <- glance(power_model)
 
 power_coefficients
@@ -334,16 +317,8 @@ power_fit |>
 
 Now interpret the power model yourself. What does the slope mean in L/100 km
 per kW? Is that a useful scale, or would reporting the change per 100 kW be
-easier to understand? Compare its standard error, p-value and $R^2$ with the
-engine-size model. State which model accounts for more of the observed
-variation. Since the predictors use different units, do not compare their raw
-slope standard errors as if they were on the same scale.
-
-Read this output in the same way. The power coefficient is about 0.0186 L/100
-km per kW, with a very small standard error and p-value. The coefficient tells
-us the size of the estimated association; the standard error tells us its
-precision; and the p-value provides evidence about whether the population slope
-could reasonably be zero under the model.
+easier to understand? Compare its $R^2$ with the engine-size model and state
+which model accounts for more of the observed variation.
 
 The power slope is about 0.0186 L/100 km per kW, or about 1.86 L/100 km per
 100 kW. The fitted equation is approximately
@@ -352,14 +327,9 @@ $$
 \widehat{\text{fuel use}} = 4.705 + 0.0186(\text{power}) .
 $$
 
-The power slope standard error is about 0.000456 L/100 km per kW and its
-p-value is extremely small. The engine-size slope standard error is about
-0.0421 L/100 km per litre and its p-value is also extremely small. Because the
-predictors use different units, the raw standard errors should not be compared
-as if they measured the same quantity; both slopes are estimated precisely
-relative to their scales. Power has an R-squared of about 0.782, compared with
-about 0.812 for engine size. In these data, the engine-size model therefore
-accounts for slightly more of the observed variation in fuel use.
+Power has an R-squared of about 0.782, compared with about 0.812 for engine
+size. In these data, the engine-size model therefore accounts for slightly more
+of the observed variation in fuel use.
 
 ## 4. Make a prediction
 
@@ -493,7 +463,7 @@ but that algebraic fact does not validate the model.
 1. Plot gross mass against fuel use with a smooth. Describe the direction,
    strength and shape, and calculate the correlation.
 2. Fit and print a simple model called `mass_model`. Interpret its slope per
-   1000 kg, then inspect the slope's standard error and p-value.
+   1000 kg and decide whether the intercept has a useful practical meaning.
 3. Report $R^2$ and explain how much variation the model accounts for.
 4. Predict the fitted mean fuel use at 2000 kg.
 5. Compare this model's $R^2$ with the engine-size and power models. Which
@@ -515,31 +485,24 @@ mass_model <- lm(
   fuel_use_l_per_100km ~ gross_mass_kg,
   data = vehicles
 )
-mass_coefficients <- tidy(mass_model)
+mass_coefficients <- coef(mass_model)
 mass_fit <- glance(mass_model)
 mass_prediction <- predict(
   mass_model,
   newdata = tibble(gross_mass_kg = 2000)
 )
 
-mass_slope_row <- mass_coefficients |>
-  filter(term == "gross_mass_kg")
-
 tibble(
   correlation = mass_correlation,
   r_squared = mass_fit$r.squared,
-  slope_per_1000_kg = 1000 * mass_slope_row$estimate,
-  std_error_per_1000_kg = 1000 * mass_slope_row$std.error,
-  p_value = mass_slope_row$p.value,
+  slope_per_1000_kg = 1000 * unname(mass_coefficients["gross_mass_kg"]),
   predicted_fuel_use_at_2000_kg = as.numeric(mass_prediction)
 )
 ```
 
 Gross mass has a positive association with fuel use, but its single-predictor
-R-squared is only about 0.331. The slope is about 3.29 L/100 km per 1000 kg,
-with a small standard error on that scale and a very small p-value, so the data
-provide strong evidence of a positive linear association under this model. The
-model predicts about 8.25 L/100 km at 2000 kg. Of the three single-predictor
+R-squared is only about 0.331. The slope is about 3.29 L/100 km per 1000 kg.
+The model predicts about 8.25 L/100 km at 2000 kg. Of the three single-predictor
 models considered here, engine size has the highest in-sample R-squared. A
 larger R-squared does not make a relationship causal. It only tells us that the
 fitted model accounts for a larger proportion of the observed variation in the
@@ -556,6 +519,6 @@ gross mass.
 
 Next week we return to these models and add body type as another predictor. This
 introduces multiple regression, reference categories and adjusted coefficients.
-The coefficient estimates, standard errors and p-values are interpreted in the
-same general way as today, but the meaning of each coefficient changes because
-it is now conditional on the other variables in the model.
+We will also start using standard errors and p-values to describe uncertainty
+and test zero population coefficients. In multiple regression, each fitted
+coefficient is interpreted conditional on the other variables in the model.
