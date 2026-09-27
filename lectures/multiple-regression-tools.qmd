@@ -1,0 +1,45 @@
+---
+title: "Week 11 Multiple Regression Widget"
+subtitle: "Moroccan donkey adjusted-comparison explorer"
+author: Dr. Nick Knowlton
+format:
+  revealjs:
+    embed-resources: true
+    theme: sky
+    css:
+      - "knowlton.css"
+      - "multiple-regression-lab.css"
+    slide-number: true
+    incremental: false
+    ratio: "16:9"
+    progress: true
+    logo: ./graphics/660491-ls_black_whitoutunz.png
+execute:
+  echo: false
+---
+
+```{ojs}
+//| echo: false
+//| output: false
+import { multipleRegressionLab } from "./multiple-regression-lab.js"
+donkeyWidgetData = FileAttachment("../data/donkey.csv").csv({typed: true})
+```
+
+## Compare donkeys at the same heart girth
+
+Build the model one term at a time. Move the heart-girth marker to compare
+fitted mean body weights at the same heart girth. Then change the reference
+categories and watch what changes, and what does not.
+
+```{ojs}
+//| echo: false
+multipleRegressionLab({ Plot, data: donkeyWidgetData })
+```
+
+::: {.mr-slide-note}
+Use **Heart girth** first, then add **Age group**, then **Sex**. Ask students to
+watch ordinary and adjusted R-squared as each term enters. Finally change the
+reference categories: the factor coefficients change sign/coding, but the
+fitted values at the marker stay fixed. All group lines remain parallel because
+this is an additive model with no interactions.
+:::

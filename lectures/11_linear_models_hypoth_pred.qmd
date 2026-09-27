@@ -6,7 +6,9 @@ format:
   revealjs:
     code-copy: hover
     embed-resources: true
-    css: "knowlton.css"
+    css:
+      - "knowlton.css"
+      - "multiple-regression-lab.css"
     theme: sky
     slide-number: true
     incremental: true
@@ -49,6 +51,13 @@ donkey <- readr::read_csv(donkey_file, show_col_types = FALSE) |>
       levels = c("Under 7", "7 and over")
     )
   )
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+import { multipleRegressionLab } from "./multiple-regression-lab.js"
+donkeyWidgetData = FileAttachment("../data/donkey.csv").csv({typed: true})
 ```
 
 ## Learning outcomes
@@ -385,6 +394,20 @@ new_donkeys
 
 Every row has the same heart girth. The differences among these fitted means
 come from the age-group and sex coefficients.
+
+## Compare donkeys at the same heart girth
+
+Build the model one term at a time. Move the heart-girth marker to compare
+fitted mean body weights at the same heart girth. Then change the reference
+categories and watch what changes, and what does not.
+
+```{ojs}
+//| echo: false
+multipleRegressionLab({ Plot, data: donkeyWidgetData })
+```
+
+The widget deliberately fits additive models only. The group lines stay
+parallel; no interactions are introduced.
 
 ## Does every extra term improve the model?
 
