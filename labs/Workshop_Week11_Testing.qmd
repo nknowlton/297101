@@ -356,17 +356,31 @@ does adjusted $R^2$ provide a useful penalty?
 # glance(mass_binary_model), and glance(mass_body_model).
 ```
 
-## Optional extra: revisiting the Week 9 coffee homework
+## Optional extra: fitting a model to the Week 9 coffee ratings
 
 In Homework 9, you examined ratings for five coffee brands from 1 to 9 and
 adjusted for the nuisance effects of day and time. This example uses a
-[balanced 50-rating subset](coffee_tasting_balanced.csv). Each brand has two
-ratings on every day and at every time. Your personalised homework data may
-give different results. See the
+[balanced 50-rating subset](https://knowlton.co.nz/297101/labs/coffee_tasting_balanced.csv).
+Each brand has two ratings on every day and at every time. The Week 9
+hand-adjusted brand means have been calculated for you, so use them to compare
+with the linear model. Your personalised homework data may give different
+results. See the
 [original Week 9 homework instructions](https://r-resources.massey.ac.nz/297101/CoffeeTasting.html)
 for details.
 
-```{r coffee-example-data}
+| Coffee | Week 9 hand-adjusted mean |
+|:--|--:|
+| African Cream | 6.10 |
+| Brew Maestro | 5.70 |
+| Cafe Special | 7.30 |
+| Delicio | 5.40 |
+| Ethiopian Highlands | 8.30 |
+
+Fit an additive model of rating using Time, Day and Coffee. The coffee
+coefficients compare each brand with the reference brand after accounting for
+day and time.
+
+```{r coffee-example-model}
 Coffee <- read.csv("coffee_tasting_balanced.csv")
 
 Coffee <- Coffee |>
@@ -377,39 +391,30 @@ Coffee <- Coffee |>
   )
 
 count(Coffee, Coffee)
+
+coffee_model <- lm(Rating ~ Time + Day + Coffee, data = Coffee)
+tidy(coffee_model)
 ```
 
-Use the same hand adjustment as in Homework 9. The balanced subset has the
-same number of ratings for each brand on every day and at every time.
+Average the fitted ratings within each brand to get its model-adjusted mean.
+Because the subset is balanced across day and time for every brand, these
+means can be compared directly with the supplied Week 9 hand-adjusted means.
 
-```{r coffee-example-hand-adjustment}
-
-grand <- mean(Coffee$Rating)
-
-CoffeeAdj <- Coffee |>
-  group_by(Day) |>
-  mutate(DayMean = mean(Rating)) |>
-  group_by(Time) |>
-  mutate(
-    TimeMean = mean(Rating),
-    AdjRating = Rating - DayMean - TimeMean + 2 * grand
-  ) |>
-  ungroup()
-
-hand_adjusted_means <- CoffeeAdj |>
+```{r coffee-example-adjusted-means}
+Coffee |>
+  mutate(predicted_rating = predict(coffee_model)) |>
   group_by(Coffee) |>
   summarise(
-    mean_adjusted_rating = mean(AdjRating),
+    model_adjusted_mean = mean(predicted_rating),
     .groups = "drop"
   ) |>
-  arrange(desc(mean_adjusted_rating))
-
-hand_adjusted_means
+  arrange(desc(model_adjusted_mean)) |>
+  mutate(model_adjusted_mean = round(model_adjusted_mean, 2))
 ```
 
-Which coffee brand has the highest adjusted mean rating? Compare the adjusted
-means across the five brands and describe what they tell you about the ratings
-after accounting for day and time.
+Do the model-adjusted means match the supplied hand-adjusted means to two
+decimal places? Which brand has the highest adjusted mean rating? Interpret
+one coffee coefficient and its standard error relative to the reference brand.
 
 ## Conclusion
 

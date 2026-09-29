@@ -515,15 +515,21 @@ fit enough to justify their complexity. The full body-type model explains the
 most in-sample variation here.
 
 
-## Optional extra: the Week 9 coffee homework in `lm()`
+## Optional extra: fitting a model to the Week 9 coffee ratings
 
 In Homework 9, you examined ratings for five coffee brands from 1 to 9 and
 adjusted for the nuisance effects of day and time. This example uses a
-[balanced 50-rating subset](coffee_tasting_balanced.csv). Each brand has two
-ratings on every day and at every time. Your personalised homework data may
-give different results. See the
+[balanced 50-rating subset](https://knowlton.co.nz/297101/labs/coffee_tasting_balanced.csv).
+Each brand has two ratings on every day and at every time. The Week 9
+hand-adjusted brand means have been calculated for you, so use them to compare
+with the linear model. Your personalised homework data may give different
+results. See the
 [original Week 9 homework instructions](https://r-resources.massey.ac.nz/297101/CoffeeTasting.html)
 for details.
+
+Fit an additive model of rating using Time, Day and Coffee. The coffee
+coefficients compare each brand with the reference brand after accounting for
+day and time.
 
 ```{r coffee-example-model}
 Coffee <- read.csv("coffee_tasting_balanced.csv")
@@ -544,8 +550,9 @@ tidy(coffee_model)
 The coffee coefficients compare each brand with the reference brand while
 accounting for day and time. Since the balanced subset has the same day and
 time distribution for each brand, average the fitted ratings for its observed
-rows to get each model adjusted mean. The second part repeats the Week 9 hand
-adjustment on this same subset so you can compare the two methods.
+rows to get each model adjusted mean. The hand-adjustment code below reproduces
+the Week 9 calculation for the guide. Students can compare their model results
+with the supplied hand-adjusted means.
 
 ```{r coffee-example-adjusted-means}
 coffee_predictions <- Coffee |>
@@ -587,10 +594,9 @@ hand_adjusted_means |>
   select(Coffee, hand_adjusted_mean, model_adjusted_mean)
 ```
 
-Do the model adjusted means match the hand adjusted means? If they do not,
-how large are the differences? Do both methods identify
-the same most liked brand? Interpret one coefficient and its standard error
-relative to the reference brand.
+Do the model-adjusted means match the supplied hand-adjusted means to two
+decimal places? Which brand has the highest adjusted mean rating? Interpret
+one coffee coefficient and its standard error relative to the reference brand.
 
 ### Answer
 
