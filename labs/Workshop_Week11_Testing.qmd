@@ -356,6 +356,61 @@ does adjusted $R^2$ provide a useful penalty?
 # glance(mass_binary_model), and glance(mass_body_model).
 ```
 
+## Optional extra: revisiting the Week 9 coffee homework
+
+In Homework 9, you examined ratings for five coffee brands from 1 to 9 and
+adjusted for the nuisance effects of day and time. This example uses a
+[balanced 50-rating subset](coffee_tasting_balanced.csv). Each brand has two
+ratings on every day and at every time. Your personalised homework data may
+give different results. See the
+[original Week 9 homework instructions](https://r-resources.massey.ac.nz/297101/CoffeeTasting.html)
+for details.
+
+```{r coffee-example-data}
+Coffee <- read.csv("coffee_tasting_balanced.csv")
+
+Coffee <- Coffee |>
+  mutate(
+    Coffee = factor(Coffee),
+    Time = factor(Time),
+    Day = factor(Day)
+  )
+
+count(Coffee, Coffee)
+```
+
+Use the same hand adjustment as in Homework 9. The balanced subset has the
+same number of ratings for each brand on every day and at every time.
+
+```{r coffee-example-hand-adjustment}
+
+grand <- mean(Coffee$Rating)
+
+CoffeeAdj <- Coffee |>
+  group_by(Day) |>
+  mutate(DayMean = mean(Rating)) |>
+  group_by(Time) |>
+  mutate(
+    TimeMean = mean(Rating),
+    AdjRating = Rating - DayMean - TimeMean + 2 * grand
+  ) |>
+  ungroup()
+
+hand_adjusted_means <- CoffeeAdj |>
+  group_by(Coffee) |>
+  summarise(
+    mean_adjusted_rating = mean(AdjRating),
+    .groups = "drop"
+  ) |>
+  arrange(desc(mean_adjusted_rating))
+
+hand_adjusted_means
+```
+
+Which coffee brand has the highest adjusted mean rating? Compare the adjusted
+means across the five brands and describe what they tell you about the ratings
+after accounting for day and time.
+
 ## Conclusion
 
 Summarise how adding body type changed the interpretation of a numerical slope,

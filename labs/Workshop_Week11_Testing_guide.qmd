@@ -515,6 +515,103 @@ fit enough to justify their complexity. The full body-type model explains the
 most in-sample variation here.
 
 
+## Optional extra: the Week 9 coffee homework in `lm()`
+
+In Homework 9, you examined ratings for five coffee brands from 1 to 9 and
+adjusted for the nuisance effects of day and time. This example uses a
+[balanced 50-rating subset](coffee_tasting_balanced.csv). Each brand has two
+ratings on every day and at every time. Your personalised homework data may
+give different results. See the
+[original Week 9 homework instructions](https://r-resources.massey.ac.nz/297101/CoffeeTasting.html)
+for details.
+
+```{r coffee-example-model}
+Coffee <- read.csv("coffee_tasting_balanced.csv")
+
+Coffee <- Coffee |>
+  mutate(
+    Coffee = factor(Coffee),
+    Time = factor(Time),
+    Day = factor(Day)
+  )
+
+count(Coffee, Coffee)
+
+coffee_model <- lm(Rating ~ Time + Day + Coffee, data = Coffee)
+tidy(coffee_model)
+```
+
+The coffee coefficients compare each brand with the reference brand while
+accounting for day and time. Since the balanced subset has the same day and
+time distribution for each brand, average the fitted ratings for its observed
+rows to get each model adjusted mean. The second part repeats the Week 9 hand
+adjustment on this same subset so you can compare the two methods.
+
+```{r coffee-example-adjusted-means}
+coffee_predictions <- Coffee |>
+  mutate(predicted_rating = predict(coffee_model)) |>
+  group_by(Coffee) |>
+  summarise(
+    model_adjusted_mean = mean(predicted_rating),
+    .groups = "drop"
+  )
+
+
+### Hand adjusted from Hw 9
+
+grand <- mean(Coffee$Rating)
+
+CoffeeAdj <- Coffee |>
+  group_by(Day) |>
+  mutate(DayMean = mean(Rating)) |>
+  group_by(Time) |>
+  mutate(
+    TimeMean = mean(Rating),
+    AdjRating = Rating - DayMean - TimeMean + 2 * grand
+  ) |>
+  ungroup()
+
+hand_adjusted_means <- CoffeeAdj |>
+  group_by(Coffee) |>
+  summarise(
+    hand_adjusted_mean = mean(AdjRating),
+    .groups = "drop"
+  )
+
+# this just makes it look nice
+
+hand_adjusted_means |>
+  left_join(coffee_predictions, by = "Coffee") |>
+  mutate(across(where(is.numeric), ~ round(.x, 2))) |>
+  arrange(desc(model_adjusted_mean)) |>
+  select(Coffee, hand_adjusted_mean, model_adjusted_mean)
+```
+
+Do the model adjusted means match the hand adjusted means? If they do not,
+how large are the differences? Do both methods identify
+the same most liked brand? Interpret one coefficient and its standard error
+relative to the reference brand.
+
+### Answer
+
+For this file, the hand adjustment and model adjusted means are:
+
+| Coffee | Hand adjusted mean | Model adjusted mean |
+|:--|--:|--:|
+| African Cream | 6.10 | 6.10 |
+| Brew Maestro | 5.70 | 5.70 |
+| Cafe Special | 7.30 | 7.30 |
+| Delicio | 5.40 | 5.40 |
+| Ethiopian Highlands | 8.30 | 8.30 |
+
+Because this subset has the same day and time counts for every brand, the hand
+adjustment and the model's equally averaged predictions give the same adjusted
+means. Both methods identify Ethiopian Highlands as the most liked brand. In
+`tidy(coffee_model)`,
+`CoffeeEthiopian Highlands` is 2.20 (SE 0.48): the model estimates Ethiopian
+Highlands 2.20 rating points above the African Cream reference brand, holding
+day and time constant.
+
 ## Conclusion
 
 Summarise how adding body type changed the interpretation of a numerical slope,

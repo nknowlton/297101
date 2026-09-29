@@ -91,6 +91,8 @@ jobs:
           cp labs/Workshop_Week11_Testing.qmd _site/labs/
           cp labs/Workshop_Week12_Assumptions.qmd _site/labs/
           cp labs/nz_vehicles_2025.csv _site/labs/
+          cp labs/coffee_tasting_example.csv _site/labs/
+          cp labs/coffee_tasting_balanced.csv _site/labs/
           mkdir -p _site/labs/regression
           cp labs/regression/cancer_data.csv _site/labs/regression/
 
@@ -109,6 +111,8 @@ jobs:
             _site/labs/Workshop_Week11_Testing_guide.html
             _site/labs/Workshop_Week12_Assumptions.html
             _site/labs/Workshop_Week12_Assumptions_guide.html
+            _site/labs/coffee_tasting_example.csv
+            _site/labs/coffee_tasting_balanced.csv
           )
           for file in "${required[@]}"; do
             test -f "$file"
