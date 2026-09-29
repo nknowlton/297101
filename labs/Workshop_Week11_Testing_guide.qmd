@@ -520,18 +520,22 @@ most in-sample variation here.
 In Homework 9, you examined ratings for five coffee brands from 1 to 9 and
 adjusted for the nuisance effects of day and time. This example uses a
 [balanced 50-rating subset](https://knowlton.co.nz/297101/labs/coffee_tasting_balanced.csv).
-Each brand has two ratings on every day and at every time. The Week 9
-hand-adjusted brand means have been calculated for you, so use them to compare
-with the linear model. Your personalised homework data may give different
-results. See the
+Each brand has two ratings on every day and at every time. The Week 9 hand
+adjustment code and brand means are supplied as a refresher. Use `lm()` to
+account for day and time while comparing the coffee brands. Your personalised
+homework data may give different results. See the
 [original Week 9 homework instructions](https://r-resources.massey.ac.nz/297101/CoffeeTasting.html)
 for details.
 
-Fit an additive model of rating using Time, Day and Coffee. The coffee
-coefficients compare each brand with the reference brand after accounting for
-day and time.
+| Coffee | Week 9 hand-adjusted mean |
+|:--|--:|
+| Ethiopian Highlands | 8.30 |
+| Cafe Special | 7.30 |
+| African Cream | 6.10 |
+| Brew Maestro | 5.70 |
+| Delicio | 5.40 |
 
-```{r coffee-example-model}
+```{r coffee-example-data}
 Coffee <- read.csv("coffee_tasting_balanced.csv")
 
 Coffee <- Coffee |>
@@ -542,30 +546,12 @@ Coffee <- Coffee |>
   )
 
 count(Coffee, Coffee)
-
-coffee_model <- lm(Rating ~ Time + Day + Coffee, data = Coffee)
-tidy(coffee_model)
 ```
 
-The coffee coefficients compare each brand with the reference brand while
-accounting for day and time. Since the balanced subset has the same day and
-time distribution for each brand, average the fitted ratings for its observed
-rows to get each model adjusted mean. The hand-adjustment code below reproduces
-the Week 9 calculation for the guide. Students can compare their model results
-with the supplied hand-adjusted means.
+Here is the Week 9 hand adjustment again. The table above gives its results,
+so your task is to fit a model and compare the two sets of adjusted means.
 
-```{r coffee-example-adjusted-means}
-coffee_predictions <- Coffee |>
-  mutate(predicted_rating = predict(coffee_model)) |>
-  group_by(Coffee) |>
-  summarise(
-    model_adjusted_mean = mean(predicted_rating),
-    .groups = "drop"
-  )
-
-
-### Hand adjusted from Hw 9
-
+```{r coffee-example-hand-adjustment}
 grand <- mean(Coffee$Rating)
 
 CoffeeAdj <- Coffee |>
@@ -584,8 +570,30 @@ hand_adjusted_means <- CoffeeAdj |>
     hand_adjusted_mean = mean(AdjRating),
     .groups = "drop"
   )
+```
 
-# this just makes it look nice
+Fit the linear model below. Time and Day account for nuisance variation while
+the Coffee coefficients compare brands at the same day and time.
+
+```{r coffee-example-model}
+coffee_model <- lm(Rating ~ Time + Day + Coffee, data = Coffee)
+tidy(coffee_model)
+```
+
+Use `predict()` to obtain the model's fitted rating for each observation, then
+average those ratings within each brand. Each brand has the same day and time
+distribution in this balanced subset, so the prediction averages account for
+those nuisance effects on equal terms. Join them to the supplied Week 9 means
+to get the comparison table shown below.
+
+```{r coffee-example-adjusted-means}
+coffee_predictions <- Coffee |>
+  mutate(predicted_rating = predict(coffee_model)) |>
+  group_by(Coffee) |>
+  summarise(
+    model_adjusted_mean = mean(predicted_rating),
+    .groups = "drop"
+  )
 
 hand_adjusted_means |>
   left_join(coffee_predictions, by = "Coffee") |>
@@ -595,8 +603,9 @@ hand_adjusted_means |>
 ```
 
 Do the model-adjusted means match the supplied hand-adjusted means to two
-decimal places? Which brand has the highest adjusted mean rating? Interpret
-one coffee coefficient and its standard error relative to the reference brand.
+decimal places, and why? Which brand has the highest adjusted mean rating?
+Interpret one coffee coefficient and its standard error relative to the
+reference brand.
 
 ### Answer
 
@@ -604,19 +613,21 @@ For this file, the hand adjustment and model adjusted means are:
 
 | Coffee | Hand adjusted mean | Model adjusted mean |
 |:--|--:|--:|
+| Ethiopian Highlands | 8.30 | 8.30 |
+| Cafe Special | 7.30 | 7.30 |
 | African Cream | 6.10 | 6.10 |
 | Brew Maestro | 5.70 | 5.70 |
-| Cafe Special | 7.30 | 7.30 |
 | Delicio | 5.40 | 5.40 |
-| Ethiopian Highlands | 8.30 | 8.30 |
 
-Because this subset has the same day and time counts for every brand, the hand
-adjustment and the model's equally averaged predictions give the same adjusted
+`predict(coffee_model)` gives a fitted rating for each row. Averaging those
+fitted ratings within each brand gives every brand the same day and time mix in
+this balanced subset, so the model and hand adjustment have the same brand
 means. Both methods identify Ethiopian Highlands as the most liked brand. In
 `tidy(coffee_model)`,
 `CoffeeEthiopian Highlands` is 2.20 (SE 0.48): the model estimates Ethiopian
 Highlands 2.20 rating points above the African Cream reference brand, holding
-day and time constant.
+day and time constant. The SE describes uncertainty in that coefficient, not
+in the adjusted mean of 8.30.
 
 ## Conclusion
 

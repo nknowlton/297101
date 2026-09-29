@@ -361,26 +361,22 @@ does adjusted $R^2$ provide a useful penalty?
 In Homework 9, you examined ratings for five coffee brands from 1 to 9 and
 adjusted for the nuisance effects of day and time. This example uses a
 [balanced 50-rating subset](https://knowlton.co.nz/297101/labs/coffee_tasting_balanced.csv).
-Each brand has two ratings on every day and at every time. The Week 9
-hand-adjusted brand means have been calculated for you, so use them to compare
-with the linear model. Your personalised homework data may give different
-results. See the
+Each brand has two ratings on every day and at every time. The Week 9 hand
+adjustment code and brand means are supplied as a refresher. Use `lm()` to
+account for day and time while comparing the coffee brands. Your personalised
+homework data may give different results. See the
 [original Week 9 homework instructions](https://r-resources.massey.ac.nz/297101/CoffeeTasting.html)
 for details.
 
 | Coffee | Week 9 hand-adjusted mean |
 |:--|--:|
+| Ethiopian Highlands | 8.30 |
+| Cafe Special | 7.30 |
 | African Cream | 6.10 |
 | Brew Maestro | 5.70 |
-| Cafe Special | 7.30 |
 | Delicio | 5.40 |
-| Ethiopian Highlands | 8.30 |
 
-Fit an additive model of rating using Time, Day and Coffee. The coffee
-coefficients compare each brand with the reference brand after accounting for
-day and time.
-
-```{r coffee-example-model}
+```{r coffee-example-data}
 Coffee <- read.csv("coffee_tasting_balanced.csv")
 
 Coffee <- Coffee |>
@@ -391,30 +387,57 @@ Coffee <- Coffee |>
   )
 
 count(Coffee, Coffee)
-
-coffee_model <- lm(Rating ~ Time + Day + Coffee, data = Coffee)
-tidy(coffee_model)
 ```
 
-Average the fitted ratings within each brand to get its model-adjusted mean.
-Because the subset is balanced across day and time for every brand, these
-means can be compared directly with the supplied Week 9 hand-adjusted means.
+Here is the Week 9 hand adjustment again. The table above gives its results,
+so your task is to fit a model and compare the two sets of adjusted means.
 
-```{r coffee-example-adjusted-means}
-Coffee |>
-  mutate(predicted_rating = predict(coffee_model)) |>
+```{r coffee-example-hand-adjustment}
+grand <- mean(Coffee$Rating)
+
+CoffeeAdj <- Coffee |>
+  group_by(Day) |>
+  mutate(DayMean = mean(Rating)) |>
+  group_by(Time) |>
+  mutate(
+    TimeMean = mean(Rating),
+    AdjRating = Rating - DayMean - TimeMean + 2 * grand
+  ) |>
+  ungroup()
+
+hand_adjusted_means <- CoffeeAdj |>
   group_by(Coffee) |>
   summarise(
-    model_adjusted_mean = mean(predicted_rating),
+    hand_adjusted_mean = mean(AdjRating),
     .groups = "drop"
-  ) |>
-  arrange(desc(model_adjusted_mean)) |>
-  mutate(model_adjusted_mean = round(model_adjusted_mean, 2))
+  )
+```
+
+### Your turn: model adjusted coffee ratings
+
+Fit a linear model with `Rating` as the response and `Time`, `Day`, and
+`Coffee` as predictors. Use `tidy()` to inspect its coefficients. Time and Day
+account for nuisance variation while the Coffee coefficients compare brands
+at the same day and time.
+
+```{r coffee-example-model}
+# Your code here
+```
+
+Use `predict()` to obtain the model's fitted rating for each observation, then
+average those ratings within each brand. Each brand has the same day and time
+distribution in this balanced subset, so the prediction averages account for
+those nuisance effects on equal terms. Join them to the supplied Week 9 means
+in `hand_adjusted_means` to make a comparison table.
+
+```{r coffee-example-adjusted-means}
+# Your code here
 ```
 
 Do the model-adjusted means match the supplied hand-adjusted means to two
-decimal places? Which brand has the highest adjusted mean rating? Interpret
-one coffee coefficient and its standard error relative to the reference brand.
+decimal places, and why? Which brand has the highest adjusted mean rating?
+Interpret one coffee coefficient and its standard error relative to the
+reference brand.
 
 ## Conclusion
 
