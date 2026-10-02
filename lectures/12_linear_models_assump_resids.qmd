@@ -467,3 +467,15 @@ heart-girth model. The remaining curvature still deserves attention.
 ```{r transformed-diagnostics, fig.height=5.5}
 plot(mod_log_x, which = 1, pch = 19, col = "#0072B280")
 ```
+
+## Before you trust the output
+
+**R will happily fit the model and give you p-values. That does not mean the model is doing a good job.**
+
+- **Coefficients are estimates.** Standard errors, p-values and confidence intervals tell us how much uncertainty sits around them.
+- **Be clear what you are predicting.** A mean response and one new donkey are not the same target. The prediction interval is wider because individual donkeys vary around the fitted mean.
+- **Check what the model has left behind.** Use **L-I-N-E**: look for curvature, think about independence, check the residual distribution and look for changing spread.
+- **A diagnostic plot raises a question, it does not settle it.** Independence comes from how the data were collected. An unusual point needs investigating before you delete it.
+- **Changing the model should fix an actual problem.** Logging heart girth did not remove the curvature here, so there is no reason to prefer it.
+
+**Do not stop at `summary(model)`. Look at the uncertainty, look at the residuals, and decide whether you believe the model.**
