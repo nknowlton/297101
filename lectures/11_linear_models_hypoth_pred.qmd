@@ -550,3 +550,25 @@ construction.
 
 If the slopes differ between groups, we need an interaction term. We have not
 fitted interactions in this lecture.
+
+## What changes when we add more predictors? {style="font-size: 24px;"}
+
+**We can now compare like with like.**
+
+- **Coefficients become conditional comparisons.** The heart-girth slope
+  compares donkeys with the same age group and sex. Factor coefficients compare
+  groups at the same values of the other predictors.
+- **Raw and adjusted differences answer different questions.** Older donkeys
+  weigh **16.51 kg more on average**, but only **4.05 kg more at the same heart
+  girth**. Both are correct. They are different comparisons.
+- **An additive model gives us parallel fitted lines.** Age group and sex shift
+  the fitted mean up or down while the heart-girth slope stays the same. Changing
+  the reference group changes the coefficients, not the fitted values.
+- **Prediction puts the model back together.** Give `predict()` a heart girth,
+  age group and sex, and it returns the fitted mean for that combination.
+- **More terms cannot decrease ordinary $R^2$, but can decrease adjusted
+  $R^2$.** Adjusted $R^2$ penalises additional coefficients, so it can fall. It
+  is a measure of model fit, not a formal test of whether a term contributes.
+
+**Everything here is estimated from a sample. Next week we ask how uncertain
+those estimates are, and whether the model assumptions are credible.**
