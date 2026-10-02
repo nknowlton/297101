@@ -570,5 +570,7 @@ fitted interactions in this lecture.
   $R^2$.** Adjusted $R^2$ penalises additional coefficients, so it can fall. It
   is a measure of model fit, not a formal test of whether a term contributes.
 
+. . .
+
 **Everything here is estimated from a sample. Next week we ask how uncertain
 those estimates are, and whether the model assumptions are credible.**
