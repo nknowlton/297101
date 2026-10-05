@@ -8,23 +8,164 @@
     <meta name="author" content="Dr Nicholas Knowlton">
     <link rel="canonical" href="https://knowlton.co.nz/297101/">
     <link rel="author" href="https://knowlton.co.nz/">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Course",
+        "name": "297.101 Statistical Data Science",
+        "description": "An introduction to computer programming and statistics for transforming, visualising and modelling data to discover information and support decision making. A practical approach to analysing New Zealand data includes data cleaning, statistical summaries, data wrangling, visualisation and predictive modelling. Includes an exploration of the statistical ideas of sampling, probability and inference as well as modern programming tools emphasising reproducibility.",
+        "url": "https://knowlton.co.nz/297101/",
+        "provider": {
+          "@type": "CollegeOrUniversity",
+          "name": "Massey University",
+          "url": "https://www.massey.ac.nz/"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Nicholas Knowlton",
+          "url": "https://knowlton.co.nz/",
+          "sameAs": [
+            "https://orcid.org/0000-0002-7022-3352",
+            "https://scholar.google.com/citations?hl=en&user=Bb32KDoAAAAJ",
+            "https://www.linkedin.com/in/nsknowlton/",
+            "https://github.com/nknowlton",
+            "https://www.massey.ac.nz/massey/expertise/profile.cfm?stref=284822",
+            "https://profiles.auckland.ac.nz/n-knowlton"
+          ]
+        }
+      }
+    </script>
     <style>
-      :root { color: #20313b; background: #f5f1e8; font-family: Georgia, serif; }
-      body { box-sizing: border-box; max-width: 44rem; margin: 0 auto; padding: 4rem 1.5rem; }
-      h1 { font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1; margin: 0; }
-      p { font-size: 1.15rem; line-height: 1.6; }
-      nav { display: grid; gap: 0.8rem; margin-top: 2rem; }
-      a { background: #1d5b63; color: #fff; padding: 1rem 1.25rem; text-decoration: none; font-size: 1.2rem; }
-      a:hover, a:focus { background: #133f45; }
+      :root {
+        color: #20313b;
+        background: #f5f1e8;
+        font-family: Georgia, serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        max-width: 72rem;
+        margin: 0 auto;
+        padding: 4rem 1.5rem;
+      }
+
+      header {
+        max-width: 54rem;
+        margin-bottom: 3rem;
+      }
+
+      h1 {
+        font-size: clamp(2.6rem, 7vw, 4.6rem);
+        line-height: 0.98;
+        margin: 0;
+        color: #12334a;
+      }
+
+      .lead {
+        font-size: 1.15rem;
+        line-height: 1.6;
+        margin: 1.25rem 0 0;
+      }
+
+      .byline {
+        margin: 0.7rem 0 0;
+        font-size: 0.95rem;
+        color: #56636b;
+      }
+
+      .byline a,
+      .course-description a {
+        color: #1d5b63;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.15em;
+      }
+
+      .course-grid {
+        display: grid;
+        grid-template-columns: minmax(15rem, 0.9fr) minmax(0, 1.35fr);
+        gap: clamp(2rem, 6vw, 4.5rem);
+        align-items: start;
+      }
+
+      h2 {
+        margin: 0 0 1rem;
+        font-size: 1.05rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #46545c;
+      }
+
+      nav {
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      nav a {
+        display: block;
+        background: #1d5b63;
+        color: #fff;
+        padding: 1rem 1.25rem;
+        text-decoration: none;
+        font-size: 1.15rem;
+        font-weight: 600;
+      }
+
+      nav a:hover,
+      nav a:focus-visible {
+        background: #133f45;
+      }
+
+      .course-description {
+        border-left: 1px solid #c9c3b8;
+        padding-left: clamp(1.5rem, 4vw, 2.5rem);
+      }
+
+      .course-description p {
+        margin: 0;
+        font-size: 1.08rem;
+        line-height: 1.7;
+      }
+
+      .course-description .source {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: #667179;
+      }
+
+      @media (max-width: 720px) {
+        body { padding-top: 2.5rem; }
+        header { margin-bottom: 2.2rem; }
+        .course-grid { grid-template-columns: 1fr; gap: 2.2rem; }
+        .course-description {
+          border-left: 0;
+          border-top: 1px solid #c9c3b8;
+          padding: 1.75rem 0 0;
+        }
+      }
     </style>
   </head>
   <body>
-    <h1>297.101<br>Statistical Data Science</h1>
-    <p>Hosted course materials for the regression lectures and computer workshops.</p>
-    <nav aria-label="Course materials">
-      <a href="lectures/">Lecture slides</a>
-      <a href="labs/">Labs</a>
-    </nav>
-      <p><small>Course materials by <a href="https://knowlton.co.nz/">Dr Nicholas Knowlton</a>.</small></p>
+    <header>
+      <h1>297.101<br>Statistical Data Science</h1>
+      <p class="lead">Lecture slides and computer workshops.</p>
+      <p class="byline">Course materials by <a href="https://knowlton.co.nz/" rel="author">Dr Nicholas Knowlton</a>, Massey University.</p>
+    </header>
+
+    <main class="course-grid">
+      <section aria-labelledby="materials-heading">
+        <h2 id="materials-heading">Course materials</h2>
+        <nav aria-label="Course materials">
+          <a href="lectures/">Lecture slides</a>
+          <a href="labs/">Labs</a>
+        </nav>
+      </section>
+
+      <section class="course-description" aria-labelledby="description-heading">
+        <h2 id="description-heading">About this course</h2>
+        <p>An introduction to computer programming and statistics for transforming, visualising and modelling data to discover information and support decision making. A practical approach to analysing New Zealand data includes data cleaning, statistical summaries, data wrangling, visualisation and predictive modelling. Includes an exploration of the statistical ideas of sampling, probability and inference as well as modern programming tools emphasising reproducibility.</p>
+        <p class="source"><a href="https://www.massey.ac.nz/study/courses/statistical-data-science-297101/">Massey University course page</a></p>
+      </section>
+    </main>
   </body>
 </html>
