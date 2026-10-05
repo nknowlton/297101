@@ -122,6 +122,9 @@ jobs:
           grep -q 'View the worked solutions online' _site/labs/Workshop_Week11_Testing.html
           grep -q 'View the worked solutions online' _site/labs/Workshop_Week12_Assumptions.html
 
+      - name: Generate sitemap
+        run: python3 scripts/generate_sitemap.py
+
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
