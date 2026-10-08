@@ -44,9 +44,25 @@ knitr::opts_chunk$set(
   out.width = "100%"
 )
 
-donkey <- read.csv(
-  "https://www.massey.ac.nz/~jcmarsha/227215/data/donkey.csv"
-)
+# Quarto may execute from the repository root or the lecture directory.
+donkey_file <- if (file.exists("data/donkey.csv")) {
+  "data/donkey.csv"
+} else {
+  "../data/donkey.csv"
+}
+
+donkey <- readr::read_csv(donkey_file, show_col_types = FALSE) |>
+  mutate(
+    Sex = factor(Sex, levels = c("Female", "Male")),
+    AgeBand = factor(
+      case_when(
+        Age < 7 ~ "Under 7",
+        Age < 10 ~ "7–9",
+        TRUE ~ "10 and over"
+      ),
+      levels = c("7–9", "Under 7", "10 and over")
+    )
+  )
 
 mod <- lm(Bodywt ~ Heartgirth, data = donkey)
 ```
@@ -69,6 +85,7 @@ By the end of this lecture, you should be able to:
 
 - explain why fitted coefficients vary across repeated comparable samples;
 - read uncertainty and hypothesis tests for a regression coefficient;
+- distinguish a test of one factor coefficient from a joint test of the whole factor;
 - distinguish an interval for a mean response from an interval for one new outcome;
 - explain the assumptions behind linear-model inference;
 - use residual plots to identify possible departures from those assumptions; and
@@ -149,7 +166,170 @@ For a two-sided 5% test of a zero coefficient, an interval that excludes zero ag
 confint(mod, parm = "Heartgirth")
 ```
 
+## What if a factor has three levels?
+
+Last week we used Under 7 versus 7 and over. Now split the older group into
+7–9 and 10 and over. These are **teaching bands**, keeping last week's cutoff
+at 7.
+
+```{r age-band-counts, echo=FALSE}
+donkey |>
+  count(AgeBand) |>
+  arrange(match(AgeBand, c("Under 7", "7–9", "10 and over"))) |>
+  knitr::kable(col.names = c("Age band", "Donkeys"))
+```
+
+```{r age-band-model}
+#| echo: true
+#| code-fold: false
+factor_model <- lm(Bodywt ~ Heartgirth + Sex + AgeBand, data = donkey)
+```
+
+With **7–9 as the reference**, three levels need two age-band coefficients.
+Comparisons hold heart girth and sex fixed; the model keeps one common slope.
+
+## What do these p-values test?
+
+Each age-band row tests a zero population difference from **7–9**, at the
+same heart girth and sex.
+
+```{r age-band-coefficients, echo=FALSE}
+age_band_terms <- tidy(factor_model) |>
+  filter(startsWith(term, "AgeBand"))
+
+age_band_terms |>
+  transmute(
+    Comparison = c("Under 7 versus 7–9", "10 and over versus 7–9"),
+    `Difference (kg)` = sprintf("%.2f", estimate),
+    `p-value` = format.pval(p.value, digits = 3, eps = 0.00001)
+  ) |>
+  knitr::kable(align = c("l", "r", "r"))
+```
+
+**The second comparison is inconclusive. Does that mean age band contributes
+no information?**
+
+. . .
+
+No. Its large p-value does not establish equality or answer the question
+about the whole factor. The Under 7 comparison has a small p-value.
+
+## Test the factor as a whole
+
+The joint null hypothesis is that **all three population mean weights are
+equal at the same heart girth and sex**, under this additive model:
+
+$$
+H_0:\quad \mu_{\text{Under 7}}=\mu_{\text{7–9}}=\mu_{\text{10 and over}}.
+$$
+
+With **7–9 as the reference**, this is equivalent to
+$\beta_{\mathrm{Under\ 7}}=\beta_{\mathrm{10\ and\ over}}=0$:
+both age-band coefficients must be zero **together**. The reference group's
+coefficient is fixed at zero. The alternative is that at least one age-band
+mean differs.
+
+. . .
+
+An **ANOVA F test** asks whether adding both coefficients improves the fit
+enough relative to the remaining residual variability. This is a test of
+age band after accounting for heart girth and sex.
+
+## Ask whether adding age band improves the fit
+
+Compare two models fitted to the **same donkeys**, differing only by the
+whole age-band factor:
+
+```{r age-band-anova}
+#| echo: true
+#| code-fold: false
+reduced <- lm(Bodywt ~ Heartgirth + Sex, data = donkey)
+anova(reduced, factor_model)
+```
+
+```{r age-band-test-result, include=FALSE}
+factor_test <- anova(reduced, factor_model)
+```
+
+**F(2, 380) = 5.473, p = 0.00454.** There is evidence
+of an age-band difference after adjustment. This does not mean every pair differs.
+
+Use the explicit comparison: `anova(model)` alone gives sequential tests,
+adding terms in formula order, which can answer a different adjustment question.
+
+## Changing the reference does not change the factor test
+
+Refit with **Under 7 as the reference**:
+
+```{r age-band-reference}
+#| echo: true
+#| code-fold: false
+donkey_under7 <- donkey |>
+  mutate(AgeBand = relevel(AgeBand, ref = "Under 7"))
+factor_model_under7 <- update(factor_model, data = donkey_under7)
+```
+
+```{r age-band-reference-output, echo=FALSE}
+tidy(factor_model_under7) |>
+  filter(startsWith(term, "AgeBand")) |>
+  transmute(
+    Comparison = c("7–9 versus Under 7", "10 and over versus Under 7"),
+    `Difference (kg)` = sprintf("%.2f", estimate),
+    `p-value` = format.pval(p.value, digits = 3, eps = 0.00001)
+  ) |>
+  knitr::kable(align = c("l", "r", "r"))
+
+factor_test_under7 <- anova(reduced, factor_model_under7)
+stopifnot(
+  identical(rownames(model.frame(reduced)), rownames(model.frame(factor_model))),
+  isTRUE(all.equal(fitted(factor_model), fitted(factor_model_under7))),
+  isTRUE(all.equal(factor_test$F[2], factor_test_under7$F[2])),
+  isTRUE(all.equal(factor_test$`Pr(>F)`[2], factor_test_under7$`Pr(>F)`[2]))
+)
+```
+
+Both age-row p-values are now small. The fitted values and joint F test
+are unchanged: **F(2, 380) = 5.473, p = 0.00454**.
+
+**A coefficient test asks about one contrast; the factor test asks about
+the contrasts together.**
+
+## For a binary factor, the t and F tests agree
+
+`Sex` has two levels, so it adds just one coefficient. Both tests ask whether
+Male and Female population mean weights differ **at the same heart girth and
+age band**: $H_0:\beta_{\mathrm{Male}}=0$.
+
+```{r sex-binary-tests}
+#| echo: true
+#| code-fold: false
+#| results: hide
+sex_reduced <- update(factor_model, . ~ . - Sex)
+sex_coefficient <- summary(factor_model)$coefficients["SexMale", ]
+sex_test <- anova(sex_reduced, factor_model)
+```
+
+| Test | Statistic | p-value |
+|:-----|:----------|--------:|
+| SexMale coefficient: two-sided t test | t = 0.9895 | 0.32306 |
+| Remove Sex: ANOVA F test | F(1, 380) = 0.9790 | 0.32306 |
+
+With one coefficient being tested, **$F=t^2$**, so the F test and the
+two-sided t test give **the same p-value**. With three age levels, the F test
+instead tests the two age-band coefficients together.
+
+```{r sex-binary-test-checks, include=FALSE}
+stopifnot(
+  identical(rownames(model.frame(sex_reduced)), rownames(model.frame(factor_model))),
+  isTRUE(all.equal(unname(sex_coefficient["t value"])^2, sex_test$F[2])),
+  isTRUE(all.equal(unname(sex_coefficient["Pr(>|t|)"]), sex_test$`Pr(>F)`[2]))
+)
+```
+
 ## Population vs Individual
+
+We have tested population slopes and differences between groups. Now return
+to the simple heart-girth model and ask how uncertain its predictions are.
 
 At a heart girth of 120 cm, what is the estimated average body weight? What range might contain the weight of one new donkey at 120 cm?
 
@@ -225,6 +405,8 @@ A straight-line mean, appropriate independence and constant error variance
 support the familiar least-squares standard errors and their usual
 interpretation. Normal errors provide the exact small-sample t and F
 distributions used for conventional intervals and tests.
+
+These assumptions also support the joint age-band F test we have just used.
 
 Least squares finds the line with the smallest squared residuals without
 assuming normal errors. Normality matters for the exact small-sample inference
@@ -473,6 +655,7 @@ plot(mod_log_x, which = 1, pch = 19, col = "#0072B280")
 **R will happily fit the model and give you p-values. That does not mean the model is doing a good job.**
 
 - **Coefficients are estimates.** Standard errors, p-values and confidence intervals tell us how much uncertainty sits around them.
+- **Match the test to the question.** A factor coefficient tests one contrast with the reference; a joint F test tests the whole factor.
 - **Be clear what you are predicting.** A mean response and one new donkey are not the same target. The prediction interval is wider because individual donkeys vary around the fitted mean.
 - **Check what the model has left behind.** Use **L-I-N-E**: look for curvature, think about independence, check the residual distribution and look for changing spread.
 - **A diagnostic plot raises a question, it does not settle it.** Independence comes from how the data were collected. An unusual point needs investigating before you delete it.
