@@ -95,6 +95,8 @@ jobs:
           cp labs/coffee_tasting_balanced.csv _site/labs/
           mkdir -p _site/labs/regression
           cp labs/regression/cancer_data.csv _site/labs/regression/
+          cp labs/sensor_calibration_2026.csv _site/labs/
+          cp labs/auckland_rentals_2026.csv _site/labs/
 
       - name: Verify Pages artifact
         run: |
@@ -113,6 +115,8 @@ jobs:
             _site/labs/Workshop_Week12_Assumptions_guide.html
             _site/labs/coffee_tasting_example.csv
             _site/labs/coffee_tasting_balanced.csv
+            _site/labs/sensor_calibration_2026.csv
+            _site/labs/auckland_rentals_2026.csv
           )
           for file in "${required[@]}"; do
             test -f "$file"
