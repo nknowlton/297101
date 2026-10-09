@@ -60,7 +60,7 @@ library(ggplot2)
 library(tibble)
 library(broom)
 
-vehicles <- read_csv("nz_vehicles_2025.csv", show_col_types = FALSE) |>
+vehicles <- read_csv("https://knowlton.co.nz/297101/labs/nz_vehicles_2025.csv", show_col_types = FALSE) |>
   mutate(
     # SALOON is the raw CSV value; display it as Sedan for us.
     station_wagon = factor(
@@ -536,7 +536,7 @@ for details.
 | Delicio | 5.40 |
 
 ```{r coffee-example-data}
-Coffee <- read.csv("coffee_tasting_balanced.csv")
+Coffee <- read.csv("https://knowlton.co.nz/297101/labs/coffee_tasting_balanced.csv")
 
 Coffee <- Coffee |>
   mutate(

@@ -661,4 +661,6 @@ plot(mod_log_x, which = 1, pch = 19, col = "#0072B280")
 - **A diagnostic plot raises a question, it does not settle it.** Independence comes from how the data were collected. An unusual point needs investigating before you delete it.
 - **Changing the model should fix an actual problem.** Logging heart girth did not remove the curvature here, so there is no reason to prefer it.
 
+. . .
+
 **Do not stop at `summary(model)`. Look at the uncertainty, look at the residuals, and decide whether you believe the model.**

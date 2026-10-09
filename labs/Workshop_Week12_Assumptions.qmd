@@ -67,8 +67,7 @@ Work through the sections in order. Run each supplied demonstration and inspect
 its output or plot before moving on. In each **Your turn** section, write your
 own code in the blank chunk, then record your interpretation beside the prompt.
 Hints appear when a function or idea is first introduced; later tasks expect
-you to reuse it. Open this file from the `labs` folder so the supplied data file
-can be found.
+you to reuse it. The supplied code loads the data directly from knowlton.co.nz.
 
 ## 1. Fit and understand one primary cancer model
 
@@ -85,7 +84,7 @@ library(broom)
 library(performance)
 library(see)
 
-cancer <- read_csv("regression/cancer_data.csv", show_col_types = FALSE)
+cancer <- read_csv("https://knowlton.co.nz/297101/labs/regression/cancer_data.csv", show_col_types = FALSE)
 
 cancer_model_data <- cancer |>
   select(
