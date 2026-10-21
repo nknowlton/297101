@@ -7,7 +7,7 @@ urls = []
 for page in sorted(root.rglob("*.html")):
     rel = page.relative_to(root).as_posix()
     lower = rel.lower()
-    if any(token in lower for token in ("_guide", "-sols", "/solutions/", "/answers/")):
+    if any(token in lower for token in ("_guide", "-sols", "/solutions/", "/answers/", "/libs/", "/site_libs/")) or lower.endswith(("404.html", "speaker-view.html")):
         continue
     if rel.endswith("index.html"):
         rel = rel[:-10]
