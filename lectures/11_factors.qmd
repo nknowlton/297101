@@ -1,0 +1,790 @@
+---
+title: "297.101 Week 11: Factors in Linear Models"
+subtitle: "Group comparisons, adjusted differences and factor tests"
+author: Dr. Nick Knowlton
+format:
+  revealjs:
+    code-copy: hover
+    embed-resources: true
+    css:
+      - "knowlton.css"
+      - "multiple-regression-lab.css"
+    theme: sky
+    slide-number: true
+    incremental: true
+    smaller: true
+    html-math-method:
+      method: mathjax
+      url: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js
+    highlight-style: breezedark
+    highlight-lines: true
+    progress: true
+    logo: graphics/660491-ls_black_whitoutunz.png
+execute:
+  output: true
+  eval: true
+  code-fold: true
+editor:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(broom)
+library(knitr)
+library(ggplot2)
+theme_set(theme_bw(base_size = 15))
+
+# Quarto may execute from the repository root or the lecture directory.
+donkey_file <- if (file.exists("data/donkey.csv")) {
+  "data/donkey.csv"
+} else {
+  "../data/donkey.csv"
+}
+
+donkey <- readr::read_csv(donkey_file, show_col_types = FALSE) |>
+  mutate(
+    Sex = factor(Sex, levels = c("Female", "Male")),
+    AgeGroup = factor(
+      if_else(Age < 7, "Under 7", "7 and over"),
+      levels = c("Under 7", "7 and over")
+    ),
+    AgeBand = factor(
+      case_when(
+        Age < 7 ~ "Under 7",
+        Age < 10 ~ "7–9",
+        TRUE ~ "10 and over"
+      ),
+      levels = c("7–9", "Under 7", "10 and over")
+    )
+  )
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+import { multipleRegressionLab } from "./multiple-regression-lab.js"
+donkeyWidgetData = FileAttachment("../data/donkey.csv").csv({typed: true})
+```
+
+## Learning outcomes
+
+By the end of this lecture, you should be able to:
+
+- fit a linear model with a categorical predictor and read its coefficients as
+  group differences;
+- fit a model with a numerical predictor and categorical predictors;
+- interpret a difference from a reference category, adjusted for the other predictors;
+- explain why an adjusted comparison can differ from a raw comparison;
+- test a whole factor with an F test, and explain how that differs from a
+  single coefficient test; and
+- make predictions at common values of the other predictors.
+
+# Back to the Moroccan donkeys {.center}
+
+![](./graphics/donkey_morocco.jpg){fig-align="center" width="82%"}
+
+## Numbers so far
+
+So far every predictor has been a number: heart girth, length, height. But we
+also know each donkey's **sex** and **age**, and those are categories.
+
+This week we use:
+
+- **Sex:** Female versus Male
+- **Age group:** Under 7 versus 7 and over, and later three **age bands**
+
+. . .
+
+```{r donkey-counts}
+donkey |>
+  count(AgeGroup, Sex)
+```
+
+Can a linear model use a category as a predictor? Let's start with sex on its
+own.
+
+<!-- 2027: if weeks 1-4 include shuffling group labels to compare two groups,
+     link back to it on the next slide. -->
+
+## A factor on its own: sex
+
+```{r sex-means}
+donkey |>
+  group_by(Sex) |>
+  summarise(donkeys = n(), mean_body_weight = mean(Bodywt)) |>
+  knitr::kable(digits = 2, col.names = c("Sex", "Donkeys", "Mean body weight (kg)"))
+```
+
+```{r sex-model, echo=TRUE}
+sex_only <- lm(Bodywt ~ Sex, data = donkey)
+tidy(sex_only)
+```
+
+```{r sex-only-check, include=FALSE}
+sex_means <- tapply(donkey$Bodywt, donkey$Sex, mean)
+sex_t <- t.test(Bodywt ~ Sex, data = donkey, var.equal = TRUE)
+stopifnot(
+  isTRUE(all.equal(unname(coef(sex_only)), unname(c(sex_means["Female"], diff(sex_means))))),
+  isTRUE(all.equal(abs(unname(sex_t$statistic)),
+                   abs(summary(sex_only)$coefficients["SexMale", "t value"]))),
+  isTRUE(all.equal(sex_t$p.value, summary(sex_only)$coefficients["SexMale", "Pr(>|t|)"]))
+)
+```
+
+The intercept is the Female mean. `SexMale` is the Male mean **minus** the
+Female mean, `r round(coef(sex_only)[["SexMale"]], 2)` kg. Its t test is the
+two-sample t test of equal means: same t, same p-value.
+
+## How R turns a category into a number
+
+R builds a column called `SexMale`: 1 for male donkeys and 0 for female donkeys.
+
+$$
+\mathsf{Mean}[\mathrm{Bodywt}] = \beta_0 + \beta_1\, I(\text{Male}).
+$$
+
+- For females, $I(\text{Male}) = 0$, so the mean is $\beta_0$.
+- For males, $I(\text{Male}) = 1$, so the mean is $\beta_0 + \beta_1$.
+
+. . .
+
+Female is the **reference category**: the group the other coefficients are
+measured from. R uses the first factor level, and we set Female first.
+
+## A factor with three levels
+
+Split age into three bands, with **7–9 as the reference**:
+
+```{r ageband-means}
+donkey |>
+  group_by(AgeBand) |>
+  summarise(donkeys = n(), mean_body_weight = mean(Bodywt)) |>
+  knitr::kable(digits = 2, col.names = c("Age band", "Donkeys", "Mean body weight (kg)"))
+```
+
+```{r ageband-model, echo=TRUE}
+age_only <- lm(Bodywt ~ AgeBand, data = donkey)
+tidy(age_only)
+```
+
+Three groups need two coefficients, one for each group that is not the
+reference. Each one is that group's mean minus the 7–9 mean.
+
+## Testing the whole factor
+
+Each row tests one group against 7–9. The question "does mean weight differ
+between age bands at all?" is about **all three means together**:
+
+$$
+H_0:\quad \mu_{\text{Under 7}}=\mu_{\text{7–9}}=\mu_{\text{10 and over}}.
+$$
+
+```{r ageband-anova, echo=TRUE}
+anova(age_only)
+```
+
+```{r ageband-anova-check, include=FALSE}
+age_only_f <- anova(age_only)
+stopifnot(isTRUE(all.equal(age_only_f$`F value`[1], unname(summary(age_only)$fstatistic[1]))))
+```
+
+With only the factor in the model, this is the same as the overall F test from
+`summary()`. It is also called a **one-way ANOVA**. Here
+$F(`r age_only_f$Df[1]`, `r age_only_f$Df[2]`) = `r round(age_only_f$"F value"[1], 1)`$:
+strong evidence that mean weight differs between age bands.
+
+. . .
+
+But older donkeys are also bigger. How much of that is age, and how much is
+heart girth?
+
+## Bring back heart girth
+
+```{r heart-model}
+heart_model <- lm(
+  Bodywt ~ Heartgirth,
+  data = donkey
+)
+
+summary(heart_model)
+
+ggplot(donkey, aes(Heartgirth, Bodywt)) +
+  geom_point(alpha = 0.45) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Heart girth (cm)",
+    y = "Body weight (kg)"
+  )
+```
+
+The slope gives the fitted change in mean body weight for a one-centimetre
+difference in heart girth.
+
+## Add age group
+
+That model fits one line for all donkeys. What if we allow younger and older
+donkeys to have different fitted mean body weights at the same heart girth?
+
+We add `AgeGroup` to the formula: `Bodywt ~ Heartgirth + AgeGroup`. Let's fit
+the model and look at the lines.
+
+```{r age-model}
+age_model <- lm(
+  Bodywt ~ Heartgirth + AgeGroup,
+  data = donkey
+)
+
+age_plot_data <- donkey |>
+  mutate(fitted = predict(age_model)) |>
+  arrange(AgeGroup, Heartgirth)
+
+ggplot(age_plot_data, aes(Heartgirth, Bodywt)) +
+  geom_point(aes(colour = AgeGroup), alpha = 0.45) +
+  geom_line(
+    aes(y = fitted, colour = AgeGroup, group = AgeGroup),
+    linewidth = 1
+  ) +
+  labs(
+    x = "Heart girth (cm)",
+    y = "Body weight (kg)",
+    colour = "Age group"
+  )
+```
+
+
+## Add Age Group Con't
+
+That made a set of parallel lines with one for each of the age groups. But what happened to the model summary:
+
+```{r modelsummary}
+
+
+tidy(age_model)
+```
+
+
+We have a new term `AgeGroup7 and over` with a value of 4.05. This creates two intercepts but keeps a single slope.
+
+Specifically, the fitted equations are:
+
+For donkeys under 7, the fitted mean is
+
+$$
+\widehat{\mathrm{Bodywt}} =
+\hat\beta_0 + \hat\beta_1\,\mathrm{Heartgirth}.
+$$
+
+For donkeys aged 7 and over, it is
+
+$$
+\widehat{\mathrm{Bodywt}} =
+(\hat\beta_0+\hat\beta_2) +
+\hat\beta_1\,\mathrm{Heartgirth}.
+$$
+
+Both groups share \(\hat\beta_1\), so the fitted lines are parallel.
+
+## Reference Category
+
+As with sex, R uses the first factor level as the reference category. We set
+`Under 7` first when we created `AgeGroup`, so it is the reference group. Changing the
+reference category changes how the coefficients are written and interpreted,
+but not the fitted values.
+
+.  .  .
+
+The model matrix has a column called `AgeGroup7 and over`:
+
+- 0 for donkeys under 7
+- 1 for donkeys aged 7 and over
+
+.  .  .
+
+For the reference group, that term drops out. For the other group, its
+coefficient is added to the fitted value.
+
+
+## Observed mean body weight
+
+The mean body weight across all donkeys is 122.39 kg. Splitting the data by age
+group gives two quite different means:
+
+```{r raw-adjusted-age}
+raw_age_means <- donkey |>
+  group_by(AgeGroup) |>
+  summarise(
+    mean_body_weight = mean(Bodywt),
+    mean_heart_girth = mean(Heartgirth),
+    .groups = "drop"
+  )
+
+bind_rows(
+  donkey |>
+    summarise(
+      AgeGroup = "All donkeys",
+      mean_body_weight = mean(Bodywt),
+      mean_heart_girth = mean(Heartgirth)
+    ),
+  raw_age_means |> mutate(AgeGroup = as.character(AgeGroup))
+) |>
+  knitr::kable(
+    digits = 2,
+    col.names = c("Group", "Mean body weight (kg)", "Mean heart girth (cm)")
+  )
+```
+
+Donkeys aged 7 and over weigh 16.51 kg more on average. They also have a
+larger mean heart girth. This raw difference compares the groups as observed;
+it does not hold heart girth fixed.
+
+## Compare age groups at the same heart girth
+
+Use the age-group model to predict **mean body weight** for both groups at a
+heart girth of 115 cm:
+
+```{r common-age-means}
+common_age_donkeys <- data.frame(
+  Heartgirth = c(115, 115),
+  AgeGroup = factor(
+    c("Under 7", "7 and over"),
+    levels = levels(donkey$AgeGroup)
+  )
+)
+
+common_age_donkeys |>
+  mutate(fitted_mean_body_weight = predict(
+    age_model, newdata = common_age_donkeys
+  )) |>
+  select(AgeGroup, Heartgirth, fitted_mean_body_weight) |>
+  knitr::kable(
+    digits = 2,
+    col.names = c("Age group", "Heart girth (cm)", "Fitted mean body weight (kg)")
+  )
+```
+
+The fitted means are 128.25 kg and 132.30 kg, a gap of 4.05 kg. This is the
+age-group coefficient: the age comparison **adjusted for heart girth**. Because
+the lines share a slope, the 4.05 kg gap is the same at any heart girth.
+
+## Why are the group means 16.5 kg apart?
+
+The 16.51 kg raw gap and the 4.05 kg fitted gap use different heart-girth
+values. To connect them, use the fitted age-group model:
+
+$$
+\widehat{\mathrm{Bodywt}} =
+-188.55 + 2.7547\,\mathrm{Heartgirth} + 4.05\,I(\text{7 and over}),
+$$
+
+where $I(\text{7 and over})$ is 0 for the younger group and 1 for the older
+group.
+
+. . .
+
+The two groups have different average heart girths:
+
+$$
+\overline{\mathrm{Heartgirth}}_{\text{under }7} = 109.39\text{ cm}, \qquad
+\overline{\mathrm{Heartgirth}}_{7\text{ and over}} = 113.91\text{ cm}.
+$$
+
+## Recover the observed age-group means
+
+Plug each group's own average heart girth into the **same model**:
+
+$$
+\widehat{W}_{\text{under }7} = -188.55 + 2.7547(109.39) \approx 112.78\text{ kg},
+$$
+
+$$
+\widehat{W}_{7\text{ and over}} = -188.55 + 2.7547(113.91) + 4.05 \approx 129.29\text{ kg}.
+$$
+
+These fitted values match the raw group means, because each group's own mean
+heart girth reproduces its own mean body weight in this model.
+
+## Splitting the 16.5 kg apart
+
+Subtracting the two predictions cancels the intercept:
+
+$$
+\begin{aligned}
+\widehat{W}_{7\text{ and over}} - \widehat{W}_{\text{under }7}
+&= 2.7547(113.91 - 109.39) + 4.05 \\
+&= 12.45\text{ kg} + 4.05\text{ kg} \\
+&\approx 16.51\text{ kg}.
+\end{aligned}
+$$
+
+. . .
+
+> **12.45 kg** comes from evaluating the model at the groups' different average
+> heart girths.
+>
+> **4.05 kg** is the fitted age-group difference **when heart girth is held the
+> same** — the coefficient from the adjusted model.
+
+. . .
+
+Both numbers come from the same fitted model. The 16.51 kg gap uses each
+group's own mean heart girth. The 4.05 kg gap holds heart girth fixed, so it
+answers the like-for-like age-group question more directly.
+
+## Add another factor: Sex
+
+The age-group term gives us a like-for-like comparison and slightly improves
+model fit. Does `Sex` explain any remaining variation once heart girth and age
+group are included? We add it with another `+`.
+
+```{r full-model}
+full_model <- lm(
+  Bodywt ~ Heartgirth + AgeGroup + Sex,
+  data = donkey
+)
+
+tidy(full_model)
+```
+
+. . .
+
+With Female as the reference category, `SexMale` is the fitted Male-minus-
+Female difference for donkeys with the same heart girth and in the same age
+group.
+
+. . .
+
+Nothing about adding Sex changes the meaning of the heart-girth slope: it is
+still the fitted change in mean body weight for a one-centimetre difference in
+heart girth, holding the other predictors fixed.
+
+## What does "holding the others fixed" mean?
+
+In the full model:
+
+- the **Heartgirth** coefficient compares donkeys differing by 1 cm in heart
+  girth but with the same age group and sex;
+- the **AgeGroup** coefficient compares age groups at the same heart girth and
+  sex;
+- the **Sex** coefficient compares males and females at the same heart girth
+  and age group.
+
+. . .
+
+That is what an adjusted coefficient is doing. Each coefficient answers its
+comparison after accounting for the other terms in the model.
+
+## One slope, several shifted lines
+
+The full model is still additive. There is one common heart-girth slope.
+
+```{r full-model-plot}
+full_plot_data <- donkey |>
+  mutate(fitted = predict(full_model)) |>
+  arrange(AgeGroup, Sex, Heartgirth)
+
+ggplot(full_plot_data, aes(Heartgirth, Bodywt)) +
+  geom_point(aes(colour = Sex), alpha = 0.35) +
+  geom_line(
+    aes(
+      y = fitted,
+      colour = Sex,
+      linetype = AgeGroup,
+      group = paste(Sex, AgeGroup)
+    ),
+    linewidth = 1
+  ) +
+  labs(
+    x = "Heart girth (cm)",
+    y = "Body weight (kg)",
+    colour = "Sex",
+    linetype = "Age group"
+  )
+```
+
+Four groups give four fitted lines, but all four lines have the same slope.
+The factor terms only shift the fitted mean up or down.
+
+## Estimates have uncertainty
+
+```{r full-model-summary}
+summary(full_model)$coefficients
+```
+
+The table reads exactly as it did in weeks 9 and 10: estimates from this
+sample, standard errors for their sampling variation, and t tests of a zero
+population coefficient.
+
+. . .
+
+For a factor row, that null hypothesis is a zero **adjusted difference from the
+reference category**: `SexMale` tests Male versus Female at the same heart girth
+and age group.
+
+A large p-value is not evidence that the groups are identical. It means these
+data do not provide strong evidence for an adjusted difference.
+
+## What if a factor has three levels?
+
+Now swap the two age groups for the three **age bands**, keeping 7 as a
+cutoff.
+
+```{r age-band-counts, echo=FALSE}
+donkey |>
+  count(AgeBand) |>
+  arrange(match(AgeBand, c("Under 7", "7–9", "10 and over"))) |>
+  knitr::kable(col.names = c("Age band", "Donkeys"))
+```
+
+```{r age-band-model}
+#| echo: true
+#| code-fold: false
+factor_model <- lm(Bodywt ~ Heartgirth + Sex + AgeBand, data = donkey)
+```
+
+With **7–9 as the reference**, three levels need two age-band coefficients.
+Comparisons hold heart girth and sex fixed; the model keeps one common slope.
+
+## What do these p-values test?
+
+Each age-band row tests a zero population difference from **7–9**, at the
+same heart girth and sex.
+
+```{r age-band-coefficients, echo=FALSE}
+age_band_terms <- tidy(factor_model) |>
+  filter(startsWith(term, "AgeBand"))
+
+age_band_terms |>
+  transmute(
+    Comparison = c("Under 7 versus 7–9", "10 and over versus 7–9"),
+    `Difference (kg)` = sprintf("%.2f", estimate),
+    `p-value` = format.pval(p.value, digits = 3, eps = 0.00001)
+  ) |>
+  knitr::kable(align = c("l", "r", "r"))
+```
+
+**The second comparison is inconclusive. Does that mean age band contributes
+no information?**
+
+. . .
+
+No. Its large p-value does not establish equality or answer the question
+about the whole factor. The Under 7 comparison has a small p-value.
+
+## Test the factor as a whole
+
+The joint null hypothesis is that **all three population mean weights are
+equal at the same heart girth and sex**, under this additive model:
+
+$$
+H_0:\quad \mu_{\text{Under 7}}=\mu_{\text{7–9}}=\mu_{\text{10 and over}}.
+$$
+
+With **7–9 as the reference**, this is equivalent to
+$\beta_{\mathrm{Under\ 7}}=\beta_{\mathrm{10\ and\ over}}=0$:
+both age-band coefficients must be zero **together**. The alternative is that
+at least one age-band mean differs.
+
+. . .
+
+This is the nested-model F test from last week. The two models differ only by
+the whole age-band factor.
+
+## Ask whether adding age band improves the fit
+
+```{r age-band-anova}
+#| echo: true
+#| code-fold: false
+reduced <- lm(Bodywt ~ Heartgirth + Sex, data = donkey)
+anova(reduced, factor_model)
+```
+
+```{r age-band-test-result, include=FALSE}
+factor_test <- anova(reduced, factor_model)
+```
+
+**F(`r factor_test$Df[2]`, `r factor_test$Res.Df[2]`) =
+`r sprintf("%.3f", factor_test$F[2])`, p =
+`r signif(factor_test$"Pr(>F)"[2], 3)`.** There is evidence of an age-band
+difference after adjustment. This does not mean every pair differs.
+
+## Changing the reference does not change the factor test
+
+Refit with **Under 7 as the reference**:
+
+```{r age-band-reference}
+#| echo: true
+#| code-fold: false
+donkey_under7 <- donkey |>
+  mutate(AgeBand = relevel(AgeBand, ref = "Under 7"))
+factor_model_under7 <- update(factor_model, data = donkey_under7)
+```
+
+```{r age-band-reference-output, echo=FALSE}
+tidy(factor_model_under7) |>
+  filter(startsWith(term, "AgeBand")) |>
+  transmute(
+    Comparison = c("7–9 versus Under 7", "10 and over versus Under 7"),
+    `Difference (kg)` = sprintf("%.2f", estimate),
+    `p-value` = format.pval(p.value, digits = 3, eps = 0.00001)
+  ) |>
+  knitr::kable(align = c("l", "r", "r"))
+
+factor_test_under7 <- anova(reduced, factor_model_under7)
+stopifnot(
+  identical(rownames(model.frame(reduced)), rownames(model.frame(factor_model))),
+  isTRUE(all.equal(fitted(factor_model), fitted(factor_model_under7))),
+  isTRUE(all.equal(factor_test$F[2], factor_test_under7$F[2])),
+  isTRUE(all.equal(factor_test$`Pr(>F)`[2], factor_test_under7$`Pr(>F)`[2]))
+)
+```
+
+Both age-row p-values are now small. The fitted values and the joint F test
+are unchanged.
+
+**A coefficient test asks about one contrast; the factor test asks about
+the contrasts together.**
+
+## For a binary factor, the t and F tests agree
+
+`Sex` has two levels, so it adds just one coefficient. Both tests ask whether
+Male and Female population mean weights differ **at the same heart girth and
+age band**: $H_0:\beta_{\mathrm{Male}}=0$.
+
+```{r sex-binary-tests}
+#| echo: true
+#| code-fold: false
+#| results: hide
+sex_reduced <- update(factor_model, . ~ . - Sex)
+sex_coefficient <- summary(factor_model)$coefficients["SexMale", ]
+sex_test <- anova(sex_reduced, factor_model)
+```
+
+| Test | Statistic | p-value |
+|:-----|:----------|--------:|
+| SexMale coefficient: two-sided t test | t = `r sprintf("%.4f", sex_coefficient["t value"])` | `r sprintf("%.5f", sex_coefficient[[4]])` |
+| Remove Sex: ANOVA F test | F(1, `r sex_test$Res.Df[2]`) = `r sprintf("%.4f", sex_test$F[2])` | `r sprintf("%.5f", sex_test$"Pr(>F)"[2])` |
+
+As with height last week, one coefficient means **$F=t^2$** and the same
+p-value. With three age bands, the F test instead tests the two age-band
+coefficients together.
+
+```{r sex-binary-test-checks, include=FALSE}
+stopifnot(
+  identical(rownames(model.frame(sex_reduced)), rownames(model.frame(factor_model))),
+  isTRUE(all.equal(unname(sex_coefficient["t value"])^2, sex_test$F[2])),
+  isTRUE(all.equal(unname(sex_coefficient["Pr(>|t|)"]), sex_test$`Pr(>F)`[2]))
+)
+```
+
+## Why not just `anova(model)`?
+
+With one factor alone, `anova(model)` gave the factor test. With several terms
+it gives **sequential** tests: each row adds that term to the terms **above
+it**. Order matters.
+
+:::: {.columns}
+::: {.column width="50%"}
+```{r sequential-sex-first}
+seq_sex_first <- anova(factor_model)
+seq_sex_first
+```
+:::
+::: {.column width="50%"}
+```{r sequential-age-first}
+seq_age_first <- anova(lm(Bodywt ~ Heartgirth + AgeBand + Sex, data = donkey))
+seq_age_first
+```
+:::
+::::
+
+```{r sequential-checks, include=FALSE}
+stopifnot(
+  isTRUE(all.equal(seq_sex_first["AgeBand", "F value"], factor_test$F[2])),
+  isTRUE(all.equal(seq_age_first["Sex", "F value"], sex_test$F[2])),
+  !isTRUE(all.equal(seq_sex_first["Sex", "F value"], sex_test$F[2]))
+)
+```
+
+. . .
+
+The Sex row is p = `r signif(seq_sex_first["Sex", "Pr(>F)"], 3)` in the left
+table (adjusted for heart girth only) and
+p = `r signif(seq_age_first["Sex", "Pr(>F)"], 3)` in the right (adjusted for
+heart girth and age band). Only the **last** row matches the adjusted
+`anova(reduced, full)` test. To test a term adjusted for everything else, use
+the explicit comparison.
+
+## Predict with the heart-girth model
+
+In week 9, a donkey with a heart girth of 115 cm had one fitted mean body
+weight from the model with heart girth alone:
+
+```{r heart-prediction}
+predict(heart_model, newdata = data.frame(Heartgirth = 115))
+```
+
+. . .
+
+Now keep heart girth at 115 cm and ask for a fitted mean for each combination
+of age group and sex.
+
+```{r common-predictions}
+new_donkeys <- data.frame(
+  Heartgirth = c(115, 115, 115, 115),
+  AgeGroup = c("Under 7", "Under 7", "7 and over", "7 and over"),
+  Sex = c("Female", "Male", "Female", "Male")
+)
+
+new_donkeys$predicted_body_weight <- predict(full_model, newdata = new_donkeys)
+new_donkeys
+```
+
+Every row has the same heart girth. The differences among these fitted means
+come from the age-group and sex coefficients.
+
+## Compare donkeys at the same heart girth
+
+Move the heart-girth marker: fitted means change, but the gaps between groups
+stay constant. Change a reference category: coefficients change, but fitted
+means do not.
+
+```{ojs}
+//| echo: false
+multipleRegressionLab({ Plot, data: donkeyWidgetData })
+```
+
+## What have we assumed?
+
+An additive model gives each age and sex group its own vertical shift, while all
+groups share the same heart-girth slope. The fitted lines are parallel by
+construction.
+
+If the slopes differ between groups, we need an interaction term. We have not
+fitted interactions in this lecture.
+
+## What changes when a predictor is a category? {style="font-size: 24px;"}
+
+**We can now compare groups, and compare them like with like.**
+
+- **A factor's coefficients are differences from a reference group.** On its
+  own, `Bodywt ~ Sex` is the two-sample comparison of means, and
+  `Bodywt ~ AgeBand` is a one-way ANOVA.
+- **Raw and adjusted differences answer different questions.** Older donkeys
+  weigh **16.51 kg more on average**, but only **4.05 kg more at the same heart
+  girth**. Both are correct. They are different comparisons.
+- **An additive model gives us parallel fitted lines.** Age group and sex shift
+  the fitted mean up or down while the heart-girth slope stays the same. Changing
+  the reference group changes the coefficients, not the fitted values.
+- **Match the test to the question.** A coefficient row tests one group against
+  the reference. `anova(reduced, full)` tests the whole factor; for a two-level
+  factor it agrees with the t test. `anova(model)` is sequential, so term order
+  matters.
+- **Prediction puts the model back together.** Give `predict()` a heart girth,
+  age group and sex, and it returns the fitted mean for that combination.
+
+. . .
+
+**Fit, interpret, test, predict, check the residuals: the same workflow from
+week 9 works for every model we've built.**

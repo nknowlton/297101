@@ -1,5 +1,5 @@
 ---
-title: "297.101 Week 10: Relationships"
+title: "297.101 Week 9, Part 1: Fitting a Line"
 subtitle: "Exploring relationships and fitting a first linear model"
 author: Dr. Nick Knowlton
 format: 
@@ -65,6 +65,8 @@ import { coefficientLab, regressionLab } from "./regression-lab.js"
 -- Using R to fit linear models.
 
 -- Interpret the R outcomes.
+
+-- Describe how much variation the line explains with $R^2$.
 
 
 # **All Models Are Wrong, Some Are Useful**
@@ -692,7 +694,7 @@ residuals with `min`, `max`, `median` and another two quartiles.
 
 * `Coefficients:` summarizes the information on the estimates for the
 regression coefficients and the `Estimate` column gives us the fitted
-coefficients. For today, focus on those estimates. Next week we will use
+coefficients. For now, focus on those estimates. In the next part we will use
 `Std. Error`, `t value` and `Pr(>|t|)` to start thinking about uncertainty.
 
 :::
@@ -745,6 +747,44 @@ ggplot(donkey, aes(x=Heartgirth, y=Bodywt)) + geom_point() +
 
 
 
+## How much variation does the line explain?
+
+Body weights vary a lot from donkey to donkey. Some of that variation lines up
+with heart girth, and the rest is left over in the residuals.
+
+$$
+R^2 = 1 - \frac{\sum_{i=1}^n (y_i - \hat{y}_i)^2}{\sum_{i=1}^n (y_i - \bar{y})^2}
+$$
+
+. . .
+
+The bottom sum is the total variation in body weight around its mean. The top
+sum is the variation still left after fitting the line. $R^2$ is the proportion
+of the variation the line accounts for, so it sits between 0 and 1.
+
+```{r r-squared, echo=TRUE}
+summary(mod)$r.squared
+```
+
+The heart-girth line accounts for about `r round(100*summary(mod)$r.squared)`%
+of the variation in body weight in this sample.
+
+## $R^2$ and correlation
+
+Remember the correlation, $r$, from the relationships lecture. With one
+numeric predictor, $R^2$ is the correlation squared.
+
+```{r r-squared-cor, echo=TRUE}
+cor(donkey$Heartgirth, donkey$Bodywt)^2
+```
+
+. . .
+
+A high $R^2$ says the points sit close to the line relative to how spread out
+body weight is overall. It does not say the straight line is the right shape,
+that heart girth causes body weight, or that one donkey's prediction will be
+accurate. We will come back to all three in this week's later parts.
+
 ## Summary
 :::{.r-fit-text .incremental}
 * A simple linear regression model relates one response variable $y$ to
@@ -761,6 +801,9 @@ of the variation in $y$ as possible.
 the results via `summary()` and `coef()`.
 
 * We can overlay a regression line onto a scatter plot of $y$ vs $x$.
+
+* $R^2$ is the proportion of variation in $y$ the line accounts for. With one
+numeric predictor it equals $r^2$.
 :::
 
 

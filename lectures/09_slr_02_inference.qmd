@@ -1,0 +1,449 @@
+---
+title: "297.101 Week 9, Part 2: Estimates and Uncertainty"
+subtitle: "Least squares, sampling variation, tests and intervals"
+author: Dr. Nick Knowlton
+format:
+  revealjs:
+    code-copy: hover
+    embed-resources: true
+    css:
+      - "knowlton.css"
+      - "regression-lab.css"
+    theme: sky
+    slide-number: true
+    incremental: true
+    smaller: true
+    html-math-method:
+      method: mathjax
+      url: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js
+    highlight-style: breezedark
+    highlight-lines: true
+    progress: true
+    logo: graphics/660491-ls_black_whitoutunz.png
+execute:
+  output: true
+  eval: true
+  code-fold: true
+editor:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(broom)
+library(ggplot2)
+theme_set(theme_bw(base_size = 15))
+
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 8,
+  fig.height = 5,
+  out.width = "100%"
+)
+
+# Quarto may execute from the repository root or the lecture directory.
+donkey_file <- if (file.exists("data/donkey.csv")) {
+  "data/donkey.csv"
+} else {
+  "../data/donkey.csv"
+}
+
+donkey <- readr::read_csv(donkey_file, show_col_types = FALSE)
+
+mod <- lm(Bodywt ~ Heartgirth, data = donkey)
+```
+
+```{ojs}
+//| echo: false
+//| output: false
+import { predictionIntervalLab } from "./regression-lab.js"
+```
+
+# Learning outcomes
+
+By the end of this part, you should be able to:
+
+- explain how least squares turns data into coefficient estimates;
+- distinguish an estimator from an estimate, and a model error from a residual;
+- explain why a fitted slope varies across repeated comparable samples;
+- state the assumptions of the linear model and what each one supports;
+- read the standard error, t statistic and p-value for a slope; and
+- distinguish an interval for a mean response from an interval for one new outcome.
+
+# Where does the line come from? {.center}
+
+In Part 1 we let `lm()` find the heart-girth line for us. Before we ask how much
+to trust it, let's look at what `lm()` is actually doing.
+
+## The model and the data
+
+The linear model says each observed body weight is the population mean at that
+heart girth plus a random error:
+
+$$
+y_i=\alpha+\beta x_i +\varepsilon_i, \qquad i = 1, \ldots, n.
+$$
+
+- $y_i$ is the response and $x_i$ the predictor for donkey $i$.
+- $\alpha$ and $\beta$ are the population coefficients: fixed, but unknown.
+- $\varepsilon_i$ is the **error**: how far donkey $i$ sits from the population
+  mean line. We never observe it, because we never observe the population line.
+
+. . .
+
+What we can calculate is a **residual**: how far donkey $i$ sits from *our
+fitted* line, $\hat\varepsilon_i = y_i - \hat y_i$. Errors belong to the
+model; residuals belong to the fitted line.
+
+## Minimising the squared residuals
+
+Pick any trial intercept and slope, $\tilde\alpha$ and $\tilde\beta$. Each trial
+line gives fitted values $\tilde\alpha + \tilde\beta x_i$ and its own set of
+residuals.
+
+With two points we could draw a line through both and every residual would be
+zero. With 385 donkeys no line goes through every point, so we need one number
+that scores how well a line does overall.
+
+. . .
+
+**Least squares** scores a line by its residual sum of squares, and picks the
+line with the smallest score:
+
+$$
+\mathrm{RSS}(\tilde\alpha, \tilde\beta)=\sum_{i=1}^n \bigl[y_i - (\tilde\alpha + \tilde\beta x_i)\bigr]^2 .
+$$
+
+The winning values get hats, $\hat\alpha$ and $\hat\beta$: they are the
+**least-squares estimates**. Tildes are guesses, hats are what least squares
+picks, and no decoration means the population value.
+
+## Estimators vs estimates: a two-point example
+
+Take the simplest case we can do by hand: a line **through the origin**,
+$y = \beta x + \varepsilon$, and two points $(x_1, y_1)$ and $(x_2, y_2)$.
+
+$$
+\mathrm{RSS}(\tilde\beta)=(y_1-\tilde\beta x_1)^2+(y_2-\tilde\beta x_2)^2
+=(x_1^2+x_2^2)\,\tilde\beta^2-2(x_1y_1+x_2y_2)\,\tilde\beta+(y_1^2+y_2^2).
+$$
+
+. . .
+
+That is a parabola in $\tilde\beta$ that opens upwards. A parabola
+$a\tilde\beta^2 - 2b\tilde\beta + c$ is lowest at $\tilde\beta = b/a$, so
+
+$$
+\hat\beta=\frac{x_1y_1+x_2y_2}{x_1^2+x_2^2}.
+$$
+
+This formula is the **least-squares estimator**. It is a rule that works for any
+two points.
+
+## Try it out
+
+Suppose $(x_1,y_1)=(1,2)$ and $(x_2,y_2)=(2,3)$:
+
+$$
+\hat\beta=\frac{1\cdot2+2\cdot3}{1^2+2^2}=\frac{8}{5}=1.6 .
+$$
+
+1.6 is the **estimate**: the number we get by applying the estimator to these
+data. R agrees (the `0 +` removes the intercept):
+
+```{r two-point-check, echo=TRUE}
+toy <- data.frame(x = c(1, 2), y = c(2, 3))
+coef(lm(y ~ 0 + x, data = toy))
+```
+
+```{r two-point-stop, include=FALSE}
+stopifnot(isTRUE(all.equal(unname(coef(lm(y ~ 0 + x, data = toy))), 1.6)))
+```
+
+. . .
+
+An estimator is a method; an estimate is the result of using it on one data
+set. `lm()` has the estimators built in, and `summary()` reports the estimates.
+
+## The line with an intercept
+
+The same idea, minimising RSS over both $\tilde\alpha$ and $\tilde\beta$, gives
+the estimators for the line with an intercept:
+
+$$
+\hat\beta=\frac{\sum_{i=1}^n (x_i-\bar x)(y_i-\bar y)}{\sum_{i=1}^n (x_i-\bar x)^2},
+\qquad
+\hat\alpha=\bar y-\hat\beta\,\bar x .
+$$
+
+We won't derive these, but we can check they are what `lm()` uses:
+
+```{r by-hand-coefficients, echo=TRUE}
+x <- donkey$Heartgirth
+y <- donkey$Bodywt
+beta_hat  <- sum((x - mean(x)) * (y - mean(y))) / sum((x - mean(x))^2)
+alpha_hat <- mean(y) - beta_hat * mean(x)
+c(alpha_hat, beta_hat)
+coef(mod)
+```
+
+```{r by-hand-stop, include=FALSE}
+stopifnot(isTRUE(all.equal(unname(coef(mod)), c(alpha_hat, beta_hat))))
+```
+
+# Why do estimates vary? {.center}
+
+## The estimator is a random variable
+
+Go back to the two-point line through the origin. Substitute
+$y_i = \beta x_i + \varepsilon_i$ into the estimator:
+
+$$
+\hat\beta=\frac{x_1(\beta x_1+\varepsilon_1)+x_2(\beta x_2+\varepsilon_2)}{x_1^2+x_2^2}
+=\beta+\frac{x_1\varepsilon_1+x_2\varepsilon_2}{x_1^2+x_2^2}.
+$$
+
+. . .
+
+The estimate is the true slope plus a disturbance made from the errors. A new
+sample gives new errors, so it gives a different $\hat\beta$. That is
+**sampling variation**: $\hat\beta$ varies over repeated comparable samples,
+while $\beta$ stays fixed.
+
+## What the errors do to the estimator
+
+Treat the $x$ values as fixed and look at the disturbance.
+
+- If the errors average zero, $E(\varepsilon_i)=0$, the disturbance averages
+  zero too, so $E(\hat\beta)=\beta$. Least squares is **unbiased**: across
+  repeated samples it doesn't systematically guess too high or too low.
+- If the errors are also independent with the same variance $\sigma^2$, then
+  $$
+  \mathrm{Var}(\hat\beta)=\frac{x_1^2\sigma^2+x_2^2\sigma^2}{(x_1^2+x_2^2)^2}
+  =\frac{\sigma^2}{x_1^2+x_2^2}.
+  $$
+- Noisier data (bigger $\sigma$) make the slope less certain. More data, or
+  more spread-out $x$ values, make it more certain.
+
+. . .
+
+Notice that independence and equal variance were needed for that variance
+formula. That is why the assumptions matter for standard errors.
+
+## Seeing sampling variation
+
+Let's pretend our 385 donkeys are the whole population. Take 1,000 random
+samples of 40 donkeys, fit the line to each, and keep the slope.
+
+```{r sampling-slopes, fig.height=4.2}
+set.seed(297101)
+sample_slopes <- replicate(1000, {
+  rows <- sample(nrow(donkey), 40)
+  coef(lm(Bodywt ~ Heartgirth, data = donkey[rows, ]))[["Heartgirth"]]
+})
+
+ggplot(tibble(slope = sample_slopes), aes(slope)) +
+  geom_histogram(bins = 30, fill = "#7f5774", colour = "white") +
+  geom_vline(xintercept = coef(mod)[["Heartgirth"]], colour = "#D55E00",
+             linewidth = 1) +
+  labs(x = "Fitted heart-girth slope (kg per cm), samples of 40",
+       y = "Number of samples")
+```
+
+The slopes centre on the "population" slope (orange) with a roughly normal
+shape. That histogram is a picture of the **sampling distribution** of the
+slope estimator.
+
+# The linear model's assumptions {.center}
+
+## Stating the model fully
+
+$$
+y_i=\alpha+\beta x_i +\varepsilon_i, \qquad i=1,\ldots,n,
+$$
+
+with conditions on the errors:
+
+- **L**inearity: $E(\varepsilon_i)=0$ at every $x$, so the population mean of
+  $y$ really is the straight line $\alpha+\beta x$.
+- **I**ndependence: one donkey's error tells us nothing about another's.
+- **E**qual variance: $\mathrm{Var}(\varepsilon_i)=\sigma^2$, the same at every $x$.
+
+These three are the **Gauss–Markov conditions**. Under them, least squares is
+unbiased and the usual standard errors are correct.
+
+. . .
+
+- **N**ormality: $\varepsilon_i \sim \mathrm{Normal}(0,\sigma^2)$.
+
+Adding normality gives the exact t and F distributions behind p-values and
+confidence intervals, even in small samples. Together:
+$\varepsilon_i \overset{\text{iid}}{\sim} \mathrm{Normal}(0,\sigma^2)$.
+
+## Why do we need assumptions?
+
+- Least squares will fit a line to any data. The assumptions are what let us
+  say how far that line is likely to be from the population line.
+- If an assumption fails, the fitted line may still be useful, but the standard
+  errors, p-values and intervals can be wrong, sometimes badly.
+- Some failures matter more than others. Dependence and the wrong mean shape are
+  usually more serious than mild non-normality in a large sample.
+
+We can never prove the assumptions hold. In Part 3 we use residuals to look for
+evidence that they don't.
+
+# From sampling distribution to inference {.center}
+
+## Standard error
+
+We can't take 1,000 samples in real life. We have one sample, so we estimate
+the spread of the sampling distribution from it. That estimate is the
+**standard error**.
+
+For the line with an intercept,
+
+$$
+\mathrm{SE}(\hat\beta)=\frac{\hat\sigma}{\sqrt{\sum_{i=1}^n (x_i-\bar x)^2}},
+$$
+
+where $\hat\sigma$ is the residual standard error, our estimate of $\sigma$.
+It has the same shape as the two-point formula: noisier data make the SE
+larger, and more information in $x$ makes it smaller.
+
+. . .
+
+This is the link we need for inference:
+
+$$
+\text{estimate} \rightarrow \text{standard error} \rightarrow
+\text{t statistic} \rightarrow \text{p-value or confidence interval}.
+$$
+
+## A coefficient is an estimate
+
+Let's read the coefficient table for the heart-girth model. The slope is the
+estimated change in mean body weight, in kilograms, for a one-centimetre
+difference in heart girth.
+
+```{r coefficient-output}
+summary(mod)$coefficients
+sigma(mod)
+```
+
+```{r se-check, include=FALSE}
+se_by_hand <- sigma(mod) / sqrt(sum((x - mean(x))^2))
+stopifnot(isTRUE(all.equal(se_by_hand,
+                           summary(mod)$coefficients["Heartgirth", "Std. Error"])))
+```
+
+The standard error, `r round(summary(mod)$coefficients["Heartgirth", "Std. Error"], 3)`,
+describes sampling variation in the slope estimate. It is not the spread of
+individual donkey weights around the line; that is the residual standard error,
+`r round(sigma(mod), 1)` kg.
+
+## What does the slope p-value test?
+
+The t statistic measures how many standard errors the estimate is from zero:
+
+$$
+t=\frac{\hat\beta - 0}{\mathrm{SE}(\hat\beta)}
+=\frac{`r round(coef(mod)[["Heartgirth"]], 3)`}{`r round(summary(mod)$coefficients["Heartgirth", "Std. Error"], 4)`}
+\approx `r round(summary(mod)$coefficients["Heartgirth", "t value"], 1)`.
+$$
+
+The test starts from $H_0:\beta=0$, no linear relationship in the population.
+Under $H_0$ and the model assumptions, $t$ follows a t distribution with
+$n-2$ degrees of freedom. The p-value is the probability of a $t$ at least as
+extreme as ours if $H_0$ were true.
+
+. . .
+
+A small p-value is evidence against a zero slope. It does not tell us the
+probability that the null is true, how accurate individual predictions are, or
+whether heart girth causes body weight.
+
+## A range for the population slope
+
+A 95% confidence interval is estimate $\pm$ critical value $\times$ SE:
+
+$$
+\hat\beta \pm t_{0.975,\,n-2}\,\mathrm{SE}(\hat\beta).
+$$
+
+```{r coefficient-interval}
+#| echo: true
+#| code-fold: false
+confint(mod, parm = "Heartgirth")
+```
+
+```{r ci-check, include=FALSE}
+se_slope <- summary(mod)$coefficients["Heartgirth", "Std. Error"]
+ci_by_hand <- coef(mod)[["Heartgirth"]] + c(-1, 1) * qt(0.975, df.residual(mod)) * se_slope
+stopifnot(isTRUE(all.equal(unname(confint(mod, parm = "Heartgirth")[1, ]), ci_by_hand)))
+```
+
+In repeated comparable samples, the interval procedure would contain the
+population slope about 95% of the time. An interval that excludes zero agrees
+with rejecting $H_0:\beta=0$ at the 5% level. We do not say there is a 95%
+probability that this particular fixed slope lies in this particular interval.
+
+# Predicting with uncertainty {.center}
+
+## The mean, or one donkey?
+
+At a heart girth of 120 cm, what is the estimated **average** body weight? And
+what range might contain the weight of **one new donkey** at 120 cm?
+
+Both questions use the same fitted value. The second has an extra source of
+uncertainty, because individual donkeys vary around their mean.
+
+## Ask R for the interval you mean
+
+Use `interval = "confidence"` for uncertainty in the mean weight at 120 cm,
+and `interval = "prediction"` for one new donkey's weight at 120 cm.
+
+The prediction interval is wider because it adds residual variation to the
+uncertainty in the fitted mean. Both intervals depend on the model and its
+assumptions; neither is a promise about a particular donkey.
+
+```{r prediction-intervals}
+#| echo: true
+#| code-fold: false
+new_donkey <- data.frame(Heartgirth = 120)
+
+predict(mod, newdata = new_donkey, interval = "confidence")
+predict(mod, newdata = new_donkey, interval = "prediction")
+```
+
+## Which interval answers the question?
+
+Choose the target first: the average outcome at a specified predictor value, or
+one new individual outcome. Predict which interval should be wider, then reveal
+both.
+
+Move the predictor value toward the edge of the observed range. What happens to
+uncertainty in the fitted mean?
+
+```{ojs}
+//| echo: false
+predictionIntervalLab({ Inputs, Plot })
+```
+
+## Summary
+
+- Least squares picks the line with the smallest residual sum of squares. The
+  formula is the estimator; the numbers it gives for our donkeys are estimates.
+- Errors are deviations from the population line and are never observed.
+  Residuals are deviations from our fitted line.
+- A new sample gives a new fitted line. The standard error estimates how much
+  the slope would vary across those samples.
+- L, I and E (the Gauss–Markov conditions) make least squares unbiased and the
+  standard errors right. N gives exact t-based p-values and intervals.
+- A confidence interval for the mean is narrower than a prediction interval
+  for one new donkey.
+
+. . .
+
+**All of this leans on the assumptions. In Part 3 we check them.**

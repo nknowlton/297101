@@ -1,0 +1,446 @@
+---
+title: "297.101 Week 10: Multiple Regression"
+subtitle: "Several numeric predictors, adjusted slopes and F tests"
+author: Dr. Nick Knowlton
+format:
+  revealjs:
+    code-copy: hover
+    embed-resources: true
+    css:
+      - "knowlton.css"
+    theme: sky
+    slide-number: true
+    incremental: true
+    smaller: true
+    html-math-method:
+      method: mathjax
+      url: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js
+    highlight-style: breezedark
+    highlight-lines: true
+    progress: true
+    logo: graphics/660491-ls_black_whitoutunz.png
+execute:
+  output: true
+  eval: true
+  code-fold: true
+editor:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(broom)
+library(knitr)
+library(ggplot2)
+theme_set(theme_bw(base_size = 15))
+
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 8,
+  fig.height = 5,
+  out.width = "100%"
+)
+
+# Quarto may execute from the repository root or the lecture directory.
+donkey_file <- if (file.exists("data/donkey.csv")) {
+  "data/donkey.csv"
+} else {
+  "../data/donkey.csv"
+}
+
+donkey <- readr::read_csv(donkey_file, show_col_types = FALSE)
+
+heart_model  <- lm(Bodywt ~ Heartgirth, data = donkey)
+height_model <- lm(Bodywt ~ Height, data = donkey)
+length_model <- lm(Bodywt ~ Heartgirth + Length, data = donkey)
+full_model   <- lm(Bodywt ~ Heartgirth + Length + Height, data = donkey)
+
+b <- function(model, term) unname(coef(model)[term])
+p <- function(model, term) summary(model)$coefficients[term, "Pr(>|t|)"]
+r2 <- function(model) summary(model)$r.squared
+adj <- function(model) summary(model)$adj.r.squared
+```
+
+## Learning outcomes
+
+By the end of this lecture, you should be able to:
+
+- fit a linear model with several numeric predictors;
+- interpret an adjusted slope, holding the other predictors fixed;
+- explain why a slope can change when another predictor is added;
+- use the overall F test and a nested-model F test;
+- compare ordinary and adjusted R² across models fitted to the same response; and
+- make predictions and check assumptions for a multiple regression.
+
+# Back to the Moroccan donkeys {.center}
+
+![](./graphics/donkey_morocco.jpg){fig-align="center" width="82%"}
+
+## One predictor was a start
+
+Last week we fitted body weight against heart girth. The line accounts for
+`r round(100 * r2(heart_model))`% of the variation in body weight, and
+individual donkeys sit about `r round(sigma(heart_model), 1)` kg from it.
+
+```r
+Bodywt ~ Heartgirth
+```
+
+. . .
+
+Donkeys with the same heart girth still differ in weight. We also measured
+their length and height. Can those measurements explain some of what heart
+girth leaves behind?
+
+## The other measurements
+
+```{r other-measurements, fig.height=4}
+donkey |>
+  pivot_longer(c(Length, Height), names_to = "measurement", values_to = "cm") |>
+  ggplot(aes(cm, Bodywt)) +
+  geom_point(col = "#7f577492") +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ measurement, scales = "free_x") +
+  labs(x = "Measurement (cm)", y = "Body weight (kg)")
+```
+
+Both go up with body weight. But they also go up with heart girth:
+
+```{r predictor-correlations}
+donkey |>
+  select(Bodywt, Heartgirth, Length, Height) |>
+  cor() |>
+  round(2)
+```
+
+## Add length to the model
+
+We add `Length` with a `+`:
+
+```{r length-model, echo=TRUE}
+length_model <- lm(Bodywt ~ Heartgirth + Length, data = donkey)
+tidy(length_model)
+```
+
+. . .
+
+The model for the mean now has two slopes:
+
+$$
+\mathsf{Mean}[\mathrm{Bodywt}] = \beta_0 + \beta_1\,\mathrm{Heartgirth} + \beta_2\,\mathrm{Length}.
+$$
+
+## What does each slope mean now?
+
+- The **Heartgirth** coefficient, `r round(b(length_model, "Heartgirth"), 2)` kg
+  per cm, compares donkeys whose heart girths differ by 1 cm **but have the same
+  length**.
+- The **Length** coefficient, `r round(b(length_model, "Length"), 2)` kg per cm,
+  compares donkeys whose lengths differ by 1 cm **but have the same heart girth**.
+
+. . .
+
+Each slope is an **adjusted** comparison: it answers its question after
+accounting for the other predictor. That is what "holding the others fixed"
+means.
+
+. . .
+
+The heart-girth slope was `r round(b(heart_model, "Heartgirth"), 2)` on its
+own and is `r round(b(length_model, "Heartgirth"), 2)` now. Why would it change?
+
+## Why did the heart-girth slope change?
+
+On its own, the heart-girth slope compares donkeys that differ in heart girth.
+Those donkeys also tend to differ in length (correlation
+`r round(cor(donkey$Heartgirth, donkey$Length), 2)`), so part of that slope
+was really length.
+
+. . .
+
+Once length is in the model, the heart-girth slope only gets credit for the
+weight difference that goes with heart girth **at a fixed length**. Neither
+slope is wrong; they answer different questions.
+
+## One slope, shifted lines
+
+Hold length at three values and plot the fitted mean against heart girth:
+
+```{r shifted-lines, fig.height=4.5}
+grid <- expand_grid(
+  Heartgirth = seq(90, 135, by = 1),
+  Length = c(75, 85, 95)
+)
+grid$fitted <- predict(length_model, newdata = grid)
+
+ggplot(donkey, aes(Heartgirth, Bodywt)) +
+  geom_point(colour = "#00000040") +
+  geom_line(data = grid, aes(y = fitted, colour = factor(Length)),
+            linewidth = 1) +
+  labs(x = "Heart girth (cm)", y = "Body weight (kg)",
+       colour = "Length held at (cm)")
+```
+
+The lines are parallel: each extra centimetre of length lifts the whole line by
+`r round(b(length_model, "Length"), 2)` kg. This model has no way to let the
+heart-girth slope depend on length.
+
+## Now add height
+
+On its own, height looks like a strong predictor:
+
+```{r height-alone}
+tidy(height_model)
+```
+
+. . .
+
+```{r full-model, echo=TRUE}
+full_model <- lm(Bodywt ~ Heartgirth + Length + Height, data = donkey)
+tidy(full_model)
+```
+
+```{r full-model-checks, include=FALSE}
+stopifnot(
+  b(full_model, "Height") < b(height_model, "Height") / 5,
+  p(full_model, "Height") > 0.05
+)
+```
+
+## What happened to height?
+
+Height alone: `r round(b(height_model, "Height"), 2)` kg per cm. At the same
+heart girth and length: `r round(b(full_model, "Height"), 2)` kg per cm, with
+p = `r round(p(full_model, "Height"), 3)`.
+
+. . .
+
+Taller donkeys are heavier, but taller donkeys also have bigger heart girths
+and longer bodies. Once those are held fixed, height has little extra to say.
+The raw slope and the adjusted slope are both correct; they compare different
+donkeys.
+
+. . .
+
+When predictors are strongly correlated, we call it **collinearity**. It makes
+adjusted slopes harder to estimate: the heart-girth standard error goes from
+`r round(summary(heart_model)$coefficients["Heartgirth", "Std. Error"], 3)`
+on its own to
+`r round(summary(full_model)$coefficients["Heartgirth", "Std. Error"], 3)`
+here, because there are fewer donkeys that differ in heart girth but not in
+height and length.
+
+## Estimates have uncertainty
+
+The coefficient table reads exactly as it did last week, but each row is now an
+adjusted comparison.
+
+```{r full-ci, echo=TRUE}
+tidy(full_model, conf.int = TRUE) |>
+  select(term, estimate, std.error, p.value, conf.low, conf.high)
+```
+
+. . .
+
+The Height row tests $H_0: \beta_{\mathrm{Height}} = 0$ **given heart girth and
+length are in the model**. Its interval runs from
+`r round(confint(full_model)["Height", 1], 2)` to
+`r round(confint(full_model)["Height", 2], 2)` kg per cm. That large p-value is
+not evidence that height is unrelated to weight; we just saw it is, on its own.
+
+# F tests {.center}
+
+## The overall F test
+
+The bottom of `summary()` has a line we haven't used yet:
+
+```{r overall-f}
+full_f <- summary(full_model)$fstatistic
+cat(sprintf("F-statistic: %.1f on %d and %d DF", full_f[1], full_f[2], full_f[3]))
+```
+
+It tests whether **all** the slopes are zero together:
+
+$$
+H_0:\ \beta_{\mathrm{Heartgirth}} = \beta_{\mathrm{Length}} = \beta_{\mathrm{Height}} = 0 .
+$$
+
+. . .
+
+That is: is this model better than predicting every donkey's weight with the
+overall mean? For body measurements and body weight the answer was never in
+doubt. The overall F test is a low bar.
+
+## Comparing two models
+
+A more useful question: does adding a **set** of predictors improve on a
+smaller model? Compare heart girth alone with heart girth + length + height.
+The smaller model must be the bigger one with some terms removed; we call it
+**nested**.
+
+```{r nested-f, echo=TRUE}
+anova(heart_model, full_model)
+```
+
+```{r nested-f-values, include=FALSE}
+nested <- anova(heart_model, full_model)
+```
+
+## What the F statistic measures
+
+$$
+F = \frac{(\mathrm{RSS}_{\text{small}} - \mathrm{RSS}_{\text{big}})\,/\,\text{extra coefficients}}
+{\mathrm{RSS}_{\text{big}}\,/\,\text{residual df of big model}}
+$$
+
+- The top is how much the residual sum of squares dropped, per extra coefficient.
+- The bottom is the leftover variation per residual degree of freedom.
+
+. . .
+
+Here $F(`r nested$Df[2]`, `r nested$Res.Df[2]`) = `r round(nested$F[2], 1)`$:
+the drop is far bigger than we would expect from adding two useless predictors.
+Under $H_0$ that both added slopes are zero (and L-I-N-E), $F$ follows an F
+distribution, which gives the p-value.
+
+## One predictor at a time
+
+Now test adding height to heart girth + length:
+
+```{r height-f, echo=TRUE}
+anova(length_model, full_model)
+```
+
+```{r height-f-check, include=FALSE}
+height_f <- anova(length_model, full_model)
+height_t <- summary(full_model)$coefficients["Height", "t value"]
+stopifnot(
+  isTRUE(all.equal(height_t^2, height_f$F[2])),
+  isTRUE(all.equal(p(full_model, "Height"), height_f$`Pr(>F)`[2]))
+)
+```
+
+. . .
+
+$F = `r round(height_f$F[2], 2)`$ and the Height t statistic is
+$t = `r round(height_t, 3)`$. Square it: $t^2 = `r round(height_t^2, 2)`$.
+The p-values match too. **With one coefficient being tested, $F = t^2$.**
+With two or more, the F test asks about them together.
+
+# Does every extra term help? {.center}
+
+## Ordinary and adjusted R²
+
+```{r model-fit}
+model_fit <- bind_rows(
+  glance(heart_model)  |> mutate(model = "Heart girth"),
+  glance(length_model) |> mutate(model = "Heart girth + length"),
+  glance(full_model)   |> mutate(model = "Heart girth + length + height")
+) |>
+  select(model, nobs, r.squared, adj.r.squared, sigma)
+
+stopifnot(n_distinct(model_fit$nobs) == 1)
+
+model_fit |> kable(digits = 3)
+```
+
+Ordinary R² cannot fall when we add terms to a model fitted to the same
+observations. Adjusted R² asks whether the improvement is large enough to
+justify estimating another coefficient.
+
+## Why adjusted R² can go down
+
+Adjusted R² applies a penalty for estimating more coefficients:
+
+$$
+R^2_{\mathrm{adj}} = 1 - (1-R^2)\frac{n-1}{n-p-1},
+$$
+
+where $n$ is the number of donkeys and $p$ is the number of slopes. Adding a
+term increases $p$, so $R^2$ must rise enough to offset the larger fraction.
+
+. . .
+
+Length earns its place: adjusted R² goes from `r round(adj(heart_model), 3)`
+to `r round(adj(length_model), 3)`. Height barely moves it
+(`r round(adj(full_model), 3)`). That does **not** prove height has no
+scientific importance, and adjusted R² is not a test. The F test for adding
+height is the test.
+
+# Predicting and checking {.center}
+
+## Predict with several predictors
+
+Give `predict()` a value for **every** predictor in the model. A donkey with a
+heart girth of 115 cm and a length of 90 cm:
+
+```{r mlr-predict, echo=TRUE}
+new_donkey <- data.frame(Heartgirth = 115, Length = 90)
+
+predict(length_model, newdata = new_donkey, interval = "confidence")
+predict(length_model, newdata = new_donkey, interval = "prediction")
+```
+
+The confidence and prediction intervals mean what they did last week: the
+average donkey with these measurements, versus one new donkey.
+
+## Watch the combination
+
+Each value can be inside its observed range while the **combination** is not.
+Heart girth and length are correlated, so a short donkey with a big heart girth
+might be a combination we never measured. Where does our new donkey (blue) sit?
+
+```{r combination-plot, fig.height=4.2}
+ggplot(donkey, aes(Heartgirth, Length)) +
+  geom_point(colour = "#00000060") +
+  annotate("point", x = 115, y = 90, colour = "#0072B2", size = 4) +
+  labs(x = "Heart girth (cm)", y = "Length (cm)")
+```
+
+Before trusting a prediction, check the point sits among the data you fitted.
+
+## Checking the assumptions
+
+L-I-N-E still applies, and the residual plots work the same way. Start with
+residuals against fitted values:
+
+```{r mlr-resid-fitted, fig.height=5}
+plot(length_model, which = 1, pch = 19, col = "#00000080")
+```
+
+## Residuals against each predictor
+
+With several predictors, also plot the residuals against each one. A curve
+against one predictor suggests that predictor's straight-line term is the
+wrong shape.
+
+```{r mlr-resid-predictors, fig.height=4}
+augment(length_model) |>
+  pivot_longer(c(Heartgirth, Length), names_to = "predictor", values_to = "value") |>
+  ggplot(aes(value, .resid)) +
+  geom_point(colour = "#00000060") +
+  geom_hline(yintercept = 0, colour = "#0072B2") +
+  geom_smooth(se = FALSE, colour = "#D55E00") +
+  facet_wrap(~ predictor, scales = "free_x") +
+  labs(x = "Predictor value (cm)", y = "Residual (kg)")
+```
+
+## Summary
+
+- Add predictors with `+`. Each slope is then an adjusted comparison, holding
+  the other predictors fixed.
+- A slope can shrink, grow or vanish when another correlated predictor is
+  added. Raw and adjusted slopes answer different questions.
+- The overall F test asks whether any slope is non-zero. `anova(small, big)`
+  asks whether a set of added predictors improves a nested model. With one
+  added coefficient, $F = t^2$.
+- Ordinary R² can't go down when terms are added; adjusted R² can.
+- Predictions need a value for every predictor, at a combination the data
+  actually cover. Check residuals against fitted values and each predictor.
+
+. . .
+
+**Next week: what if a predictor is a category, like sex or age group, instead
+of a number?**
