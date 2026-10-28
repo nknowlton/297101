@@ -88,13 +88,18 @@ jobs:
           cp labs/Workshop_Week12_Assumptions_guide.html _site/labs/
 
           cp labs/Workshop_Week10_Relationships.qmd _site/labs/
+          cp labs/Workshop_Week10_Relationships_guide.qmd _site/labs/
           cp labs/Workshop_Week11_Testing.qmd _site/labs/
+          cp labs/Workshop_Week11_Testing_guide.qmd _site/labs/
           cp labs/Workshop_Week12_Assumptions.qmd _site/labs/
+          cp labs/Workshop_Week12_Assumptions_guide.qmd _site/labs/
           cp labs/nz_vehicles_2025.csv _site/labs/
           cp labs/coffee_tasting_example.csv _site/labs/
           cp labs/coffee_tasting_balanced.csv _site/labs/
           mkdir -p _site/labs/regression
           cp labs/regression/cancer_data.csv _site/labs/regression/
+          cp labs/sensor_calibration_2026.csv _site/labs/
+          cp labs/auckland_rentals_2026.csv _site/labs/
 
       - name: Verify Pages artifact
         run: |
@@ -111,8 +116,18 @@ jobs:
             _site/labs/Workshop_Week11_Testing_guide.html
             _site/labs/Workshop_Week12_Assumptions.html
             _site/labs/Workshop_Week12_Assumptions_guide.html
+            _site/labs/Workshop_Week10_Relationships.qmd
+            _site/labs/Workshop_Week10_Relationships_guide.qmd
+            _site/labs/Workshop_Week11_Testing.qmd
+            _site/labs/Workshop_Week11_Testing_guide.qmd
+            _site/labs/Workshop_Week12_Assumptions.qmd
+            _site/labs/Workshop_Week12_Assumptions_guide.qmd
+            _site/labs/nz_vehicles_2025.csv
+            _site/labs/regression/cancer_data.csv
             _site/labs/coffee_tasting_example.csv
             _site/labs/coffee_tasting_balanced.csv
+            _site/labs/sensor_calibration_2026.csv
+            _site/labs/auckland_rentals_2026.csv
           )
           for file in "${required[@]}"; do
             test -f "$file"
@@ -121,6 +136,9 @@ jobs:
           grep -q 'View the worked solutions online' _site/labs/Workshop_Week10_Relationships.html
           grep -q 'View the worked solutions online' _site/labs/Workshop_Week11_Testing.html
           grep -q 'View the worked solutions online' _site/labs/Workshop_Week12_Assumptions.html
+
+      - name: Generate sitemap
+        run: python3 scripts/generate_sitemap.py
 
       - uses: actions/upload-pages-artifact@v5
         with:

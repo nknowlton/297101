@@ -79,7 +79,7 @@ library(broom)
 library(performance)
 library(see)
 
-cancer <- read_csv("regression/cancer_data.csv", show_col_types = FALSE)
+cancer <- read_csv("https://knowlton.co.nz/297101/labs/regression/cancer_data.csv", show_col_types = FALSE)
 
 cancer_model_data <- cancer |>
   select(
