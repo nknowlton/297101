@@ -1,6 +1,6 @@
 ---
-title: "Workshop Week 12: Inference and Assumptions"
-subtitle: "Answer guide: uncertainty, intervals and diagnostics"
+title: "Workshop Week 10: Multiple Regression"
+subtitle: "Student workbook: adjusted slopes, F tests, intervals and diagnostics"
 author:
   - name: "Nick Knowlton"
   - name: "297.101 Statistical Data Science"
@@ -20,20 +20,14 @@ editor:
     wrap: 72
 ---
 
-This guide follows Workshop_Week12_Assumptions.qmd. It contains the completed
-code and interpretations.
+Last week we used vehicle data to fit simple regression models, put standard
+errors, p-values and intervals on them, and checked their assumptions with
+residual plots. This week we put more than one numeric predictor into the same
+model. Each slope then becomes an adjusted comparison, and we need F tests to
+ask whether a predictor adds anything to the others.
 
-In Week 10 we used vehicle data to fit simple regression models, interpret
-coefficients and $R^2$, and make fitted predictions. In Week 11 we extended
-those models to multiple regression, adjusted comparisons and adjusted $R^2$,
-and introduced standard errors and p-values for fitted coefficients. This week
-we apply those ideas to a new dataset and ask a harder question: how much can we
-trust the model's estimates and predictions?
-
-We will use county-level lung-cancer mortality data to introduce confidence
-intervals, prediction intervals and regression diagnostics. We use a new
-dataset this week so you can apply the same regression workflow in a different
-setting.
+We will use county-level lung-cancer mortality data. We use a new dataset this
+week so you can apply the same regression workflow in a different setting.
 
 The data come from a broader project that combined county socioeconomic and
 cancer information. Noah Rippner's
@@ -43,26 +37,36 @@ joins let us examine the same county's socioeconomic conditions and mortality,
 although the resulting associations do not establish causes or describe
 individual people.
 
-This workshop asks how uncertain the model estimates are and whether the
-model's assumptions are reasonable.
+This workshop asks what each predictor adds once the other is in the model, how
+uncertain the estimates are, and whether the model's assumptions are reasonable.
 
 ## Today's question
 
-How well can we trust our model's estimates and predictions of county
-lung-cancer mortality?
+What does poverty tell us about county lung-cancer mortality once incidence is
+taken into account, and how far can we trust the model?
 
 ## Learning objectives
 
 By the end of this workshop you should be able to:
 
-- explain that a fitted coefficient varies across repeated comparable samples;
-- use standard errors to interpret uncertainty in regression coefficients;
-- interpret confidence intervals and hypothesis tests;
+- interpret each slope in a multiple regression while holding the other
+  predictor fixed;
+- explain why a slope can change when another predictor is added;
+- interpret confidence intervals and hypothesis tests for adjusted slopes;
+- use the overall F test and `anova()` to compare nested models;
 - distinguish confidence intervals for an average from prediction intervals for
   an individual county;
 - interpret supplied LINE diagnostic plots and use study design to assess a
   model; and
 - evaluate one transformed alternative without relying on R-squared alone.
+
+## How to use this workbook
+
+Work through the sections in order. Run each supplied demonstration and inspect
+its output or plot before moving on. In each **Your turn** section, write your
+own code in the blank chunk, then record your interpretation beside the prompt.
+Hints appear when a function or idea is first introduced; later tasks expect
+you to reuse it. The supplied code loads the data directly from knowlton.co.nz.
 
 ## 1. Fit and understand one primary cancer model
 
@@ -102,10 +106,6 @@ cancer_model_data <- cancer |>
 glimpse(cancer_model_data)
 ```
 
-There are 2,562 complete counties after the incidence-rate filter. The
-predictor ranges are approximately 2.60–46.49% poverty and 13.5–203.7
-incidence cases per 100,000.
-
 ### Demonstration: fit the primary model
 
 ```{r}
@@ -122,25 +122,16 @@ From the output, name the response and both predictors. Find each slope and
 interpret its units while holding the other predictor fixed. Then distinguish
 the coefficient estimate from its standard error.
 
-The population coefficients are fixed but unknown. If we repeated the same
-study with another comparable set of counties, the fitted coefficients would
-change slightly because the observed outcomes would change. The standard error
-estimates the spread of those possible coefficient estimates under the model.
-Which slope is estimated more precisely relative to its size?
+Imagine repeating the same study with another comparable set of counties. The
+population coefficient would be unchanged, but the fitted coefficient would not
+be exactly the same. The standard error estimates the spread of those possible
+coefficient estimates under the model. Which slope is estimated more precisely
+relative to its size?
 
-The fitted model is approximately
-
-$$
-\widehat{\mathrm{mortality}} =
-2.527 + 0.265(\mathrm{poverty\ percent}) +
-0.665(\mathrm{incidence\ rate}).
-$$
-
-The poverty coefficient is the estimated mortality difference for a one
-percentage-point poverty difference among counties with the same incidence.
-The incidence coefficient is the estimated mortality difference for one
-additional incidence case per 100,000 among counties with the same poverty.
-Both are adjusted associations.
+The poverty coefficient is the estimated difference in mortality for a
+one-percentage-point difference in poverty among counties with the same
+incidence rate. The incidence coefficient is interpreted similarly while
+holding poverty constant. These are associations, not causal effects.
 
 ### Your turn: identify what the coefficients mean
 
@@ -151,25 +142,13 @@ its size? If the study were repeated with another comparable sample, which
 quantities here are fixed population parameters and which fitted quantities
 would change?
 
-The response is lung-cancer mortality in deaths per 100,000. Poverty is a
-percentage and incidence is cases per 100,000. The incidence slope is estimated
-more precisely relative to its size: its standard error is about 0.008 versus
-an estimate about 0.665, while the poverty standard error is about 0.023 versus
-an estimate about 0.265.
-
-The population coefficients are fixed but unknown. The fitted coefficient
-estimates would change across repeated comparable samples, as would their
-standard errors. A standard error describes sampling uncertainty in a
-coefficient; the residual standard deviation (about 6.88 deaths per 100,000)
-describes county-to-county scatter around the fitted model.
-
 ### A quick return to $R^2$ and adjusted $R^2$
 
 **What to do:** Compare ordinary $R^2$ and adjusted $R^2$ for the fitted
 model. Recall that ordinary $R^2$ cannot decrease when predictors are added,
 even if the new predictor contributes little. Adjusted $R^2$ applies a
-penalty for additional model terms, so it can decrease when extra complexity is
-not justified by improved fit.
+penalty for additional model terms, so it can decrease when extra complexity
+is not justified by improved fit.
 
 ```{r}
 glance(cancer_model) |>
@@ -181,15 +160,6 @@ added, while adjusted $R^2$ can decrease? What would it suggest if $R^2$
 increased but adjusted $R^2$ decreased?
 
 **Hint:** Compare what the two measures reward when a model gains another term.
-
-Ordinary $R^2$ rewards any improvement in in-sample fit, whereas adjusted $R^2$
-also penalises additional model terms. If $R^2$ rises but adjusted $R^2$ falls,
-the new predictor has not improved the fit enough to justify the extra
-complexity.
-
-Adjusted $R^2$ is useful when comparing models with different numbers of
-predictors, but it is still an in-sample summary. It does not replace checking
-residuals or assumptions.
 
 ## 2. Confidence intervals and coefficient p-values
 
@@ -229,12 +199,12 @@ poverty_row <- tidy(cancer_model, conf.int = TRUE) |>
 poverty_row
 ```
 
-The poverty estimate is about 0.265 deaths per 100,000 per percentage point,
-with a 95% interval of approximately [0.220, 0.311] and p-value below 2e-16.
-For $H_0:\beta_{\mathrm{poverty}}=0$ versus
-$H_A:\beta_{\mathrm{poverty}}\ne0$, reject the zero-slope null. This is strong
-evidence of an adjusted linear association in this sample and model; it is not
-evidence of causation or practical importance by itself.
+For this test, $H_0:\beta_{\mathrm{poverty}}=0$ and
+$H_A:\beta_{\mathrm{poverty}}\ne0$. A small p-value is evidence against a
+zero adjusted poverty slope. The confidence interval gives the range of
+coefficient values compatible with the model and sample under repeated-sampling
+reasoning. Statistical evidence does not by itself establish a causal effect
+or practical importance.
 
 ### Your turn: test the incidence slope and the intercept
 
@@ -247,20 +217,67 @@ substantively useful?
 p-value against the 5% level. Then check whether the predictor values in that
 interpretation occur in the observed data.
 
-The incidence estimate is about 0.665 deaths per 100,000 per additional
-incidence case per 100,000. Its 95% interval is approximately [0.649, 0.681]
-and its p-value is below 2e-16, so reject
-$H_0:\beta_{\mathrm{incidence}}=0$ conditional on poverty.
+## 3. Raw versus adjusted slopes, and F tests
 
-The intercept estimate is about 2.527, with 95% interval [1.375, 3.679] and
-p-value about 1.77e-5, so its test also rejects $H_0:\beta_0=0$. However,
-this asks about mortality when both poverty and incidence are zero. Both values
-are outside the observed ranges, so the intercept test has little substantive
-meaning. A confidence interval excluding zero agrees with rejection of the
-corresponding two-sided 5% zero-coefficient test. A p-value does not measure
-effect size and does not make an observational association causal.
+**What to do:** Fit poverty on its own and compare its slope with the adjusted
+poverty slope above. Then use F tests to ask whether each predictor adds
+anything to a model that already contains the other.
 
-## 3. Confidence versus prediction intervals
+### Demonstration: poverty on its own
+
+```{r}
+poverty_model <- lm(
+  Mortality_Rate_num ~ poverty_percent,
+  data = cancer_model_data
+)
+
+tidy(poverty_model)
+
+cancer_model_data |>
+  summarise(poverty_incidence_correlation = cor(poverty_percent, incidence_rate))
+```
+
+Compare the poverty slope here with the poverty slope in `cancer_model`. Both
+are correct, but they answer different questions. Discuss: Why would the slope
+shrink once incidence is in the model? Use the correlation in your answer.
+
+### Demonstration: does poverty add to incidence?
+
+The last line of `summary()` is the **overall F test**. It asks whether *all*
+the slopes are zero together, which is a low bar.
+
+```{r}
+summary(cancer_model)
+```
+
+A more useful question compares two **nested** models: the smaller model is the
+bigger one with some terms removed. Does adding poverty improve a model that
+already has incidence?
+
+```{r}
+incidence_model <- lm(
+  Mortality_Rate_num ~ incidence_rate,
+  data = cancer_model_data
+)
+
+anova(incidence_model, cancer_model)
+```
+
+The null hypothesis is $H_0:\beta_{\mathrm{poverty}}=0$ in the model that
+already contains incidence. Find the F statistic, then square the poverty t
+statistic from Section 2. With one coefficient being tested, $F=t^2$, and the
+p-values match.
+
+### Your turn: does incidence add to poverty?
+
+Use `anova()` to compare `poverty_model` with `cancer_model`. State the null
+hypothesis and your conclusion, and check that $F=t^2$ for the incidence slope.
+
+```{r}
+# Your code here
+```
+
+## 4. Confidence versus prediction intervals
 
 **What to do:** Make a prediction for the specified county characteristics
 using both a confidence interval and a prediction interval. Compare their
@@ -286,10 +303,8 @@ confidence_interval |>
   select(interval, fit, lwr, upr)
 ```
 
-The fitted average mortality is approximately 46.39 deaths per 100,000. The
-confidence interval targets the average mortality for all counties at these
-predictor values; it is relatively narrow because it only reflects uncertainty
-in the fitted mean.
+A confidence interval describes uncertainty about the average mortality for all
+counties with these predictor values.
 
 ### Your turn: prediction interval for one county
 
@@ -298,32 +313,24 @@ predictor values. Compare it with the confidence interval above. Which is
 wider, and why?
 
 ```{r}
-prediction_interval <- as_tibble(
-  predict(cancer_model, newdata = new_county, interval = "prediction")
-) |>
-  mutate(interval = "Prediction: individual county")
-
-bind_rows(confidence_interval, prediction_interval) |>
-  select(interval, fit, lwr, upr)
+# Your code here
 ```
 
-The fitted value is identical because both intervals use the same new county and
-same fitted model. The prediction interval is wider because it includes
-county-to-county residual variation as well as uncertainty in the average.
-Neither interval should be trusted as an extrapolation far outside the observed
-poverty or incidence ranges.
+## 5. Interpret the LINE diagnostics
 
-## 4. Interpret the LINE diagnostics
+These are the same L-I-N-E checks as last week. Here `check_model()` and
+related functions from the performance package draw the plots.
 
 **What to do:** Work through the LINE assumptions one at a time. For each
 assumption, state what it means, identify what evidence the supplied diagnostic
 provides, and decide whether there is a meaningful concern. Remember that
 violations of assumptions happen in degrees; they are not an automatic
 pass/fail rule.
+
 ### Demonstration: L: what linearity asks
 
-The linearity plot shows the model residual pattern against fitted
-values. A roughly horizontal reference line supports a straight-line mean
+The linearity plot shows the model residual pattern against fitted values. A
+roughly horizontal reference line supports a straight-line mean
 structure; a visible curve suggests that the conditional mean is not adequately
 represented by straight-line terms.
 
@@ -339,10 +346,6 @@ straight-line mean structure reasonably supported?
 **Hint:** Look for a systematic curve in the residual trend, rather than
 isolated points far from the line.
 
-The reference line is broadly near zero with only a modest bend. Linearity is
-not the dominant concern for this primary model. A persistent curve would mean
-that straight-line terms miss part of the conditional mean.
-
 ### Demonstration: I: what independence asks
 
 There is no valid row-order plot for independence. Counties may share
@@ -355,11 +358,6 @@ this one is handled by study design and knowing your data and its source.
 What features of the study design could make counties non-independent?
 
 **Hint:** Think about nearby counties sharing geography, exposures or services.
-
-Independence remains unresolved because the CSV has no spatial adjacency or
-sampling-design information. Additional spatial data, clustered sampling
-information or a design that samples independent units would be needed to assess
-or model dependence. A plot cannot prove independence.
 
 ### Demonstration: N: what normality asks
 
@@ -380,12 +378,6 @@ particular attention to the centre and tails.
 **Hint:** A Q-Q plot compares the residual quantiles with what a normal
 distribution would produce; check whether departures are mainly in the tails.
 
-The centre is closer to the reference line than the tails. Both tails depart,
-with particularly extreme negative residuals and a heavy upper tail. Tail
-departures matter most for small-sample model-based inference and individual
-prediction; they are less damaging to a rough description of the centre in this
-large sample.
-
 ### Demonstration: E: what equal variance asks
 
 `check_heteroscedasticity()` is the same plot as linearity, that is fitted
@@ -403,11 +395,7 @@ fitted values increase, or does it change systematically?
 
 **Hint:** Look for a widening or narrowing vertical cloud across fitted values.
 
-The vertical spread shows a smooth increase toward larger fitted mortality. This
-is evidence of non-constant variance. Conventional standard errors and
-prediction intervals therefore need caution, even though the sample is large.
-
-## 5. Influence and one transformation
+## 6. Influence and one transformation
 
 **What to do:** Identify observations that may have unusual influence on the
 fitted model, then compare the original model with one transformed alternative.
@@ -444,20 +432,6 @@ deciding whether any observation should be excluded?
 Cook's distance as a reason to investigate the source record, not as an
 automatic deletion rule.
 
-The largest Cook's distances are approximately:
-
-| County | Cook's distance | Standardized residual |
-|:--|--:|--:|
-| Covington city, Virginia | 0.252 | -7.90 |
-| Union County, Florida | 0.152 | -4.11 |
-| Williamsburg city, Virginia | 0.143 | -9.19 |
-| Greene County, Alabama | 0.065 | -5.44 |
-
-Check the source records, units, missing-value handling, predictor leverage and
-data-entry plausibility. Then refit as a sensitivity analysis. Crossing the
-informal 4/n line (dotted in the plot) is a prompt for inspection, not a reason
-to delete a county automatically.
-
 ### Demonstration: compare a log-incidence alternative
 
 ```{r}
@@ -487,13 +461,6 @@ plot(check_heteroscedasticity(cancer_model))
 plot(check_heteroscedasticity(cancer_log_model))
 ```
 
-The original model has R-squared about 0.767 and residual SD about 6.88. The
-log-incidence model has slightly lower R-squared and slightly larger residual
-SD. Unless its residual pattern materially improves, the original scale is the
-more direct interpretation. A transformation should be retained only when its
-overall diagnostic and prediction benefits outweigh the loss of direct
-interpretability.
-
 ### Your turn: decide about the transformation
 
 **Your turn:** Compare the original and log-incidence models. Look at $R^2$,
@@ -504,12 +471,7 @@ model enough to justify making the coefficient harder to interpret?
 decision on the size of the improvement and the model's purpose, not on $R^2$
 alone.
 
-The fit table and both performance diagnostic plots should be compared,
-including variance, curvature, tails and interpretability rather than choosing by
-R-squared alone. A 1% increase in incidence changes the fitted response by
-approximately 0.01 times the logged-incidence coefficient, in mortality units.
-
-## 6. Independent workflow: income and insurance
+## 7. Independent workflow: income and insurance
 
 **Your turn: complete the full workflow using income and insurance.**
 
@@ -518,98 +480,66 @@ approximately 0.01 times the logged-incidence coefficient, in mortality units.
    mortality using both predictors.
 2. Interpret each adjusted coefficient in its original units. Inspect standard
    errors, 95% intervals and p-values, and compare $R^2$ with adjusted $R^2$.
-3. Predict mortality when income is 50 thousand dollars and uninsured
+3. Fit income on its own and compare its slope with the adjusted income slope.
+   Use `anova()` to test whether uninsured percentage adds to a model that
+   already has income, and check that $F=t^2$.
+4. Predict mortality when income is 50 thousand dollars and uninsured
    percentage is 10. Calculate both an interval for the average county and an
    interval for one county; compare their widths.
-4. Interpret the supplied LINE plots and influence output. State the main
+5. Interpret the supplied LINE plots and influence output. State the main
    concern for each assumption and name any counties you would investigate.
-5. Fit a second model using log income. Compare fit and diagnostic plots, then
+6. Fit a second model using log income. Compare fit and diagnostic plots, then
    recommend which model to retain and explain the trade-off in interpretation.
 
 ### Your turn: prepare and fit the independent model
 
 Fit the model and interpret both adjusted slopes, confidence intervals and
-p-values.
+p-values. Also state what the intercept represents and whether that comparison
+is meaningful for these counties.
 
-Also state what the intercept represents and whether that comparison is
-meaningful for these counties. **Hint:** use the model output and check whether
-zero income and zero uninsured percentage occur in the data.
+Create income_data with complete rows for area_name, Mortality_Rate_num,
+med_income, all_without_insur and popestimate2015. Derive:
+
+- income_thousands = med_income / 1000; and
+- uninsured_percent = 100 * all_without_insur / popestimate2015.
+
+Then fit and print income_model:
 
 ```{r}
-income_data <- cancer |>
-  select(
-    area_name, Mortality_Rate_num, med_income, all_without_insur,
-    popestimate2015
-  ) |>
-  filter(
-    is.finite(Mortality_Rate_num),
-    is.finite(med_income),
-    is.finite(all_without_insur),
-    is.finite(popestimate2015),
-    popestimate2015 > 0
-  ) |>
-  mutate(
-    income_thousands = med_income / 1000,
-    uninsured_percent = 100 * all_without_insur / popestimate2015
-  ) |>
-  select(area_name, Mortality_Rate_num, income_thousands, uninsured_percent)
-
-income_model <- lm(
-  Mortality_Rate_num ~ income_thousands + uninsured_percent,
-  data = income_data
-)
-
-glimpse(income_data)
-income_model
-tidy(income_model, conf.int = TRUE)
-glance(income_model) |>
-  select(r.squared, adj.r.squared)
+# Your code here
 ```
 
-Use `glance(income_model)` to report ordinary and adjusted $R^2$.
+Use tidy(income_model, conf.int = TRUE) and answer:
 
-There are 2,809 complete counties. The income slope is approximately -0.532
-deaths per 100,000 per $1,000 income difference, holding uninsured percentage
-constant. Its 95% interval is approximately [-0.574, -0.490] and its p-value is
-below 2e-16. The uninsured slope is approximately -0.150 deaths per 100,000
-per percentage point, holding income constant. Its 95% interval is
-approximately [-0.258, -0.041] and its p-value is about 0.0068. Both slopes
-provide evidence against a zero adjusted coefficient at the 5% level.
+1. What is the adjusted mortality difference for a $1,000 income difference?
+2. What is the adjusted mortality difference for a one-percentage-point
+   uninsured-rate difference?
+3. Are the slopes or the intercept plausibly zero according to their tests?
+4. Is the intercept at zero income and zero uninsured percentage a meaningful
+   county comparison?
 
-The intercept is approximately 79.99 and its p-value is below 2e-16, but it
-describes zero income and zero uninsured percentage, outside the data and not
-a meaningful county comparison. The negative uninsured coefficient is an
-observational conditional association; it is not evidence that lack of
-insurance reduces mortality.
+Also report ordinary and adjusted $R^2$.
+
+### Your turn: raw versus adjusted, and a nested F test
+
+Fit `income_only_model` with income as the only predictor. Compare its income
+slope with the adjusted slope in `income_model`. Then use `anova()` to test
+whether uninsured percentage adds to the income-only model, and check that
+$F=t^2$ for the uninsured slope.
+
+```{r}
+# Your code here
+```
 
 ### Your turn: predict with uncertainty
 
-Calculate both intervals and explain why they differ in width.
+Calculate both intervals and explain why they differ in width. Use a county with
+income_thousands = 50 and uninsured_percent = 10, and calculate both a
+confidence interval for the average and a prediction interval for one county:
 
 ```{r}
-new_income_county <- tibble(
-  income_thousands = 50,
-  uninsured_percent = 10
-)
-
-income_confidence <- as_tibble(
-  predict(income_model, newdata = new_income_county, interval = "confidence")
-) |>
-  mutate(interval = "Confidence: average county")
-
-income_prediction <- as_tibble(
-  predict(income_model, newdata = new_income_county, interval = "prediction")
-) |>
-  mutate(interval = "Prediction: individual county")
-
-bind_rows(income_confidence, income_prediction) |>
-  select(interval, fit, lwr, upr)
+# Your code here
 ```
-
-The fitted mortality is approximately 51.91. The confidence interval is about
-[51.37, 52.44], while the prediction interval is about [27.30, 76.52]. The
-prediction interval is wider because it includes residual variation for one
-county.
 
 ### Your turn: interpret the independent diagnostics
 
@@ -620,7 +550,12 @@ For each plot, write what pattern you see, what it suggests about the
 assumption, and whether it concerns you. For influence, name any counties in
 the largest Cook's-distance rows and say what you would check.
 
+This supplied diagnostics chunk uses `income_model` from your previous task.
+After you have created and fitted that model, run the chunk in RStudio. It is
+skipped during rendering while the model code is still blank.
+
 ```{r}
+#| eval: false
 check_model(income_model, check = "linearity")
 
 income_normality_check <- check_normality(income_model)
@@ -646,53 +581,36 @@ income_results |>
   select(observation, area_name, .cooksd, .hat, .std.resid)
 ```
 
-The independent model usually shows a broad residual cloud, increasing spread
-toward larger fitted values, non-normal tails and a small number of influential
-counties. Students should report what their plots show and note that
-independence still requires study-design evidence.
+Write one paragraph covering L, I, N and E, and identify any influential
+observations that require checking. Do not claim that a plot proves independence.
 
 ### Your turn: compare a transformed independent model
 
 Compare the original and log-income models. Decide whether the transformation
 produces a worthwhile improvement in fit or diagnostics.
 
+Fit a second model with log(income_thousands) in place of
+income_thousands. Compare R-squared, residual standard deviation and the
+performance diagnostic plots. Finish with a recommendation that distinguishes
+association from causation and qualifies inference when LINE concerns remain.
+
 ```{r}
-income_log_model <- lm(
-  Mortality_Rate_num ~ log(income_thousands) + uninsured_percent,
-  data = income_data
-)
-
-tibble(
-  model = c("Original income", "Log income"),
-  r_squared = c(
-    glance(income_model)$r.squared,
-    glance(income_log_model)$r.squared
-  ),
-  residual_sd = c(
-    glance(income_model)$sigma,
-    glance(income_log_model)$sigma
-  )
-)
-
-check_model(income_model, check = "linearity")
-check_model(income_log_model, check = "linearity")
-
-plot(check_heteroscedasticity(income_model))
-plot(check_heteroscedasticity(income_log_model))
+# Your code here: fit income_log_model and compare fit.
+# Use check_model() for linearity and plot(check_heteroscedasticity())
+# for both the original and transformed models.
 ```
-
-The original income model has R-squared about 0.202 and residual SD about 12.55.
-The log-income model has R-squared about 0.221 and residual SD about 12.39, a
-modest fit improvement. Students should still check whether curvature and
-spread improve enough to justify the less direct log-income interpretation.
-Neither model establishes causal effects.
 
 ## Conclusion
 
-The primary model provides adjusted associations, but confidence and prediction
-intervals answer different questions. The coefficient p-values test whether
-slopes or the intercept are zero under the model; they do not prove hypotheses
-or causation. The diagnostic plots show broadly reasonable linearity, increasing
-variance, tail departures and unresolved independence. Influential counties and
-any transformation should be checked through sensitivity and model-purpose
-reasoning.
+Summarise the primary model's adjusted associations, how the poverty slope
+changed once incidence was added, what each p-value and F test tests, the
+confidence-versus-prediction distinction, the most important diagnostic concern
+and whether the transformation is worth retaining. Explain what extra data or
+study design would make the independence assumption more credible.
+
+## Looking ahead
+
+Every predictor so far has been a number. Next week we use categories, such as
+a vehicle's body type, as predictors, and test a whole factor at once.
+
+[View the worked solutions online](https://knowlton.co.nz/297101/labs/Workshop_Week10_MLR_guide.html).

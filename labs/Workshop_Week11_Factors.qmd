@@ -1,6 +1,6 @@
 ---
-title: "Workshop Week 11: Multiple Regression and Factors"
-subtitle: "Student workbook: adjusted coefficients and body type"
+title: "Workshop Week 11: Factors in Linear Models"
+subtitle: "Student workbook: body type, adjusted comparisons and factor tests"
 author:
   - name: "Nick Knowlton"
   - name: "297.101 Statistical Data Science"
@@ -20,12 +20,13 @@ editor:
     wrap: 72
 ---
 
-Last week we used one numerical vehicle specification at a time. Today we return
-to fuel use and add a categorical predictor, `body_type`, represented in R as a
-factor. This lets us compare body types while accounting for a numerical vehicle
-characteristic at the same time. The key idea is that a comparison between body
-types after accounting for another variable is not necessarily the same as
-comparing their raw averages.
+In Week 9 we modelled vehicle fuel use with one numerical specification at a
+time, and last week we put several numeric predictors into one model. Today we
+return to fuel use and use a categorical predictor, `body_type`, represented in
+R as a factor. We start with body type on its own, then compare body types
+while accounting for a numerical vehicle characteristic at the same time. The
+key idea is that a comparison between body types after accounting for another
+variable is not necessarily the same as comparing their raw averages.
 
 ## Today's question
 
@@ -35,10 +36,13 @@ What changes when we add body type to a model of vehicle characteristics and fue
 
 By the end of this workshop you should be able to:
 
+- fit a model with only a categorical predictor and read its coefficients as
+  differences in group means;
 - fit a multiple linear regression (MLR) model with numerical and categorical predictors;
 - interpret an adjusted coefficient using “holding the other variables constant”;
 - identify the reference category and interpret coefficients for categorical predictors;
-- interpret a factor with more than two levels;
+- interpret a factor with more than two levels, and test it as a whole with
+  `anova()`;
 - compare ordinary and adjusted $R^2$ across models fitted to the same response; and
 - make predictions for specified combinations of predictors.
 
@@ -53,11 +57,8 @@ supplied code loads the data directly from knowlton.co.nz.
 ## 1. Revisit a simple model
 
 **What to do:** Start by refitting the simple engine-size and power models from
-last week. Check that you can still interpret the slope, intercept and $R^2$.
-The coefficient table also shows the standard error and p-value introduced in
-this week's lecture. For now, use them to recognise that a fitted coefficient
-is an estimate from a sample. We will do the formal confidence-interval and
-hypothesis-testing interpretation next week.
+Week 9. Check that you can still interpret the slope, intercept and $R^2$, and
+read the standard error and p-value for each slope.
 
 ```{r}
 library(readr)
@@ -126,7 +127,7 @@ Refit the power model yourself and interpret the slope in useful units. Before
 moving on, make sure you can explain what the coefficient tells us about the
 overall association between power and fuel use.
 
-Reuse the Week 10 workflow: fit the model, inspect its coefficients and plot the
+Reuse the Week 9 workflow: fit the model, inspect its coefficients and plot the
 fitted line. Report the power slope per 10 kW.
 
 ```{r}
@@ -137,7 +138,46 @@ fitted line. Report the power slope per 10 kW.
 # Your code here
 ```
 
-## 2. Add a two-level factor
+## 2. Body type on its own
+
+**What to do:** Before adding any numerical predictor, fit fuel use against a
+factor alone. Compare the coefficients with the group means, and identify which
+group is the reference.
+
+R turns a factor into 0/1 columns, one for each level except the first. The
+first level is the **reference category**, and each coefficient is a
+difference from it.
+
+### Demonstration: Station wagon versus Other
+
+```{r}
+vehicles |>
+  group_by(station_wagon) |>
+  summarise(vehicles = n(), mean_fuel_use = mean(fuel_use_l_per_100km))
+
+wagon_only_model <- lm(fuel_use_l_per_100km ~ station_wagon, data = vehicles)
+tidy(wagon_only_model)
+```
+
+Match the intercept and the `station_wagonOther` coefficient to the two group
+means. Discuss: What does the `station_wagonOther` p-value test? This model is
+the same comparison as a two-sample t test of equal means.
+
+### Your turn: all five body types
+
+Fit `body_only_model` with the five-level `body_type` as the only predictor.
+Calculate the mean fuel use for each body type and match each coefficient to a
+difference between two of those means. Then use `anova(body_only_model)` to
+test whether mean fuel use differs between body types at all.
+
+**Hint:** `anova()` on a model with one factor gives the one-way ANOVA F test:
+$H_0$ is that all five population means are equal.
+
+```{r}
+# Your code here
+```
+
+## 3. Add a two-level factor
 
 **What to do:** Add the two-level `station_wagon` factor to the engine-size
 model. Identify the reference category, then interpret the intercept, engine-size
@@ -187,7 +227,7 @@ factor. The first factor level is the reference group.
 # Your code here
 ```
 
-## 3. Use all five body types
+## 4. Use all five body types
 
 **What to do:** Replace the two-level factor with the full five-level
 `body_type` factor. Identify the reference category and count how many body-type
@@ -239,7 +279,37 @@ engine power?
 # Your code here
 ```
 
-## 4. Make comparable predictions
+### Demonstration: test body type as a whole
+
+Each body-type row tests one body type against Station wagons. To ask whether
+body type matters **at all** once engine size is known, compare the model
+without body type to the model with it. All four body-type coefficients are
+tested together:
+
+$$
+H_0:\ \beta_{\mathrm{Hatchback}}=\beta_{\mathrm{Sedan}}=\beta_{\mathrm{Sports\ car}}=\beta_{\mathrm{Convertible}}=0 .
+$$
+
+```{r}
+anova(engine_model, body_model)
+```
+
+Compare this F test with the individual body-type p-values in `tidy(body_model)`.
+Discuss: Can some individual rows be inconclusive while the factor as a whole
+shows evidence of a difference? Would changing the reference category change
+this F test?
+
+### Your turn: body type at the same power
+
+Use `anova()` to test whether body type as a whole adds to the power model.
+Compare your simple power model with your power plus body type model. State the
+null hypothesis, the F statistic and your conclusion.
+
+```{r}
+# Your code here
+```
+
+## 5. Make comparable predictions
 
 **What to do:** Use the fitted model to predict fuel use for every body type
 while holding engine size at 2.0 L. Because engine size is fixed, differences
@@ -295,7 +365,7 @@ constant.
 # Your code here
 ```
 
-## 5. Independent workflow: gross vehicle mass and body type
+## 6. Independent workflow: gross vehicle mass and body type
 
 **Your turn: complete the full workflow using gross vehicle mass.**
 
@@ -310,7 +380,9 @@ constant.
    carry overlapping information.
 4. Predict fuel use for each body type at 2000 kg. Identify the largest fitted
    mean and explain what the adjustment adds.
-5. Compare $R^2$ and adjusted $R^2$ across all three models. State what happens
+5. Use `anova()` to test whether body type as a whole adds to the simple mass
+   model.
+6. Compare $R^2$ and adjusted $R^2$ across all three models. State what happens
    as terms are added and which model's adjusted $R^2$ is largest.
 
 ### Fit and interpret the mass models
@@ -344,6 +416,15 @@ adjustment adds.
 # Your code here: predict for every body type at gross_mass_kg = 2000.
 ```
 
+### Test body type as a whole
+
+Does body type as a whole add to the simple mass model? State the null
+hypothesis and your conclusion.
+
+```{r}
+# Your code here: compare mass_model and mass_body_model with anova().
+```
+
 ### Compare model fit
 
 Thinking back to last week, what are the $R^2$ and adjusted $R^2$ values for
@@ -356,19 +437,19 @@ does adjusted $R^2$ provide a useful penalty?
 # glance(mass_binary_model), and glance(mass_body_model).
 ```
 
-## Optional extra: fitting a model to the Week 9 coffee ratings
+## Optional extra: adjusting coffee ratings with a model
 
-In Homework 9, you examined ratings for five coffee brands from 1 to 9 and
-adjusted for the nuisance effects of day and time. This example uses a
+In a coffee-tasting study, five coffee brands were rated from 1 to 9 on
+different days and at different times. Day and time are nuisance effects: we
+want to compare the brands, not the days. This example uses a
 [balanced 50-rating subset](https://knowlton.co.nz/297101/labs/coffee_tasting_balanced.csv).
-Each brand has two ratings on every day and at every time. The Week 9 hand
-adjustment code and brand means are supplied as a refresher. Use `lm()` to
-account for day and time while comparing the coffee brands. Your personalised
-homework data may give different results. See the
-[original Week 9 homework instructions](https://r-resources.massey.ac.nz/297101/CoffeeTasting.html)
+Each brand has two ratings on every day and at every time. Code that adjusts
+for day and time by hand, and the resulting brand means, are supplied below.
+Use `lm()` to account for day and time while comparing the coffee brands. See
+the [original coffee-tasting instructions](https://r-resources.massey.ac.nz/297101/CoffeeTasting.html)
 for details.
 
-| Coffee | Week 9 hand-adjusted mean |
+| Coffee | Hand-adjusted mean |
 |:--|--:|
 | Ethiopian Highlands | 8.30 |
 | Cafe Special | 7.30 |
@@ -389,7 +470,7 @@ Coffee <- Coffee |>
 count(Coffee, Coffee)
 ```
 
-Here is the Week 9 hand adjustment again. The table above gives its results,
+Here is the hand adjustment. The table above gives its results,
 so your task is to fit a model and compare the two sets of adjusted means.
 
 ```{r coffee-example-hand-adjustment}
@@ -427,7 +508,7 @@ at the same day and time.
 Use `predict()` to obtain the model's fitted rating for each observation, then
 average those ratings within each brand. Each brand has the same day and time
 distribution in this balanced subset, so the prediction averages account for
-those nuisance effects on equal terms. Join them to the supplied Week 9 means
+those nuisance effects on equal terms. Join them to the supplied hand-adjusted means
 in `hand_adjusted_means` to make a comparison table.
 
 ```{r coffee-example-adjusted-means}
@@ -442,16 +523,18 @@ reference brand.
 ## Conclusion
 
 Summarise how adding body type changed the interpretation of a numerical slope,
-how the Station wagon reference category works, and what you learned from the
+how the Station wagon reference category works, how a single body-type row test
+differs from testing body type as a whole, and what you learned from the
 gross-mass workflow. Explain why model complexity can change fitted slopes and
 why ordinary $R^2$ and adjusted $R^2$ respond differently to added terms.
 Explain why the “best” body type can depend on the numerical specification used
 for the comparison. Distinguish these observational associations and conditional
 predictions from causal effects.
 
-## Looking ahead
+## Bringing it together
 
-Next week we will study uncertainty in estimates and predictions and interpret
-diagnostic plots for the assumptions behind linear-model inference.
+Every model in Weeks 9 to 11 used the same workflow: fit, interpret in the
+units of the problem, test, predict with the right interval, and check the
+residuals. The L-I-N-E checks from Week 9 apply to models with factors too.
 
-[View the worked solutions online](https://knowlton.co.nz/297101/labs/Workshop_Week11_Testing_guide.html).
+[View the worked solutions online](https://knowlton.co.nz/297101/labs/Workshop_Week11_Factors_guide.html).
