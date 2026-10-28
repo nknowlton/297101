@@ -54,18 +54,20 @@ jobs:
 
       - name: Render lecture slides
         run: |
-          quarto render lectures/10_linear_models.qmd
-          quarto render lectures/11_linear_models_hypoth_pred.qmd
-          quarto render lectures/12_linear_models_assump_resids.qmd
+          quarto render lectures/09_slr_01_fitting.qmd
+          quarto render lectures/09_slr_02_inference.qmd
+          quarto render lectures/09_slr_03_diagnostics.qmd
+          quarto render lectures/10_mlr.qmd
+          quarto render lectures/11_factors.qmd
 
       - name: Render workshops and solutions
         run: |
-          quarto render labs/Workshop_Week10_Relationships.qmd
-          quarto render labs/Workshop_Week10_Relationships_guide.qmd
-          quarto render labs/Workshop_Week11_Testing.qmd
-          quarto render labs/Workshop_Week11_Testing_guide.qmd
-          quarto render labs/Workshop_Week12_Assumptions.qmd
-          quarto render labs/Workshop_Week12_Assumptions_guide.qmd
+          quarto render labs/Workshop_Week09_SLR.qmd
+          quarto render labs/Workshop_Week09_SLR_guide.qmd
+          quarto render labs/Workshop_Week10_MLR.qmd
+          quarto render labs/Workshop_Week10_MLR_guide.qmd
+          quarto render labs/Workshop_Week11_Factors.qmd
+          quarto render labs/Workshop_Week11_Factors_guide.qmd
 
       - name: Assemble Pages site
         run: |
@@ -76,23 +78,25 @@ jobs:
           cp site/lectures/index.html _site/lectures/index.html
           cp site/labs/index.html _site/labs/index.html
 
-          cp lectures/10_linear_models.html _site/lectures/
-          cp lectures/11_linear_models_hypoth_pred.html _site/lectures/
-          cp lectures/12_linear_models_assump_resids.html _site/lectures/
+          cp lectures/09_slr_01_fitting.html _site/lectures/
+          cp lectures/09_slr_02_inference.html _site/lectures/
+          cp lectures/09_slr_03_diagnostics.html _site/lectures/
+          cp lectures/10_mlr.html _site/lectures/
+          cp lectures/11_factors.html _site/lectures/
 
-          cp labs/Workshop_Week10_Relationships.html _site/labs/
-          cp labs/Workshop_Week10_Relationships_guide.html _site/labs/
-          cp labs/Workshop_Week11_Testing.html _site/labs/
-          cp labs/Workshop_Week11_Testing_guide.html _site/labs/
-          cp labs/Workshop_Week12_Assumptions.html _site/labs/
-          cp labs/Workshop_Week12_Assumptions_guide.html _site/labs/
+          cp labs/Workshop_Week09_SLR.html _site/labs/
+          cp labs/Workshop_Week09_SLR_guide.html _site/labs/
+          cp labs/Workshop_Week10_MLR.html _site/labs/
+          cp labs/Workshop_Week10_MLR_guide.html _site/labs/
+          cp labs/Workshop_Week11_Factors.html _site/labs/
+          cp labs/Workshop_Week11_Factors_guide.html _site/labs/
 
-          cp labs/Workshop_Week10_Relationships.qmd _site/labs/
-          cp labs/Workshop_Week10_Relationships_guide.qmd _site/labs/
-          cp labs/Workshop_Week11_Testing.qmd _site/labs/
-          cp labs/Workshop_Week11_Testing_guide.qmd _site/labs/
-          cp labs/Workshop_Week12_Assumptions.qmd _site/labs/
-          cp labs/Workshop_Week12_Assumptions_guide.qmd _site/labs/
+          cp labs/Workshop_Week09_SLR.qmd _site/labs/
+          cp labs/Workshop_Week09_SLR_guide.qmd _site/labs/
+          cp labs/Workshop_Week10_MLR.qmd _site/labs/
+          cp labs/Workshop_Week10_MLR_guide.qmd _site/labs/
+          cp labs/Workshop_Week11_Factors.qmd _site/labs/
+          cp labs/Workshop_Week11_Factors_guide.qmd _site/labs/
           cp labs/nz_vehicles_2025.csv _site/labs/
           cp labs/coffee_tasting_example.csv _site/labs/
           cp labs/coffee_tasting_balanced.csv _site/labs/
@@ -106,22 +110,24 @@ jobs:
           required=(
             _site/index.html
             _site/lectures/index.html
-            _site/lectures/10_linear_models.html
-            _site/lectures/11_linear_models_hypoth_pred.html
-            _site/lectures/12_linear_models_assump_resids.html
+            _site/lectures/09_slr_01_fitting.html
+            _site/lectures/09_slr_02_inference.html
+            _site/lectures/09_slr_03_diagnostics.html
+            _site/lectures/10_mlr.html
+            _site/lectures/11_factors.html
             _site/labs/index.html
-            _site/labs/Workshop_Week10_Relationships.html
-            _site/labs/Workshop_Week10_Relationships_guide.html
-            _site/labs/Workshop_Week11_Testing.html
-            _site/labs/Workshop_Week11_Testing_guide.html
-            _site/labs/Workshop_Week12_Assumptions.html
-            _site/labs/Workshop_Week12_Assumptions_guide.html
-            _site/labs/Workshop_Week10_Relationships.qmd
-            _site/labs/Workshop_Week10_Relationships_guide.qmd
-            _site/labs/Workshop_Week11_Testing.qmd
-            _site/labs/Workshop_Week11_Testing_guide.qmd
-            _site/labs/Workshop_Week12_Assumptions.qmd
-            _site/labs/Workshop_Week12_Assumptions_guide.qmd
+            _site/labs/Workshop_Week09_SLR.html
+            _site/labs/Workshop_Week09_SLR_guide.html
+            _site/labs/Workshop_Week11_Factors.html
+            _site/labs/Workshop_Week11_Factors_guide.html
+            _site/labs/Workshop_Week10_MLR.html
+            _site/labs/Workshop_Week10_MLR_guide.html
+            _site/labs/Workshop_Week09_SLR.qmd
+            _site/labs/Workshop_Week09_SLR_guide.qmd
+            _site/labs/Workshop_Week11_Factors.qmd
+            _site/labs/Workshop_Week11_Factors_guide.qmd
+            _site/labs/Workshop_Week10_MLR.qmd
+            _site/labs/Workshop_Week10_MLR_guide.qmd
             _site/labs/nz_vehicles_2025.csv
             _site/labs/regression/cancer_data.csv
             _site/labs/coffee_tasting_example.csv
@@ -133,9 +139,9 @@ jobs:
             test -f "$file"
           done
 
-          grep -q 'View the worked solutions online' _site/labs/Workshop_Week10_Relationships.html
-          grep -q 'View the worked solutions online' _site/labs/Workshop_Week11_Testing.html
-          grep -q 'View the worked solutions online' _site/labs/Workshop_Week12_Assumptions.html
+          grep -q 'View the worked solutions online' _site/labs/Workshop_Week09_SLR.html
+          grep -q 'View the worked solutions online' _site/labs/Workshop_Week11_Factors.html
+          grep -q 'View the worked solutions online' _site/labs/Workshop_Week10_MLR.html
 
       - name: Generate sitemap
         run: python3 scripts/generate_sitemap.py
