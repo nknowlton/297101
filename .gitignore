@@ -8,3 +8,5 @@
 *_files/
 
 /.quarto/
+
+.claude/settings.local.json
